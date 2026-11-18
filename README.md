@@ -9,10 +9,11 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.1)
+## Qué hace (versión 0.2)
 
 - **Jugar**: Pokémon Showdown dentro de la app, con tu sesión guardada.
 - **Captura automática**: al acabar cada combate guarda el registro completo. Si después llega el cambio de ELO, se actualiza.
+- **Calculadora**: la calculadora de daño de la [Macar Dex](https://macar218.github.io/macar-dex/) (motor de Smogon, formato Champions a nivel 50) dentro de la app. Se abre en la calculadora y desde ahí tienes también Dex, Velocidad, Equipos y Objetos. Necesita conexión y usa los datos de uso que la Dex actualiza cada semana. Sus equipos y ajustes se guardan aparte de los del navegador.
 - **Dashboard**: récord, % de victorias, ELO, turnos, apuros de tiempo, tus Pokémon y leads, rivales y leads rivales, Megas rivales. Filtros por resultado, fechas, formato, tu lead y rival.
 - **Partidas**: lista con detalle de cada combate (equipos, leads, Megas, movimientos, reloj) y notas.
 - **Importar replays**: archivos `.html` descargados de Showdown o enlaces de `replay.pokemonshowdown.com`. No se duplican.

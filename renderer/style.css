@@ -38,6 +38,13 @@ button{font:inherit;color:inherit}
 #v-jugar{display:flex;flex-direction:column;padding:0;overflow:hidden}
 .playbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:rgba(6,18,52,.7)}
 webview{flex:1;width:100%;border:0;background:#fff}
+#v-calc{display:flex;flex-direction:column;padding:0;overflow:hidden}
+#v-calc webview{background:var(--bg)}
+#v-calc .tools{display:flex;gap:8px;flex-shrink:0}
+.calcwrap{flex:1;position:relative}
+.calcwrap webview{position:absolute;inset:0;height:100%}
+.cload{position:absolute;inset:0;z-index:2;background:var(--bg);display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px}
+.cload.hide{display:none}
 
 /* Piezas comunes */
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}

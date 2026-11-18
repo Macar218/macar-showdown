@@ -58,7 +58,7 @@ function show(v) {
 }
 $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.v); });
 document.addEventListener('keydown', e => {
-  if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); show(['jugar', 'dash', 'partidas', 'ajustes'][+e.key - 1]); }
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); show(['jugar', 'calc', 'dash', 'partidas', 'ajustes'][+e.key - 1]); }
   if (e.key === 'Escape') closeModal();
 });
 
@@ -68,7 +68,8 @@ async function load() {
 }
 function render(force = true) {
   $('#navCount').textContent = M.length;
-  if (VIEW === 'dash') renderDash();
+  if (VIEW === 'calc') openCalc();
+  else if (VIEW === 'dash') renderDash();
   else if (VIEW === 'partidas') renderList();
   else if (VIEW === 'ajustes' && force) renderSettings(); // no se repinta mientras escribes
 }
@@ -88,6 +89,36 @@ async function pollStatus() {
   } catch (e) { /* sin estado */ }
 }
 setInterval(pollStatus, 4000);
+
+/* ---------- Calculadora (Macar Dex) ---------- */
+// Se crea al abrir la pestaña por primera vez, para no cargarla al arrancar.
+const DEX_URL = 'https://macar218.github.io/macar-dex/';
+function openCalc() {
+  if ($('#dex')) return;
+  const w = document.createElement('webview');
+  w.id = 'dex';
+  w.setAttribute('partition', 'persist:macardex');
+  w.setAttribute('src', `${DEX_URL}#calc`);
+  const msg = $('#calcMsg');
+  w.addEventListener('did-finish-load', () => { msg.classList.add('hide'); });
+  w.addEventListener('did-fail-load', e => {
+    if (e.isMainFrame === false || e.errorCode === -3) return; // -3: navegación cancelada, no es un fallo
+    msg.classList.remove('hide');
+    msg.textContent = 'No se pudo abrir la calculadora. Comprueba la conexión y pulsa Recargar.';
+  });
+  $('#calcWrap').appendChild(w);
+}
+$('#calcReload').addEventListener('click', () => {
+  const w = $('#dex');
+  if (!w) return openCalc();
+  $('#calcMsg').textContent = 'Abriendo la calculadora…';
+  $('#calcMsg').classList.remove('hide');
+  w.loadURL(`${DEX_URL}#calc`);
+});
+$('#calcHome').addEventListener('click', () => {
+  const w = $('#dex');
+  if (w) w.executeJavaScript("typeof showTab === 'function' && showTab('calc')").catch(() => w.loadURL(`${DEX_URL}#calc`));
+});
 
 /* ---------- Dashboard ---------- */
 function emptyState() {

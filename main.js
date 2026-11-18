@@ -8,6 +8,9 @@ const capture = require('./src/capture');
 
 const SHOWDOWN = /^https:\/\/([a-z0-9-]+\.)*pokemonshowdown\.com(\/|$)/i;
 const PARTITION = 'persist:showdown';
+// Calculadora: la Macar Dex publicada (motor de Smogon + datos que se actualizan cada semana).
+const DEX = /^https:\/\/macar218\.github\.io\/macar-dex(\/|$)/i;
+const DEX_PARTITION = 'persist:macardex';
 
 let win = null;
 let store = null;
@@ -36,16 +39,21 @@ function createWindow() {
     }
   });
 
-  // El webview solo puede ser Showdown, sin preload y aislado.
+  // Los webviews solo pueden ser Showdown o la Macar Dex, cada uno en su sesión, sin preload y aislados.
   win.webContents.on('will-attach-webview', (event, prefs, params) => {
     delete prefs.preload;
     prefs.nodeIntegration = false;
     prefs.contextIsolation = true;
     prefs.sandbox = true;
-    if (params.partition !== PARTITION || !SHOWDOWN.test(params.src)) event.preventDefault();
+    const ok = (params.partition === PARTITION && SHOWDOWN.test(params.src)) || (params.partition === DEX_PARTITION && DEX.test(params.src));
+    if (!ok) event.preventDefault();
   });
   win.webContents.on('did-attach-webview', (_e, contents) => {
     contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
+    if (contents.session === session.fromPartition(DEX_PARTITION)) {
+      contents.on('will-navigate', (event, url) => { if (!DEX.test(url)) { event.preventDefault(); openExternal(url); } });
+      return; // la calculadora no lleva captura
+    }
     contents.on('will-navigate', (event, url) => { if (!SHOWDOWN.test(url)) { event.preventDefault(); openExternal(url); } });
     capStatus = capture.attach(contents, ({ id, log, clientName }) => {
       try {
@@ -146,6 +154,7 @@ app.whenReady().then(() => {
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || path.join(app.getPath('userData'), 'datos'));
   // Showdown no necesita permisos especiales (cámara, ubicación…): se deniegan todos.
   session.fromPartition(PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  session.fromPartition(DEX_PARTITION).setPermissionRequestHandler((_wc, perm, cb) => cb(perm === 'clipboard-sanitized-write'));
   registerIpc();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
