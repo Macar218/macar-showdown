@@ -17,13 +17,13 @@ const Calc = (() => {
     manual: { me: [], foe: [] }       // Pokémon añadidos a mano
   };
   let TEAMS = [];
-  let U = null, usageFor = null, usageMsg = '';
+  let U = null, usageFor = null, usageMsg = '', TT = null;
   let lastHash = '';
 
   try { Object.assign(S, JSON.parse(localStorage.getItem('msCalc') || '{}'), { battleId: null, edits: { me: {}, foe: {} } }); } catch (e) { /* nada */ }
   if (!S.field || !S.field.me) S.field = P.blankField();
   const persist = () => {
-    try { localStorage.setItem('msCalc', JSON.stringify({ follow: S.follow, tab: S.tab, teamMe: S.teamMe, teamFoe: S.teamFoe, manual: S.manual, field: S.field })); } catch (e) { /* nada */ }
+    try { localStorage.setItem('msCalc', JSON.stringify({ follow: S.follow, tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, teamFoe: S.teamFoe, manual: S.manual, field: S.field })); } catch (e) { /* nada */ }
   };
 
   /* ---------- sets ---------- */
@@ -39,6 +39,8 @@ const Calc = (() => {
   function defaultFoeSet(species) {
     const s = setFromTeam(S.teamFoe, species);
     if (s) return { ...s, src: 'equipo' };
+    const t = S.setSrc !== 'smogon' ? P.tourSet(TT, U, species) : null;
+    if (t) return t;
     const u = P.usageSet(U, species);
     if (u) return u;
     return { ...P.blankMon(species), src: 'sin datos' };
@@ -126,7 +128,8 @@ const Calc = (() => {
     const r = await P.usage(format);
     if (usageFor !== format) return;
     U = r;
-    usageMsg = r ? `Sets del rival sin datos: los más usados en Smogon (${r.month}, ${r.cutoff}+).` : 'Sin sets de uso (¿sin conexión?). El rival sale sin puntos hasta que lo edites.';
+    TT = await P.tour();
+    usageMsg = [TT ? `Torneos: ${TT.nTeams} equipos de ${TT.tours} torneos (Limitless, ${TT.days} días)` : '', r ? `Smogon: ${r.month}, ${r.cutoff}+` : ''].filter(Boolean).join(' · ') || 'Sin datos de uso (¿sin conexión?). El rival sale sin puntos hasta que lo edites.';
     lastHash = '';
     tick(true);
   }
@@ -141,7 +144,7 @@ const Calc = (() => {
   function strip(side) {
     return `<div class="strip"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}<button class="mchip add" data-add="${side}" title="Añadir un Pokémon a mano">+</button></div></div>`;
   }
-  const SRC = { exacto: 'exacto', uso: 'más usado', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC' };
+  const SRC = { exacto: 'exacto', uso: 'Smogon', torneo: 'de torneo', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC' };
   function monCard(m, side) {
     if (!m) return `<div class="mcard empty"><p class="note">${side === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'} o añade uno con +.</p></div>`;
     const st = m.status ? `<span class="st ${m.status}">${esc(m.status.toUpperCase())}</span>` : '';
@@ -216,6 +219,7 @@ const Calc = (() => {
       <div class="cteams"><select id="cTeamMe" title="Tu equipo (si no hay combate, o si eres espectador)">${teamOpt('me', S.teamMe)}</select>
         <select id="cTeamFoe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" id="cTeams" title="Pegar o traer de Pokepaste un equipo rival">+ Rival</button></div>
+      <div class="csrc"><span class="note">Sets del rival que no conoces:</span><div class="seg">${[['tour', 'Torneos'], ['smogon', 'Smogon']].map(([k, l]) => `<button data-csrc="${k}" aria-pressed="${(S.setSrc || 'tour') === k}">${l}</button>`).join('')}</div></div>
       ${strip('me')}${strip('foe')}
       <div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button></div>
       <div id="cTab">${S.tab === 'multi' ? Multi.render(api_state()) : `
@@ -311,6 +315,7 @@ const Calc = (() => {
         S.edits[side][m.species] = { ...(S.edits[side][m.species] || {}), boosts: m.boosts };
         render();
       } else if (t.dataset.ctab) { S.tab = t.dataset.ctab; persist(); render(); }
+      else if (t.dataset.csrc) { S.setSrc = t.dataset.csrc; persist(); lastHash = ''; tick(true); }
       else if (t.id === 'cTeams') quickRival();
       else if (Multi.click(t, api_state())) render();
     });
@@ -402,13 +407,13 @@ const Calc = (() => {
   };
   const onPage = () => $('#v-calc').classList.contains('on');
   const setOpen = v => {
-    panel.classList.toggle('hide', !v); btn.classList.toggle('primary', v); btn.setAttribute('aria-pressed', String(v));
+    panel.classList.toggle('closed', !v); btn.classList.toggle('on', v); btn.setAttribute('aria-pressed', String(v));
     try { localStorage.setItem('msCalcPanel', v ? '1' : '0'); } catch (e) { /* nada */ }
     Calc.setOpen(v || onPage());
   };
-  btn.addEventListener('click', () => setOpen(panel.classList.contains('hide')));
-  document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen(panel.classList.contains('hide')); } });
-  window.addEventListener('ms:view', () => { placeBody(); Calc.setOpen(!panel.classList.contains('hide') || onPage()); });
+  btn.addEventListener('click', () => setOpen(panel.classList.contains('closed')));
+  document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen(panel.classList.contains('closed')); } });
+  window.addEventListener('ms:view', () => { placeBody(); Calc.setOpen(!panel.classList.contains('closed') || onPage()); });
   let w = 480;
   try { w = +localStorage.getItem('msCalcW') || 480; } catch (e) { /* nada */ }
   const setW = x => { w = Math.max(380, Math.min(820, x)); panel.style.width = `${w}px`; };

@@ -1,5 +1,6 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, net } = require('electron');
+const { pathToFileURL } = require('url');
 const fs = require('fs');
 const path = require('path');
 const { Store } = require('./src/store');
@@ -7,6 +8,12 @@ const { parseFile } = require('./src/parser');
 const capture = require('./src/capture');
 const { LIVE } = require('./src/live');
 const { Usage } = require('./src/usage');
+const { CURRENT, uploadReplay } = require('./src/media');
+const { Tournaments } = require('./src/tournaments');
+const { matchId } = require('./src/store');
+
+// Vídeos de las partidas: se sirven a la interfaz por msvideo:// (con saltos dentro del vídeo).
+protocol.registerSchemesAsPrivileged([{ scheme: 'msvideo', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }]);
 
 const SHOWDOWN = /^https:\/\/([a-z0-9-]+\.)*pokemonshowdown\.com(\/|$)/i;
 const PARTITION = 'persist:showdown';
@@ -14,8 +21,11 @@ const PARTITION = 'persist:showdown';
 let win = null;
 let store = null;
 let usage = null;
+let tours = null;
 let sdContents = null; // el webview de Showdown, para leer el combate en directo
 let capStatus = { ok: false, why: 'Abre la pestaña Jugar para empezar', open: 0, finished: 0, saved: 0 };
+const replaying = new Set();
+let rec = null; // grabación en curso: { mid, file, stream }
 
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
@@ -57,6 +67,11 @@ function createWindow() {
       try {
         const r = store.saveLog({ id, log, clientName, source: 'auto' });
         if (r.saved) notify(r.summary);
+        // Replay automática: solo de tus combates, una vez por partida.
+        if (r.saved && r.summary && r.summary.me && !r.summary.replay && store.settings().autoReplay && !replaying.has(id)) {
+          replaying.add(id);
+          uploadReplay(contents, id).then(url => { if (url) { store.setReplay(matchId(id), url); notify({ replay: url }); } }).catch(() => {});
+        }
         return r;
       } catch (e) {
         console.error('[captura]', e);
@@ -111,6 +126,42 @@ function importText(text, name, mtime) {
   return { ok: true, saved: res.saved };
 }
 
+/* ---------- ajustes solo de este ordenador (no se sincronizan) ---------- */
+const localFile = () => path.join(app.getPath('userData'), 'local.json');
+function readLocal() { try { return JSON.parse(fs.readFileSync(localFile(), 'utf8')) || {}; } catch (e) { return {}; } }
+function writeLocal(patch) { fs.writeFileSync(localFile(), JSON.stringify({ ...readLocal(), ...patch }, null, 2)); }
+const videosDir = () => (!app.isPackaged && process.env.MACAR_VIDEOS) || readLocal().videosDir || path.join(app.getPath('videos'), 'Macar Showdown');
+function finishRec() {
+  if (!rec) return { ok: false };
+  const r = rec;
+  rec = null;
+  return new Promise(res => r.stream.end(() => {
+    try { if (fs.statSync(r.file).size < 10000) fs.unlinkSync(r.file); } catch (e) { /* nada */ }
+    notify({ video: r.mid });
+    res({ ok: true, file: r.file, mid: r.mid });
+  }));
+}
+
+/* ---------- actualización automática (versiones de GitHub) ---------- */
+let updater = null;
+let updateState = { state: 'idle' };
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  try { updater = require('electron-updater').autoUpdater; } catch (e) { return; }
+  const send = st => { updateState = st; if (win && !win.isDestroyed()) win.webContents.send('ms:update', st); };
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('checking-for-update', () => send({ state: 'checking' }));
+  updater.on('update-available', i => send({ state: 'downloading', version: i.version, percent: 0 }));
+  updater.on('update-not-available', () => send({ state: 'idle' }));
+  updater.on('download-progress', p => send({ state: 'downloading', version: updateState.version, percent: Math.round(p.percent || 0) }));
+  updater.on('update-downloaded', i => send({ state: 'ready', version: i.version }));
+  updater.on('error', e => send({ state: 'error', why: String((e && e.message) || e).slice(0, 200) }));
+  const check = () => updater.checkForUpdates().catch(() => {});
+  setTimeout(check, 8000);
+  setInterval(check, 3 * 3600 * 1000);
+}
+
 /* ---------- carpeta de datos ---------- */
 const locationFile = () => path.join(app.getPath('userData'), 'ubicacion.json');
 const defaultDataDir = () => path.join(app.getPath('userData'), 'datos');
@@ -145,6 +196,8 @@ function registerIpc() {
     const clean = {};
     if (patch && typeof patch.showdownName === 'string') clean.showdownName = patch.showdownName.slice(0, 200);
     if (patch && typeof patch.teamId === 'string') clean.teamId = patch.teamId.slice(0, 60);
+    if (patch && typeof patch.autoReplay === 'boolean') clean.autoReplay = patch.autoReplay;
+    if (patch && typeof patch.recordVideo === 'boolean') clean.recordVideo = patch.recordVideo;
     const s = store.setSettings(clean);
     notify();
     return s;
@@ -152,6 +205,61 @@ function registerIpc() {
   ipcMain.handle('ms:status', () => ({ ...capStatus }));
   ipcMain.handle('ms:openData', () => shell.openPath(store.dir));
   ipcMain.handle('ms:openExternal', (_e, url) => openExternal(url));
+
+  // Combate que tienes delante (barra de notas y grabación).
+  ipcMain.handle('ms:current', async () => {
+    if (!sdContents || sdContents.isDestroyed()) return null;
+    try { const c = await sdContents.executeJavaScript(CURRENT, false); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
+  });
+  ipcMain.handle('ms:matchExists', (_e, id) => !!store.get(String(id)));
+  ipcMain.handle('ms:replayNow', async (_e, id) => {
+    const m = store.get(String(id));
+    if (!m) return { ok: false, why: 'No está guardada' };
+    if (m.replay) return { ok: true, url: m.replay };
+    if (!sdContents) return { ok: false, why: 'Abre Jugar' };
+    const room = `battle-${m.summary.id}`;
+    const url = await uploadReplay(sdContents, room);
+    if (url) { store.setReplay(m.summary.id, url); notify({ replay: url }); return { ok: true, url }; }
+    return { ok: false, why: 'Showdown ya no tiene la sala abierta: solo se puede subir mientras sigue abierta.' };
+  });
+
+  // Vídeo de la partida: graba solo el Showdown (no la calculadora) y lo guarda en tu carpeta de Vídeos.
+  ipcMain.handle('ms:recStart', (_e, id) => {
+    if (rec) finishRec();
+    const mid = matchId(String(id));
+    const dir = videosDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${mid.replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
+    rec = { mid, file, stream: fs.createWriteStream(file) };
+    return { ok: true, file };
+  });
+  ipcMain.on('ms:recChunk', (_e, buf) => { if (rec && buf) rec.stream.write(Buffer.from(buf)); });
+  ipcMain.handle('ms:recStop', () => finishRec());
+  ipcMain.handle('ms:videoFor', (_e, id) => {
+    const f = path.join(videosDir(), `${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
+    return fs.existsSync(f) && fs.statSync(f).size > 10000 ? `msvideo://v/${encodeURIComponent(path.basename(f))}` : null;
+  });
+  ipcMain.handle('ms:deleteVideo', (_e, id) => {
+    const f = path.join(videosDir(), `${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
+    try { fs.unlinkSync(f); return true; } catch (e) { return false; }
+  });
+  ipcMain.handle('ms:videosDir', () => ({ dir: videosDir() }));
+  ipcMain.handle('ms:setVideosDir', async () => {
+    const r = await dialog.showOpenDialog(win, { title: 'Carpeta para los vídeos de tus partidas', properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false };
+    writeLocal({ videosDir: r.filePaths[0] });
+    return { ok: true, dir: r.filePaths[0] };
+  });
+  ipcMain.handle('ms:openVideos', () => { fs.mkdirSync(videosDir(), { recursive: true }); return shell.openPath(videosDir()); });
+
+  // Equipos y sets de torneo (Limitless).
+  ipcMain.handle('ms:tournaments', async (_e, force) => {
+    try { return { ok: true, ...(await tours.get(!!force)) }; } catch (e) { return { ok: false, why: e.message }; }
+  });
+
+  // Actualización automática.
+  ipcMain.handle('ms:updateInstall', () => { if (updater) { setImmediate(() => updater.quitAndInstall(false, true)); return true; } return false; });
+  ipcMain.handle('ms:updateState', () => updateState);
 
   // Calculadora
   ipcMain.handle('ms:live', async () => {
@@ -271,10 +379,22 @@ app.whenReady().then(() => {
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir());
   usage = new Usage(store.dir);
+  tours = new Tournaments(store.dir);
+  // Vídeos servidos a la interfaz (solo archivos de la carpeta de vídeos).
+  protocol.handle('msvideo', req => {
+    const name = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''));
+    if (!/^[a-zA-Z0-9_-]+\.webm$/.test(name)) return new Response('no', { status: 404 });
+    return net.fetch(pathToFileURL(path.join(videosDir(), name)).toString(), { headers: req.headers });
+  });
+  // La grabación pide "compartir pantalla": se le da solo el webview de Showdown, sin preguntar.
+  session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {
+    if (sdContents && !sdContents.isDestroyed()) cb({ video: sdContents.mainFrame }); else cb({});
+  });
   // Showdown no necesita permisos especiales (cámara, ubicación…): se deniegan todos.
   session.fromPartition(PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
   registerIpc();
   createWindow();
+  setupUpdater();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

@@ -313,12 +313,23 @@ async function openDetail(id) {
   $('#modalBox').innerHTML = `<div class="head"><div><h1 style="font-size:22px">${s.me ? `vs ${esc(s[b].name)}` : `${esc(s.p1.name)} vs ${esc(s.p2.name)}`}</h1>
       <p class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos${s.forfeit ? ` · ${esc(s.forfeit)} abandonó` : ''}${s.timeout ? ` · ${esc(s.timeout)} perdió por tiempo` : ''} · ${s.source === 'importada' ? 'importada' : 'guardada al jugar'}</p></div>
       <div style="display:flex;gap:8px;align-items:center">${pill(s.result)}<button class="btn" id="mClose">Cerrar</button></div></div>
+    <div class="mlinks">${s.replay ? `<button class="btn sm" id="mReplay">Ver replay en Showdown</button><button class="btn sm" id="mReplayCopy">Copiar enlace</button>` : (s.me ? '<button class="btn sm" id="mReplayUp" title="Solo funciona si la sala del combate sigue abierta en Jugar">Subir replay</button>' : '')}<span class="note" id="mLinkMsg"></span></div>
+    <div id="mVideo"></div>
     <div class="sides">${sideCard(s, a, s.me ? 'Tú' : 'Jugador 1')}${sideCard(s, b, s.me ? 'Rival' : 'Jugador 2')}</div>
     ${s.me && TEAMS_ME.length ? `<label class="field" style="margin-bottom:10px">Tu equipo en esta partida<select id="mTeam"><option value="">Sin asignar</option>${TEAMS_ME.map(t => `<option value="${esc(t.id)}"${teamOf(s) === t.id ? ' selected' : ''}>${esc(t.name)}${!MATCH_TEAM[s.id] && teamOf(s) === t.id ? ' (detectado)' : ''}</option>`).join('')}</select></label>` : ''}
     <label class="field">Notas de la partida<textarea id="mNotes" placeholder="Qué viste del rival, errores, ideas para la próxima…">${esc(m.notes || '')}</textarea></label>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="note" id="mSaved"></span><button class="btn danger" id="mDel">Borrar partida</button></div>`;
   $('#modal').classList.remove('hide');
   $('#mClose').onclick = closeModal;
+  if ($('#mReplay')) $('#mReplay').onclick = () => api.openExternal(s.replay);
+  if ($('#mReplayCopy')) $('#mReplayCopy').onclick = () => { navigator.clipboard.writeText(s.replay); $('#mLinkMsg').textContent = 'Enlace copiado'; };
+  if ($('#mReplayUp')) $('#mReplayUp').onclick = async () => { $('#mLinkMsg').textContent = 'Subiendo…'; const r = await api.replayNow(id); $('#mLinkMsg').textContent = r.ok ? 'Replay subida.' : r.why; if (r.ok) { s.replay = r.url; openDetail(id); } };
+  api.videoFor(id).then(v => {
+    if (!v || !$('#mVideo')) return;
+    $('#mVideo').innerHTML = `<video class="mvideo" controls preload="metadata" src="${esc(v)}"></video><div class="row-btns" style="margin-top:0;margin-bottom:10px"><button class="btn sm" id="mVidOpen">Abrir carpeta de vídeos</button><button class="btn sm danger" id="mVidDel">Borrar vídeo</button></div>`;
+    $('#mVidOpen').onclick = () => api.openVideos();
+    $('#mVidDel').onclick = async () => { if (!confirm('¿Borrar el vídeo de esta partida?')) return; await api.deleteVideo(id); $('#mVideo').innerHTML = ''; };
+  });
   if ($('#mTeam')) $('#mTeam').onchange = async e => {
     const map = { ...((await DB.get('partidaTeam')) || {}) };
     if (e.target.value) map[s.id] = e.target.value; else delete map[s.id];
@@ -341,7 +352,7 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM
 /* ---------- Ajustes ---------- */
 async function renderSettings() {
   const el = $('#v-ajustes');
-  const [st, dd] = await Promise.all([api.status(), api.dataDir()]);
+  const [st, dd, vd] = await Promise.all([api.status(), api.dataDir(), api.videosDir()]);
   el.innerHTML = head('Aj<span>ustes</span>', `Macar Showdown ${esc(SET.version || '')}`) + `<div class="grid">
     <div class="card"><h2>Tu usuario de Showdown</h2>
       <p class="note" style="margin-bottom:10px">Sirve para saber qué jugador eres en cada partida. Si tienes varias cuentas, sepáralas con comas. El usuario con el que estés conectado en Showdown se detecta solo.</p>
@@ -356,6 +367,13 @@ async function renderSettings() {
       <dl class="kv"><dt>Estado</dt><dd>${st.ok ? 'Activa' : esc(st.why || '—')}</dd><dt>Conectado como</dt><dd>${esc(st.me || '—')}</dd>
       <dt>Combates abiertos</dt><dd>${st.open ?? 0}</dd><dt>Guardadas en esta sesión</dt><dd>${st.saved ?? 0}</dd>
       <dt>Última comprobación</dt><dd>${st.lastCheck ? new Date(st.lastCheck).toLocaleTimeString('es-ES') : '—'}</dd></dl></div>
+    <div class="card"><h2>Replays y vídeo</h2>
+      <label class="tog${SET.autoReplay !== false ? ' on' : ''}" style="margin-bottom:8px"><input type="checkbox" id="sReplay"${SET.autoReplay !== false ? ' checked' : ''}>Subir la replay de cada combate a Showdown</label>
+      <p class="note" style="margin-bottom:10px">Al acabar tus combates se sube sola (quien tenga el enlace puede verla) y queda enlazada en la partida.</p>
+      <label class="tog${SET.recordVideo !== false ? ' on' : ''}" style="margin-bottom:8px"><input type="checkbox" id="sVideo"${SET.recordVideo !== false ? ' checked' : ''}>Grabar en vídeo cada combate</label>
+      <p class="note">Graba solo Showdown (sin la calculadora). Los vídeos se quedan en este ordenador:</p>
+      <dl class="kv" style="margin-top:6px"><dt>Carpeta</dt><dd>${esc(vd.dir)}</dd></dl>
+      <div class="row-btns"><button class="btn sm" id="sVidDir">Cambiar carpeta…</button><button class="btn sm" id="sVidOpen">Abrir carpeta</button></div></div>
     <div class="card wide"><h2>Tus datos en todos tus ordenadores</h2>
       <p class="note" style="margin-bottom:10px">Partidas, equipos, Mi PC, documentos y ajustes viven en una carpeta. Ponla en OneDrive y elige la misma carpeta en cada ordenador donde juegues: verás lo mismo en todos. Al volver a la ventana de la app se leen los cambios del otro ordenador.</p>
       <dl class="kv"><dt>Carpeta</dt><dd>${esc(dd.dir || '')}</dd><dt>Estado</dt><dd>${dd.onedrive && dd.dir.toLowerCase().startsWith(dd.onedrive.toLowerCase()) ? 'En OneDrive: se sincroniza' : 'Solo en este ordenador'}</dd></dl>
@@ -363,6 +381,10 @@ async function renderSettings() {
       <p class="note" style="margin-top:8px">Al cambiar, se copia lo que tengas aquí a la carpeta nueva (sin pisar lo que ya haya) y la app se reinicia.</p>
       <p id="dMsg" style="margin-top:6px"></p></div>
   </div>`;
+  $('#sReplay').onchange = async e => { Object.assign(SET, await api.setSettings({ autoReplay: e.target.checked })); renderSettings(); };
+  $('#sVideo').onchange = async e => { Object.assign(SET, await api.setSettings({ recordVideo: e.target.checked })); renderSettings(); };
+  $('#sVidDir').onclick = async () => { const r = await api.setVideosDir(); if (r.ok) renderSettings(); };
+  $('#sVidOpen').onclick = () => api.openVideos();
   const setDir = async mode => {
     const r = await api.setDataDir(mode);
     const m = $('#dMsg');

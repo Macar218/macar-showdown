@@ -121,6 +121,31 @@ t('sets más usados de Smogon (resumen)', () => {
   assert.strictEqual(c.Sneasler.abilities[0][1], 70);
 });
 
+t('torneos: sets y equipos del top', () => {
+  const { summarize } = require('../src/tournaments');
+  const mon = (id, item, nature, attacks) => ({ id, name: id, item, ability: 'X', nature, attacks });
+  const r = summarize([{ name: 'Copa', id: 't1', date: '2026-11-10', players: 20, standings: [
+    { name: 'Ana', placing: 1, record: { wins: 5, losses: 0 }, decklist: [mon('sneasler', 'White Herb', 'Adamant', ['Close Combat', 'Fake Out']), mon('incineroar', 'Sitrus Berry', 'Careful', ['Fake Out'])] },
+    { name: 'Bea', placing: 12, record: { wins: 2, losses: 3 }, decklist: [mon('sneasler', 'Focus Sash', 'Jolly', ['Close Combat'])] }
+  ] }]);
+  assert.strictEqual(r.nTeams, 2);
+  assert.strictEqual(r.sets.sneasler.n, 2);
+  assert.deepStrictEqual(r.sets.sneasler.moves[0], ['Close Combat', 100]);
+  assert.strictEqual(r.teams.length, 1); // solo el top 8
+  assert.strictEqual(r.teams[0].player, 'Ana');
+});
+
+t('notas en directo y replay pasan a la partida', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'macar-live-'));
+  const st = new Store(dir);
+  st.setData('liveNotes', { 'gen9championsvgc2026regmc-123': 'Trae Basculegion' });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-123', log: LOG });
+  assert.strictEqual(st.get('gen9championsvgc2026regmc-123').notes, 'Trae Basculegion');
+  st.setReplay('gen9championsvgc2026regmc-123', 'https://replay.pokemonshowdown.com/gen9championsvgc2026regmc-123');
+  assert.ok(new Store(dir).list()[0].replay.endsWith('-123'));
+  assert.strictEqual(st.settings().autoReplay, true);
+});
+
 t('motor de daño Champions (nivel 50, SP)', () => {
   const c = require('@smogon/calc');
   const g = c.Generations.get(0);

@@ -180,11 +180,20 @@ const P = (() => {
   /* ---------- motor de daño ---------- */
   const blankSide = () => ({ ref: false, ls: false, veil: false, tw: false, hh: false, fg: false });
   const blankField = () => ({ weather: '', terrain: '', tr: false, grav: false, crit: false, me: blankSide(), foe: blankSide() });
+  /** Con su megapiedra, el Pokémon se calcula ya megaevolucionado (como estará en el combate). */
+  function megaOf(m) {
+    const st = calc.MEGA_STONES && m.item ? calc.MEGA_STONES[m.item] : null;
+    if (!st) return m.species;
+    const base = baseSpecies(m.species);
+    return st[m.species] || st[base] || m.species;
+  }
   function mkPoke(m) {
     const evs = {}, boosts = {};
     STATS.forEach((s, i) => { evs[s] = (m.sp && m.sp[i]) || 0; if (i) boosts[s] = (m.boosts && m.boosts[s]) || 0; });
-    const pk = new calc.Pokemon(G, m.species, {
-      level: 50, nature: m.nature || 'Hardy', ability: m.ability || undefined, item: m.item || undefined,
+    const sp = m.noMega ? m.species : megaOf(m);
+    const megaAb = sp !== m.species ? (abilitiesOf(sp)[0] || undefined) : undefined;
+    const pk = new calc.Pokemon(G, sp, {
+      level: 50, nature: m.nature || 'Hardy', ability: megaAb || m.ability || undefined, item: m.item || undefined,
       evs, boosts, status: m.status || '', abilityOn: !!m.abilityOn
     });
     const hp = m.hp == null ? 100 : m.hp;
@@ -296,6 +305,54 @@ const P = (() => {
     m.moves = [...u.moves.slice(0, 4).map(x => nameOf('moves', x[0])), '', '', '', ''].slice(0, 4);
     return m;
   }
+  /* ---------- sets de torneo (Limitless) ---------- */
+  let tourP = null;
+  function tour(force) {
+    if (!tourP || force) tourP = api.tournaments(!!force).then(r => (r && r.ok && r.sets ? r : null)).catch(() => null);
+    return tourP;
+  }
+  function tourOf(T, species) {
+    if (!T || !T.sets) return null;
+    return T.sets[toID(species)] || T.sets[toID(String(species).replace(/-Mega(-[XY])?$/, ''))] || T.sets[toID(baseSpecies(species))] || null;
+  }
+  /** Reparto de Smogon que mejor encaja con una naturaleza (las hojas de equipo no traen puntos). */
+  function spreadFor(U, species, nature) {
+    const u = usageOf(U, species);
+    if (!u || !u.spreads.length) return null;
+    return (u.spreads.find(s => s.nature === nature) || u.spreads[0]).sp.map(x => Math.min(SP_MAX, x || 0));
+  }
+  /** Set de torneo: objeto, habilidad, naturaleza y movimientos más llevados; puntos de Smogon. */
+  function tourSet(T, U, species) {
+    const t = tourOf(T, species);
+    if (!t) return null;
+    const m = blankMon(species);
+    m.src = 'torneo';
+    m.item = t.items[0] ? nameOf('items', t.items[0][0]) : '';
+    m.ability = t.abilities[0] ? nameOf('abilities', t.abilities[0][0]) : m.ability;
+    m.nature = t.natures[0] && NAT[t.natures[0][0]] ? t.natures[0][0] : 'Hardy';
+    m.moves = [...t.moves.slice(0, 4).map(x => nameOf('moves', x[0])), '', '', '', ''].slice(0, 4);
+    const sp = spreadFor(U, species, m.nature);
+    if (sp) m.sp = sp;
+    return m;
+  }
+  /** Un equipo de torneo (hoja de equipo) a sets de la calculadora. */
+  function tourTeamSets(team, U) {
+    return team.map(d => {
+      const species = calcSpecies(d.id) || calcSpecies(d.name);
+      if (!species) return null;
+      const m = blankMon(species);
+      m.item = d.item ? nameOf('items', d.item) : '';
+      m.ability = d.ability ? nameOf('abilities', d.ability) : m.ability;
+      m.nature = NAT[d.nature] ? d.nature : 'Hardy';
+      m.moves = [...d.moves.map(x => nameOf('moves', x)), '', '', '', ''].slice(0, 4);
+      const sp = spreadFor(U, species, m.nature);
+      if (sp) m.sp = sp;
+      m.src = 'torneo';
+      return m;
+    }).filter(Boolean);
+  }
+  const tourRank = T => (T && T.sets ? Object.entries(T.sets).sort((a, b) => b[1].n - a[1].n).map(([id]) => id) : []);
+
   /** Lista ordenada por uso de los Pokémon del formato. */
   const usageRank = U => (U && U.sets ? Object.entries(U.sets).sort((a, b) => b[1].usage - a[1].usage).map(([k]) => k) : []);
 
@@ -350,6 +407,7 @@ const P = (() => {
     if (m.hp == null) m.hp = 100;
     const side = opts.side || 'me';
     const U = opts.usage === undefined ? await usage() : opts.usage;
+    const T = await tour();
     const PC = await pcList();
     const box = $('#modalBox');
     let msg = '';
@@ -375,6 +433,12 @@ const P = (() => {
         ${opts.live ? `<div class="ed" style="margin-top:12px">
           <label class="field">Estado<select id="eSt">${STATUS.map(([k, l]) => `<option value="${k}"${k === m.status ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
           <label class="field">PS (%)<input type="number" id="eHp" min="0" max="100" value="${Math.round(m.hp)}"></label></div>` : ''}
+        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', ',')}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
+          <div><small>Objetos</small>${ch(t.items, 'uitem', 'items')}</div>
+          <div><small>Habilidades</small>${ch(t.abilities, 'uab', 'abilities')}</div>
+          <div><small>Naturalezas</small>${ch(t.natures, 'unat', null)}</div>
+          <div><small>Movimientos</small>${ch(t.moves, 'umove', 'moves')}</div>
+          <div><button class="btn sm" data-tourset="1">Poner el set de torneo entero</button></div></div>`; })() : ''}
         ${u ? `<div class="flabel" style="margin-top:14px">Más usados en Smogon <span class="note">· pulsa para ponerlo</span></div><div class="uset">
           <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn" data-spread="${i}">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', ',')}%</em></button>`).join('')}</div>
           <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', ',')}%</em></button>`).join('')}</div>
@@ -394,7 +458,7 @@ const P = (() => {
         const prev = m.species;
         m.species = sp;
         if (!prev) {
-          const d = (side === 'foe' && usageSet(U, sp)) || blankMon(sp);
+          const d = (side === 'foe' && (tourSet(T, U, sp) || usageSet(U, sp))) || blankMon(sp);
           Object.assign(m, { ...d, hp: m.hp, status: m.status, boosts: m.boosts, nick: m.nick });
           return;
         }
@@ -419,6 +483,8 @@ const P = (() => {
       if (t.dataset.spread != null) { readForm(); const s = u.spreads[+t.dataset.spread]; m.nature = NAT[s.nature] ? s.nature : m.nature; m.sp = s.sp.map(x => Math.min(SP_MAX, x || 0)); draw(); }
       else if (t.dataset.uitem != null) { readForm(); m.item = t.dataset.uitem; draw(); }
       else if (t.dataset.uab != null) { readForm(); m.ability = t.dataset.uab; draw(); }
+      else if (t.dataset.unat != null) { readForm(); if (NAT[t.dataset.unat]) m.nature = t.dataset.unat; draw(); }
+      else if (t.dataset.tourset != null) { readForm(); const s = tourSet(T, U, m.species); if (s) Object.assign(m, { item: s.item, ability: s.ability, nature: s.nature, moves: s.moves, sp: s.sp }); draw(); }
       else if (t.dataset.umove != null) { readForm(); if (!m.moves.includes(t.dataset.umove)) { const i = m.moves.indexOf(''); m.moves[i >= 0 ? i : 3] = t.dataset.umove; } draw(); }
       else if (t.dataset.pc != null) { const x = PC.find(y => y.id === t.dataset.pc); const s = x && parseSet(x.text); if (s && !s.bad) { Object.assign(m, s, { hp: m.hp, status: m.status, boosts: m.boosts, src: 'pc' }); msg = `Cargado de Mi PC: ${x.name || s.species}`; draw(); } }
       else if (t.id === 'eSp0') { readForm(); m.sp = [0, 0, 0, 0, 0, 0]; draw(); }
@@ -453,9 +519,9 @@ const P = (() => {
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
-    blankSide, blankField, mkPoke, mkField, damage, speed, autoField,
+    blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, spLine,
-    usage, usageOf, usageSet, usageRank,
+    usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
     openEditor, datalists
   };

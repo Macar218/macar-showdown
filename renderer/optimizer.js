@@ -8,7 +8,7 @@
 /* global P, api, $, $$, esc, spr, VIEWS, Calc, SET, Team */
 
 const Opt = (() => {
-  const V = { slot: 0, src: 'top', top: 20, teams: [], goal: 'eq', tw: false, res: null, pick: 0, busy: false, msg: '' };
+  const V = { slot: 0, src: 'tour', top: 20, teams: [], goal: 'eq', tw: false, res: null, pick: 0, busy: false, msg: '' };
   const STEP = 4;                       // los repartos se buscan de 4 en 4 (y lo que sobra va a PS)
   const VALS = [0, 4, 8, 12, 16, 20, 24, 28, 32];
   const GOALS = { eq: ['Equilibrado', { spe: 1, ohko: 1, two: 0.35, ko: 1, ko2: 0.35 }], spe: ['Velocidad', { spe: 2.5, ohko: 0.7, two: 0.2, ko: 0.6, ko2: 0.2 }], bulk: ['Aguante', { spe: 0.5, ohko: 2, two: 0.7, ko: 0.4, ko2: 0.15 }], off: ['Daño', { spe: 1, ohko: 0.6, two: 0.2, ko: 2, ko2: 0.7 }] };
@@ -19,9 +19,12 @@ const Opt = (() => {
     if (V.src === 'teams') {
       const teams = (await P.teams()).filter(t => V.teams.includes(t.id));
       for (const t of teams) for (const s of P.parseTeam(t.text).sets) if (!out.some(o => o.species === s.species)) out.push({ ...s, from: t.name });
+    } else if (V.src === 'tour') {
+      const [U, T] = await Promise.all([P.usage(''), P.tour()]);
+      for (const id of P.tourRank(T).slice(0, V.top)) { const sp = P.calcSpecies(id); const s = sp && P.tourSet(T, U, sp); if (s && P.spOf(s.species)) out.push({ ...s, from: 'torneos' }); }
     } else {
       const U = await P.usage('');
-      for (const sp of P.usageRank(U).slice(0, V.top)) { const s = P.usageSet(U, P.calcSpecies(sp) || sp); if (s && P.spOf(s.species)) out.push({ ...s, from: 'más usado' }); }
+      for (const sp of P.usageRank(U).slice(0, V.top)) { const s = P.usageSet(U, P.calcSpecies(sp) || sp); if (s && P.spOf(s.species)) out.push({ ...s, from: 'Smogon' }); }
     }
     return out;
   }
@@ -171,8 +174,8 @@ const Opt = (() => {
     out += `<div class="card optcfg">
       <div class="optmons">${S.map((m, i) => `<button class="mchip${i === V.slot ? ' sel' : ''}" data-oslot="${i}" title="${esc(m.species)}">${spr(m.species, 'sm')}</button>`).join('')}<span class="note">${esc(team.name)}</span></div>
       <div class="optrow"><label class="field">Contra
-        <select id="opSrc"><option value="top"${V.src === 'top' ? ' selected' : ''}>Los más usados del formato</option><option value="teams"${V.src === 'teams' ? ' selected' : ''}>Equipos rivales del Team Box</option></select></label>
-        ${V.src === 'top' ? `<label class="field">Cuántos<select id="opTop">${[10, 20, 30, 40].map(x => `<option${x === V.top ? ' selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
+        <select id="opSrc"><option value="tour"${V.src === 'tour' ? ' selected' : ''}>Los más llevados en torneos</option><option value="top"${V.src === 'top' ? ' selected' : ''}>Los más usados en Smogon</option><option value="teams"${V.src === 'teams' ? ' selected' : ''}>Equipos rivales del Team Box</option></select></label>
+        ${V.src !== 'teams' ? `<label class="field">Cuántos<select id="opTop">${[10, 20, 30, 40].map(x => `<option${x === V.top ? ' selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
         <label class="field">Prioridad<div class="seg">${Object.entries(GOALS).map(([k, [l]]) => `<button data-ogoal="${k}" aria-pressed="${V.goal === k}">${l}</button>`).join('')}</div></label>
         <label class="tog${V.tw ? ' on' : ''}" style="align-self:flex-end"><input type="checkbox" id="opTw"${V.tw ? ' checked' : ''}>Con Viento Afín</label>
         <button class="btn primary" id="opGo" style="align-self:flex-end"${V.busy ? ' disabled' : ''}>Buscar repartos</button></div>

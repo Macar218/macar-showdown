@@ -37,7 +37,7 @@ class Store {
   }
 
   settings() {
-    return { showdownName: '', teamId: '', ...this.readJSON(this.settingsFile, {}) };
+    return { showdownName: '', teamId: '', autoReplay: true, recordVideo: true, ...this.readJSON(this.settingsFile, {}) };
   }
 
   setSettings(patch) {
@@ -95,7 +95,10 @@ class Store {
     const mid = matchId(id);
     const prev = this.get(mid);
     if (prev && prev.log && prev.log.length >= log.length) return { saved: false, summary: prev.summary };
-    const m = { log, clientName: clientName || (prev && prev.clientName) || null, source: prev ? prev.source : source, notes: prev ? prev.notes || '' : '' };
+    // Notas escritas durante el combate (barra de notas de Jugar): pasan a la partida al guardarla.
+    let live = '';
+    try { live = (this.data('liveNotes') || {})[mid] || ''; } catch (e) { live = ''; }
+    const m = { log, clientName: clientName || (prev && prev.clientName) || null, source: prev ? prev.source : source, notes: (prev && prev.notes) || live, replay: prev ? prev.replay || null : null };
     m.summary = this.summarize(mid, m, endedAt || (prev && prev.summary.endedAt) || Date.now());
     this.writeAtomic(this.file(mid), JSON.stringify(m));
     this.cache.set(mid, m.summary);
@@ -106,6 +109,7 @@ class Store {
     const s = parseLog(m.log, { id, endedAt, me: this.myNames(m) });
     s.source = m.source;
     s.notes = m.notes || '';
+    s.replay = m.replay || null;
     return s;
   }
 
@@ -130,6 +134,17 @@ class Store {
     return true;
   }
 
+  /** Enlace de la replay subida a Showdown. */
+  setReplay(id, url) {
+    const m = this.get(id);
+    if (!m) return false;
+    m.replay = String(url || '') || null;
+    m.summary.replay = m.replay;
+    this.writeAtomic(this.file(id), JSON.stringify(m));
+    if (this.cache) this.cache.set(id, m.summary);
+    return true;
+  }
+
   remove(id) {
     try { fs.unlinkSync(this.file(id)); } catch (e) { /* ya no estaba */ }
     this.list();
@@ -137,6 +152,6 @@ class Store {
   }
 }
 
-Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam'];
+Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes'];
 
 module.exports = { Store, matchId };
