@@ -1,0 +1,51 @@
+|j|☆Rival Test
+|j|☆Macar Test
+|gametype|doubles
+|player|p1|Rival Test|1|1010
+|player|p2|Macar Test|265|1000
+|teamsize|p1|6
+|teamsize|p2|6
+|gen|9
+|tier|[Gen 9 Champions] VGC 2026 Reg M-C
+|rated|
+|rule|Species Clause: Limit one of each Pokemon
+|clearpoke
+|poke|p1|Garchomp, L50, M|
+|poke|p1|Mimikyu, L50, F|
+|poke|p1|Sneasler, L50, M|
+|poke|p1|Rillaboom, L50, M|
+|poke|p1|Amoonguss, L50, F|
+|poke|p1|Kingambit, L50, M|
+|poke|p2|Charizard, L50, M|
+|poke|p2|Incineroar, L50, M|
+|poke|p2|Sylveon, L50, F|
+|poke|p2|Garchomp, L50, M|
+|poke|p2|Kingambit, L50, F|
+|poke|p2|Farigiraf, L50, F|
+|teampreview|4
+|teamsize|p1|4
+|teamsize|p2|4
+|start
+|switch|p1a: Mimi|Mimikyu, L50, F|100/100
+|switch|p1b: Garchomp|Garchomp, L50, M|100/100
+|switch|p2a: Incineroar|Incineroar, L50, M|202/202
+|switch|p2b: Charizard|Charizard, L50, M|183/183
+|turn|1
+|inactive|Macar Test has 30 seconds left.
+|detailschange|p2b: Charizard|Charizard-Mega-Y, L50, M
+|-mega|p2b: Charizard|Charizard|Charizardite Y
+|move|p2a: Incineroar|Fake Out|p1b: Garchomp
+|move|p2b: Charizard|Heat Wave|p1a: Mimi|[spread] p1a,p1b
+|-activate|p1a: Mimi|ability: Disguise
+|detailschange|p1a: Mimi|Mimikyu-Busted, L50, F
+|move|p1a: Mimi|Trick Room|p1a: Mimi
+|turn|2
+|inactive|Macar Test has 10 seconds left.
+|move|p2b: Charizard|Heat Wave|p1a: Mimi|[spread] p1a,p1b
+|faint|p1b: Garchomp
+|switch|p1b: Sneasler|Sneasler, L50, M|100/100
+|turn|3
+|move|p1a: Mimi|Shadow Claw|p2a: Incineroar|[from]move: Copycat
+|faint|p1a: Mimi
+|win|Macar Test
+|raw|Macar Test's rating: 1000 &rarr; <strong>1030</strong><br />(+30 for winning)

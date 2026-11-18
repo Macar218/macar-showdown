@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://play.pokemonshowdown.com; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'">
+<title>Macar Showdown</title>
+<link rel="stylesheet" href="../node_modules/@fontsource/chakra-petch/500.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/chakra-petch/700.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-sans/400.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-sans/600.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/500.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="side">
+  <div class="brand"><span class="lens" aria-hidden="true"></span><b>MACAR <span>SHOWDOWN</span></b></div>
+  <nav class="nav" aria-label="Secciones">
+    <button data-v="jugar" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
+    <button data-v="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Dashboard</button>
+    <button data-v="partidas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Partidas <b class="count" id="navCount">0</b></button>
+    <button data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
+  </nav>
+  <div class="cap" id="capState"><i></i><span>Comprobando Showdown…</span></div>
+</aside>
+
+<main class="main">
+  <section class="view on" id="v-jugar">
+    <div class="playbar">
+      <span class="note">Juega como siempre: al terminar cada combate, la partida se guarda sola.</span>
+      <button class="btn" id="reloadSd">Recargar Showdown</button>
+    </div>
+    <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
+  </section>
+  <section class="view" id="v-dash"></section>
+  <section class="view" id="v-partidas"></section>
+  <section class="view" id="v-ajustes"></section>
+</main>
+
+<div class="modal hide" id="modal" role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
+
+<script src="stats.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
