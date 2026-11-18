@@ -16,9 +16,15 @@
   <div class="brand"><span class="lens" aria-hidden="true"></span><b>MACAR <span>SHOWDOWN</span></b></div>
   <nav class="nav" aria-label="Secciones">
     <button data-v="jugar" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
-    <button data-v="calc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M8 6h8v3H8zM8 13h1M12 13h0M15.5 13h.5M8 17h1M12 17h0M15.5 17h.5"/></svg>Calculadora</button>
     <button data-v="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Dashboard</button>
     <button data-v="partidas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Partidas <b class="count" id="navCount">0</b></button>
+    <span class="navsep">Equipo</span>
+    <button data-v="equipo"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c.5-3.5 3-5 6-5s5.5 1.5 6 5M13 15.3c.9-.2 1.9-.3 3-.3 3 0 5.5 1.5 6 5"/></svg>Teambuilder</button>
+    <button data-v="pc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h4M7 11h7"/></svg>Mi PC</button>
+    <button data-v="calc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M8 6h8v3H8zM8 13h1M12 13h.5M15.5 13h.5M8 17h1M12 17h.5M15.5 17h.5"/></svg>Calculadora</button>
+    <button data-v="opt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Optimizador SP</button>
+    <button data-v="doc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>Documento</button>
+    <span class="navsep"></span>
     <button data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
   </nav>
   <div class="cap" id="capState"><i></i><span>Comprobando Showdown…</span></div>
@@ -28,25 +34,35 @@
   <section class="view on" id="v-jugar">
     <div class="playbar">
       <span class="note">Juega como siempre: al terminar cada combate, la partida se guarda sola.</span>
-      <button class="btn" id="reloadSd">Recargar Showdown</button>
+      <span class="tools"><button class="btn" id="calcToggle" title="Mostrar u ocultar la calculadora (Ctrl+K)">Calculadora</button><button class="btn" id="reloadSd">Recargar Showdown</button></span>
     </div>
-    <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
-  </section>
-  <section class="view" id="v-calc">
-    <div class="playbar">
-      <span class="note">Calculadora de daño de la Macar Dex (motor de Smogon, Nivel 50). Desde aquí también tienes Dex, Velocidad, Equipos y Objetos.</span>
-      <span class="tools"><button class="btn" id="calcHome">Ir a la calculadora</button><button class="btn" id="calcReload">Recargar</button></span>
+    <div class="playwrap">
+      <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
+      <aside class="calc" id="calcPanel" aria-label="Calculadora de daño"><div class="grip" id="calcGrip" title="Arrastra para cambiar el ancho"></div><div class="cbody" id="calcBody"></div></aside>
     </div>
-    <div class="calcwrap" id="calcWrap"><div class="cload" id="calcMsg">Abriendo la calculadora…</div></div>
   </section>
   <section class="view" id="v-dash"></section>
   <section class="view" id="v-partidas"></section>
+  <section class="view" id="v-equipo"></section>
+  <section class="view" id="v-pc"></section>
+  <section class="view" id="v-calc"><div class="calcpage" id="calcPage"></div></section>
+  <section class="view" id="v-opt"></section>
+  <section class="view" id="v-doc"></section>
   <section class="view" id="v-ajustes"></section>
 </main>
 
 <div class="modal hide" id="modal" role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
 
+<script src="../node_modules/@smogon/calc/dist/data/production.min.js"></script>
+<script src="../node_modules/@smogon/calc/dist/production.min.js"></script>
 <script src="stats.js"></script>
 <script src="app.js"></script>
+<script src="poke.js"></script>
+<script src="multicalc.js"></script>
+<script src="calc.js"></script>
+<script src="team.js"></script>
+<script src="pc.js"></script>
+<script src="optimizer.js"></script>
+<script src="doc.js"></script>
 </body>
 </html>

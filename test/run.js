@@ -82,6 +82,52 @@ t('estadísticas', () => {
   assert.deepStrictEqual(r.elo.map(x => x.r), [1000, 1030, 1000, 1030]);
 });
 
+t('estadísticas avanzadas (Dashboard)', () => {
+  const base = parseLog(LOG, { me: 'Macar Test', id: 'a', endedAt: Date.UTC(2026, 10, 2, 18) });
+  const ms = [0, 1, 2, 3, 4].map(i => ({ ...base, id: `m${i}`, endedAt: base.endedAt + i * 20 * 60000, result: i % 2 ? 'loss' : 'win' }));
+  const a = Stats.advanced(ms);
+  assert.strictEqual(a.all.n, 5);
+  assert.strictEqual(a.sessions, 1);
+  assert.strictEqual(a.afterWin.n + a.afterLoss.n, 4);
+  assert.strictEqual(a.mvp.key.length > 0, true);
+  const inc = a.mons.find(x => x.key === 'Incineroar');
+  assert.strictEqual(inc.lead.n, 5);
+  assert.strictEqual(a.streak, 1);
+  assert.strictEqual(Stats.leadsVs(ms, 'Garchomp + Mimikyu')[0].n, 5);
+  // filtros por equipo y por fechas
+  assert.strictEqual(Stats.filter(ms, { team: 'x', teamOf: s => (s.id === 'm0' ? 'x' : '') }).length, 1);
+  assert.strictEqual(Stats.filter(ms, { from: base.endedAt + 30 * 60000 }).length, 3);
+});
+
+t('colecciones guardadas (equipos, Mi PC, documentos)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'macar-col-'));
+  const st = new Store(dir);
+  assert.deepStrictEqual(st.data('equipos'), []);
+  assert.deepStrictEqual(st.data('docs'), {});
+  st.setData('pc', [{ id: 's1', text: 'Sneasler' }]);
+  assert.strictEqual(new Store(dir).data('pc')[0].id, 's1');
+  assert.throws(() => st.data('../../etc'));
+  st.setSettings({ teamId: 't1' });
+  assert.strictEqual(st.settings().teamId, 't1');
+});
+
+t('sets más usados de Smogon (resumen)', () => {
+  const { compact, formatCandidates } = require('../src/usage');
+  assert.deepStrictEqual(formatCandidates('[Gen 9 Champions] VGC 2026 Reg M-C (Bo3)').slice(0, 2), ['gen9championsvgc2026regmcbo3', 'gen9championsvgc2026regmc']);
+  const c = compact({ data: { Sneasler: { usage: 0.5, Abilities: { unburden: 70, poisontouch: 30 }, Items: { whiteherb: 50, nothing: 10 }, Spreads: { 'Adamant:2/32/0/0/0/32': 60 }, Moves: { closecombat: 99, '': 5 } } } });
+  assert.strictEqual(c.Sneasler.usage, 50);
+  assert.deepStrictEqual(c.Sneasler.spreads[0].sp, [2, 32, 0, 0, 0, 32]);
+  assert.strictEqual(c.Sneasler.items.length, 1);
+  assert.strictEqual(c.Sneasler.abilities[0][1], 70);
+});
+
+t('motor de daño Champions (nivel 50, SP)', () => {
+  const c = require('@smogon/calc');
+  const g = c.Generations.get(0);
+  const a = new c.Pokemon(g, 'Sneasler', { level: 50, nature: 'Adamant', evs: { hp: 2, atk: 32, spe: 32 } });
+  assert.deepStrictEqual([a.maxHP(), a.rawStats.atk, a.rawStats.spe], [157, 200, 172]);
+});
+
 // Replays reales, si se indica una carpeta: REPLAYS=/ruta npm test
 if (process.env.REPLAYS) {
   for (const f of fs.readdirSync(process.env.REPLAYS)) {

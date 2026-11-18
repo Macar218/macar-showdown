@@ -37,7 +37,7 @@ class Store {
   }
 
   settings() {
-    return { showdownName: '', ...this.readJSON(this.settingsFile, {}) };
+    return { showdownName: '', teamId: '', ...this.readJSON(this.settingsFile, {}) };
   }
 
   setSettings(patch) {
@@ -46,6 +46,26 @@ class Store {
     this.writeAtomic(this.settingsFile, JSON.stringify(s, null, 2));
     if (before.showdownName !== s.showdownName) this.reidentify();
     return s;
+  }
+
+  /**
+   * Colecciones de la app, un archivo JSON cada una en la carpeta de datos:
+   * equipos (Team Box: tuyos y de rivales), pc (sets guardados en Mi PC), docs (documentos de preparación),
+   * partidaTeam (qué equipo usaste en cada partida).
+   */
+  data(key) {
+    if (!Store.KEYS.includes(key)) throw new Error(`Colección desconocida: ${key}`);
+    const fallback = key === 'equipos' || key === 'pc' ? [] : {};
+    const v = this.readJSON(path.join(this.dir, `${key}.json`), fallback);
+    return v == null ? fallback : v;
+  }
+
+  setData(key, value) {
+    if (!Store.KEYS.includes(key)) throw new Error(`Colección desconocida: ${key}`);
+    const txt = JSON.stringify(value == null ? null : value, null, 1);
+    if (txt.length > 20 * 1024 * 1024) throw new Error('Demasiados datos');
+    this.writeAtomic(path.join(this.dir, `${key}.json`), txt);
+    return true;
   }
 
   /** Mis nombres: los de ajustes (separados por comas) y el del cliente en el momento de la partida. */
@@ -116,5 +136,7 @@ class Store {
     this.cache.delete(id);
   }
 }
+
+Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam'];
 
 module.exports = { Store, matchId };

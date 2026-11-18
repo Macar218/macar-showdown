@@ -9,16 +9,23 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.2)
+## Qué hace (versión 0.3)
 
-- **Jugar**: Pokémon Showdown dentro de la app, con tu sesión guardada.
+- **Jugar**: Pokémon Showdown dentro de la app, con tu sesión guardada, y la **calculadora en un panel al lado** (Ctrl+K). Sigue el combate abierto: tus Pokémon con sus estadísticas exactas, lo que se ve del rival (PS, objeto, habilidad, movimientos, niveles de stats), clima, campo, pantallas y Viento Afín.
 - **Captura automática**: al acabar cada combate guarda el registro completo. Si después llega el cambio de ELO, se actualiza.
-- **Calculadora**: la calculadora de daño de la [Macar Dex](https://macar218.github.io/macar-dex/) (motor de Smogon, formato Champions a nivel 50) dentro de la app. Se abre en la calculadora y desde ahí tienes también Dex, Velocidad, Equipos y Objetos. Necesita conexión y usa los datos de uso que la Dex actualiza cada semana. Sus equipos y ajustes se guardan aparte de los del navegador.
-- **Dashboard**: récord, % de victorias, ELO, turnos, apuros de tiempo, tus Pokémon y leads, rivales y leads rivales, Megas rivales. Filtros por resultado, fechas, formato, tu lead y rival.
-- **Partidas**: lista con detalle de cada combate (equipos, leads, Megas, movimientos, reloj) y notas.
+- **Calculadora**: motor de Smogon (`@smogon/calc`, formato Champions a nivel 50 con SP). Tus ataques contra los dos rivales del campo y los suyos contra los tuyos, KOs, velocidad. Al rival le pone su set de tu Team Box o, si no, el más usado en Smogon (se descarga solo cada mes).
+- **Multicalc**: los cuatro del campo eligen jugada y se juega el turno (prioridad, velocidad, Espacio Raro, Viento Afín, Protección, Fake Out, ataques en área, clima por habilidad). Siguiente turno con los PS que quedan. «Todas las opciones»: todas tus jugadas contra todas las suyas, con peor y mejor caso.
+- **Teambuilder**: tus equipos, el tuyo marcado como «mi equipo», editor de cada Pokémon (SP, naturaleza, movimientos, sets más usados), análisis de debilidades, cobertura, velocidades y revisión (control de velocidad, redirección, Fake Out, objetos repetidos). Importar desde texto o Pokepaste y enviar a tu teambuilder de Showdown.
+- **Mi PC**: tus sets por cajas, con notas, filtros y búsqueda, y el Team Box con todos los equipos (tuyos y de rivales).
+- **Optimizador SP**: el mejor reparto de puntos y naturaleza para un Pokémon de tu equipo contra los más usados o tus equipos rivales (velocidad, aguante y KOs), con comparativa y detalle por rival.
+- **Dashboard**: récord, ELO, racha, MVP (con él / sin él), tu resumen en frases, abriendo o desde atrás, parejas, contra quién brilla o sufre cada uno, rivales, cómo te abren y tus leads contra eso, sus movimientos, hora y día, cortas o largas, tras ganar / tras perder, sesiones, Bo3 y últimas partidas. Filtros por resultado, fechas (también a mano), equipo, formato, lead y rival.
+- **Documento de preparación**: se monta solo con tu equipo, cálculos clave ofensivos y defensivos de cada Pokémon y guía de matchups con tu récord. Se edita escribiendo en la hoja, cada bloque se puede dejar fuera, estilo oscuro o clásico y **PDF**.
+- **Partidas**: lista con detalle de cada combate y notas; el equipo que usaste se detecta solo (y se puede cambiar).
 - **Importar replays**: archivos `.html` descargados de Showdown o enlaces de `replay.pokemonshowdown.com`. No se duplican.
 
-Todo se guarda solo en tu ordenador, un archivo por partida, en `%APPDATA%\Macar Showdown\datos`.
+### Tus datos en todos tus ordenadores
+
+Todo vive en una carpeta: partidas (un archivo cada una), equipos, Mi PC, documentos y ajustes. En **Ajustes → Usar OneDrive** se mueve a `OneDrive\Macar Showdown`; haz lo mismo en cada ordenador donde juegues y verás lo mismo en todos. Al volver a la ventana de la app se leen los cambios del otro ordenador. Por defecto está en `%APPDATA%\Macar Showdown\datos`.
 
 ## Limitaciones conocidas
 
@@ -31,8 +38,10 @@ Todo se guarda solo en tu ordenador, un archivo por partida, en `%APPDATA%\Macar
 ```
 npm install
 npm start      # abrir la app
-npm test       # pruebas del lector, guardado y estadísticas
+npm test       # pruebas del lector, guardado, estadísticas y motor
 npm run dist   # crear el instalador en dist/
 ```
 
-Estructura: `main.js` (proceso principal), `preload.js` (puente seguro), `src/parser.js` (lector de partidas), `src/store.js` (guardado), `src/capture.js` (captura), `renderer/` (interfaz).
+Estructura: `main.js` (proceso principal), `preload.js` (puente seguro), `src/parser.js` (lector de partidas), `src/store.js` (guardado y colecciones), `src/capture.js` (captura), `src/live.js` (combate en directo), `src/usage.js` (sets más usados de Smogon), `renderer/` (interfaz: `poke.js` piezas comunes, `calc.js` y `multicalc.js`, `team.js`, `pc.js`, `optimizer.js`, `doc.js`).
+
+Pruebas de la interfaz sin tocar tus datos: `MACAR_DATOS=<carpeta>` usa otra carpeta de datos, `MACAR_CAPTURAS=<carpeta>` y `MACAR_PASOS=<pasos.json>` recorren pantallas y guardan capturas, `MACAR_PDF=<archivo>` guarda el PDF sin preguntar. Solo funcionan en desarrollo.
