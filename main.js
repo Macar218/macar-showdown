@@ -217,6 +217,23 @@ function registerIpc() {
     try { const c = await sdContents.executeJavaScript(CURRENT, false); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
   });
   ipcMain.handle('ms:matchExists', (_e, id) => !!store.get(String(id)));
+  // Documento de preparación a PDF: se pinta en una ventana oculta y se imprime.
+  ipcMain.handle('ms:savePdf', async (_e, html, name) => {
+    const devPdf = !app.isPackaged && process.env.MACAR_PDF;
+    const r = devPdf ? { canceled: false, filePath: devPdf } : await dialog.showSaveDialog(win, { title: 'PDF', defaultPath: path.join(app.getPath('documents'), String(name || 'prep.pdf').replace(/[\/:*?"<>|]/g, '_')), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, why: null };
+    const w = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false } });
+    try {
+      w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      w.webContents.on('will-navigate', ev => ev.preventDefault());
+      await w.loadURL(`data:text/html;charset=utf-8;base64,${Buffer.from(String(html)).toString('base64')}`);
+      await new Promise(res => setTimeout(res, 1200)); // que carguen los sprites
+      const pdf = await w.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'none' } });
+      fs.writeFileSync(r.filePath, pdf);
+      if (!devPdf) shell.showItemInFolder(r.filePath);
+      return { ok: true, file: r.filePath };
+    } catch (e) { return { ok: false, why: e.message }; } finally { w.destroy(); }
+  });
   ipcMain.handle('ms:downloadReplay', async (_e, id) => {
     const m = store.get(String(id));
     if (!m) return { ok: false, why: 'No está guardada' };

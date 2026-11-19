@@ -70,7 +70,7 @@ const I18N = (() => {
     'Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno': 'Your best plays, what the rival can answer and what happens next, turn by turn',
     'Todas tus jugadas contra todas las suyas': 'All your plays against all of theirs', 'Tu jugada': 'Your play', 'su mejor respuesta, malas tiradas': 'their best answer, bad rolls', 'Usarla': 'Use it',
     'Si el rival hace': 'If the rival does', 'Si el rival hace:': 'If the rival does:', 'Y luego ▸': 'And then ▸', 'Ocultar': 'Hide', 'Usarlo este turno': 'Use it this turn', 'Pone este turno (PS y movimientos) en la Multicalc': 'Puts this turn (HP and moves) in the Multicalc',
-    'Ningún KO': 'No KO', 'Todos los equipos': 'All teams', 'Peor caso': 'Worst case', 'Su respuesta más dura': 'Their strongest answer', 'Orden': 'Order', 'Viento Afín': 'Tailwind', 'Espacio Raro': 'Trick Room', 'Espacio Raro · Viento Afín': 'Trick Room · Tailwind', 'Turno # ▸': 'Turn # ▸', 'Faltan Pokémon o movimientos para ver las opciones.': 'Pokémon or moves are missing to see the options.',
+    'Ningún KO': 'No KO', 'Ver G#': 'View G#', 'Todos los equipos': 'All teams', 'Peor caso': 'Worst case', 'Su respuesta más dura': 'Their strongest answer', 'Orden': 'Order', 'Viento Afín': 'Tailwind', 'Espacio Raro': 'Trick Room', 'Espacio Raro · Viento Afín': 'Trick Room · Tailwind', 'Turno # ▸': 'Turn # ▸', 'Faltan Pokémon o movimientos para ver las opciones.': 'Pokémon or moves are missing to see the options.',
     'Faltan Pokémon: carga tu equipo y el rival (o abre un combate) para usar la Multicalc.': 'Pokémon missing: load your team and the rival (or open a battle) to use the Multicalc.',
     // dashboard
     'Partidas seguidas': 'Back-to-back matches', 'Récord': 'Record', 'Victorias': 'Wins', 'Derrotas': 'Losses', 'ELO': 'ELO', 'GXE': 'GXE', 'Racha': 'Streak', 'Turnos': 'Turns', 'Apuros de tiempo': 'Time trouble',
@@ -224,6 +224,8 @@ const I18N = (() => {
 
   /* ---------- trozos dentro de textos más largos (frases con nombres o números) ---------- */
   const PH = [
+    ['guardada al jugar', 'saved while playing'], ['perdió por tiempo', 'lost on time'], ['abandonó', 'forfeited'], [' · importada', ' · imported'],
+    ['Si el rival hace:', 'If the rival does:'],
     ['Sus movimientos:', 'Moves:'], ['en el campo', 'on the field'], ['clic derecho: sacarlo al campo o retirarlo', 'right click: put it on the field or take it off'], ['de victorias', 'wins'],
     ['usa', 'uses'], ['le queda', 'left:'], ['frente a', 'vs'], ['Editar', 'Edit'], ['Añadir', 'Add'], ['ya está en tu PC', 'is already in your PC'],
     ['Tu sesión:', 'Your session:'], ['Ningún KO', 'No KO'], ['pierdes', 'you lose'], ['Tu PC está vacío.', 'Your PC is empty.'],
@@ -278,6 +280,7 @@ const I18N = (() => {
   for (const [k, v] of Object.entries(D)) if (/#/.test(k)) DN[k] = v;
 
   const RX = [
+    [/\(ganas ([\d.,]+)% en (\d+)\)/g, '(you win $1% in $2)'],
     [/(\d+) partidas\b/g, '$1 matches'], [/(\d+) partida\b/g, '$1 match'], [/\ben (\d+) (matches|match)\b/g, 'in $1 $2'], [/(\d+) turnos\b/g, '$1 turns'], [/(\d+) equipos\b/g, '$1 teams'],
     [/(\d+) jugadores\b/g, '$1 players'], [/(\d+) torneos\b/g, '$1 tournaments'], [/(\d+) días\b/g, '$1 days'], [/(\d+) golpes\b/g, '$1 hits'], [/(\d+) sesiones\b/g, '$1 sessions'],
     [/(\d+) rivales\b/g, '$1 rivals'], [/(\d+) PS\b/g, '$1 HP'], [/(\d+) Atq\b/g, '$1 Atk'], [/(\d+) AtE\b/g, '$1 SpA'], [/(\d+) DfE\b/g, '$1 SpD'], [/(\d+) Vel\b/g, '$1 Spe'], [/(\d+) guardadas?\b/g, '$1 saved'], [/(\d+) nuevas?\b/g, '$1 new'], [/\bTurno (\d+)/g, 'Turn $1'], [/\bturno (\d+)/g, 'turn $1'], [/(\d+) t\b/g, '$1 t']

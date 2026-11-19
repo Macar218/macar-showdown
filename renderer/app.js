@@ -429,7 +429,7 @@ $('#v-partidas').addEventListener('click', e => { const b = e.target.closest('.m
 function sideCard(s, sd, title) {
   const x = s[sd], brought = new Set(x.brought);
   const moves = Object.entries(x.moves);
-  return `<div class="card"><h2>${title}: ${esc(x.name)}</h2>
+  return `<div class="card"><h2><span>${title}</span>: <span class="nolang">${esc(x.name)}</span></h2>
     <p class="note" style="margin-bottom:8px">${x.rating ? `ELO ${x.rating}${x.ratingAfter ? ` → ${x.ratingAfter}` : ''}` : 'Sin ELO'}${x.minTime != null ? ` · mínimo ${x.minTime} s en el reloj` : ''}</p>
     <div class="mons" style="margin-bottom:10px">${(x.preview.length ? x.preview : x.brought).map(n => spr(n, brought.has(n) ? '' : 'dim')).join('')}</div>
     <div class="tags" style="margin-bottom:10px"><span class="tag">Lead: ${esc(x.leads.join(' + ') || '—')}</span>${x.megas.map(m => `<span class="tag">✦ ${esc(m)}</span>`).join('')}${x.fainted.length ? `<span class="tag">Debilitados: ${x.fainted.length}</span>` : ''}</div>
