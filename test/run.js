@@ -146,6 +146,30 @@ t('notas en directo y replay pasan a la partida', () => {
   assert.strictEqual(st.settings().autoReplay, true);
 });
 
+t('sesiones: la partida se apunta en la abierta', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'macar-ses-'));
+  const st = new Store(dir);
+  st.setSettings({ sessionId: 'sreg' });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-1', log: LOG });
+  st.setSettings({ sessionId: '' });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-2', log: LOG });
+  const L = new Store(dir).list();
+  assert.strictEqual(L.find(s => s.id.endsWith('-1')).session, 'sreg');
+  assert.strictEqual(L.find(s => s.id.endsWith('-2')).session, null);
+  assert.strictEqual(Stats.filter(L.map(s => ({ ...s, me: 'p2', result: 'win' })), { session: 'sreg' }).length, 1);
+  assert.strictEqual(st.clearSession('sreg'), 1);
+  assert.strictEqual(st.list().filter(s => s.session).length, 0);
+});
+
+t('hoja de equipo abierta (showteam)', () => {
+  const log = LOG + '\n|showteam|p1|Garchomp||lifeorb|roughskin|earthquake,dragonclaw,protect,rockslide|Jolly||M||||,,,,,]Mimikyu||focussash|disguise|playrough,trickroom|Brave|||||||';
+  const s = parseLog(log, { me: 'Macar Test' });
+  assert.strictEqual(s.p1.sheet.length, 2);
+  assert.deepStrictEqual([s.p1.sheet[0].species, s.p1.sheet[0].item, s.p1.sheet[0].nature], ['Garchomp', 'lifeorb', 'Jolly']);
+  assert.strictEqual(s.p1.sheet[1].moves[1], 'trickroom');
+  assert.strictEqual(s.p2.sheet, null);
+});
+
 t('motor de daño Champions (nivel 50, SP)', () => {
   const c = require('@smogon/calc');
   const g = c.Generations.get(0);

@@ -11,7 +11,7 @@ const Opt = (() => {
   const V = { slot: 0, src: 'tour', top: 20, teams: [], goal: 'eq', tw: false, res: null, pick: 0, busy: false, msg: '' };
   const STEP = 4;                       // los repartos se buscan de 4 en 4 (y lo que sobra va a PS)
   const VALS = [0, 4, 8, 12, 16, 20, 24, 28, 32];
-  const GOALS = { eq: ['Equilibrado', { spe: 1, ohko: 1, two: 0.35, ko: 1, ko2: 0.35 }], spe: ['Velocidad', { spe: 2.5, ohko: 0.7, two: 0.2, ko: 0.6, ko2: 0.2 }], bulk: ['Aguante', { spe: 0.5, ohko: 2, two: 0.7, ko: 0.4, ko2: 0.15 }], off: ['Daño', { spe: 1, ohko: 0.6, two: 0.2, ko: 2, ko2: 0.7 }] };
+  const GOALS = { eq: ['Equilibrado', { spe: 0.8, ohko: 1.2, two: 0.4, ko: 1.2, ko2: 0.45 }], spe: ['Velocidad', { spe: 2.5, ohko: 0.7, two: 0.2, ko: 0.6, ko2: 0.2 }], bulk: ['Aguante', { spe: 0.5, ohko: 2, two: 0.7, ko: 0.4, ko2: 0.15 }], off: ['Daño', { spe: 1, ohko: 0.6, two: 0.2, ko: 2, ko2: 0.7 }] };
   const tick = () => new Promise(r => setTimeout(r, 0));
 
   async function rivals() {
@@ -146,15 +146,19 @@ const Opt = (() => {
       }
     }
     // Ajuste fino de velocidad: el mínimo que da la misma cantidad de rivales superados.
-    res.sort((a, b) => b.score - a.score || a.sp[5] - b.sp[5]);
+    const cur = evalSpread(mine.nature, mine.sp.map(x => x));
+    // Equilibrado: nunca a costa de hacer menos daño que ahora (mismos KOs y dobles KOs como mínimo).
+    let pool = res;
+    if (V.goal === 'eq') { const keep = res.filter(r => r.ko >= cur.ko && r.ko + r.ko2 >= cur.ko + cur.ko2); if (keep.length) pool = keep; }
+    if (V.goal === 'off') { const keep = res.filter(r => r.ohko >= cur.ohko - 1); if (keep.length) pool = keep; }
+    pool.sort((a, b) => b.score - a.score || a.sp[5] - b.sp[5]);
     const top = [];
-    for (const r of res) {
+    for (const r of pool) {
       if (top.length >= 6) break;
       if (top.some(t => t.nat === r.nat && t.sp.join() === r.sp.join())) continue;
       if (top.some(t => t.out === r.out && t.ohko === r.ohko && t.two === r.two && t.ko === r.ko && t.ko2 === r.ko2)) continue;
       top.push(r);
     }
-    const cur = evalSpread(mine.nature, mine.sp.map(x => x));
     V.res = { mine, R, top, cur, offStat };
     V.pick = 0; V.busy = false; V.msg = '';
     render();
@@ -178,7 +182,7 @@ const Opt = (() => {
         ${V.src !== 'teams' ? `<label class="field">Cuántos<select id="opTop">${[10, 20, 30, 40].map(x => `<option${x === V.top ? ' selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
         <label class="field">Prioridad<div class="seg">${Object.entries(GOALS).map(([k, [l]]) => `<button data-ogoal="${k}" aria-pressed="${V.goal === k}">${l}</button>`).join('')}</div></label>
         <label class="tog${V.tw ? ' on' : ''}" style="align-self:flex-end"><input type="checkbox" id="opTw"${V.tw ? ' checked' : ''}>Con Viento Afín</label>
-        <button class="btn primary" id="opGo" style="align-self:flex-end"${V.busy ? ' disabled' : ''}>Buscar repartos</button></div>
+        <button class="btn primary" id="opGo" style="align-self:flex-end"${V.busy ? ' disabled' : ''}>Buscar repartos</button><button class="btn" id="opAll" style="align-self:flex-end"${V.busy ? ' disabled' : ''} title="Busca el mejor reparto de los seis y te da el equipo listo para exportar">Optimizar todo el equipo</button></div>
       ${V.src === 'teams' ? `<div class="optteams">${allTeams.length ? allTeams.map(t => `<label class="tog${V.teams.includes(t.id) ? ' on' : ''}"><input type="checkbox" data-oteam="${t.id}"${V.teams.includes(t.id) ? ' checked' : ''}>${esc(t.name)}</label>`).join('') : '<span class="note">Todavía no hay equipos rivales. Añádelos en Mi PC → Team Box (pegando su texto o su enlace de Pokepaste).</span>'}</div>` : ''}
       <p class="note" id="opMsg">${esc(V.msg)}</p></div>`;
     const r = V.res;
@@ -214,6 +218,7 @@ const Opt = (() => {
     if (d.oslot) { V.slot = +d.oslot; V.res = null; render(); }
     else if (d.ogoal) { V.goal = d.ogoal; if (V.res) run(); else render(); }
     else if (t.id === 'opGo') run();
+    else if (t.id === 'opAll') runAll();
     else if (d.opick) { V.pick = +d.opick; render(); }
     else if (d.oapply || d.opc || d.ocopy) {
       const r = V.res, s = r.top[V.pick];
@@ -239,6 +244,33 @@ const Opt = (() => {
     else if (t.dataset.oteam) { const id = t.dataset.oteam; V.teams = t.checked ? [...V.teams, id] : V.teams.filter(x => x !== id); V.res = null; render(); }
   });
 
+  /** Los seis: el mejor reparto de cada uno, y el equipo listo para exportar a Showdown. */
+  async function runAll() {
+    const { team } = await Team.current();
+    const S = Team.sets(team);
+    const keep = V.slot, out = [];
+    for (let i = 0; i < S.length; i++) {
+      V.slot = i;
+      await run();
+      const best = V.res && V.res.top[0];
+      out.push(best ? { ...P.cleanSet(S[i]), nature: best.nat, sp: best.sp.slice(), _cmp: V.res } : P.cleanSet(S[i]));
+    }
+    V.slot = keep;
+    const text = P.exportTeam(out.map(({ _cmp, ...m }) => m));
+    const N = (out.find(x => x._cmp) || {})._cmp ? out.find(x => x._cmp)._cmp.R.length : 0;
+    const box = $('#modalBox');
+    box.onclick = box.onchange = null;
+    box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Exportar con los repartos</h2>
+      <p class="note">El mejor reparto de cada uno (prioridad ${GOALS[V.goal][0].toLowerCase()}, contra ${N} rivales). Revisa y cópialo a Showdown o ponlo en tu equipo.</p>
+      <table class="opttable"><thead><tr><th>Pokémon</th><th>Ahora</th><th>Propuesta</th><th>⚡ / 🛡 / 💥</th></tr></thead><tbody>${out.map((m, i) => `<tr><td>${spr(m.species, 'xs')}${esc(m.species)}</td><td><small>${esc(S[i].nature)} ${S[i].sp.join('/')}</small></td><td><b>${esc(m.nature)} ${m.sp.join('/')}</b></td><td>${m._cmp ? `${m._cmp.cur.out}→${m._cmp.top[0].out} / ${m._cmp.cur.ohko}→${m._cmp.top[0].ohko} / ${m._cmp.cur.ko}→${m._cmp.top[0].ko}` : '—'}</td></tr>`).join('')}</tbody></table>
+      <textarea id="opTxt" rows="10" style="margin-top:10px;font-family:var(--mono);font-size:12px">${esc(text)}</textarea>
+      <div class="row-btns"><button class="btn" id="opCopyAll">Copiar al portapapeles</button><span class="note" id="opAllMsg"></span><span style="flex:1"></span><button class="btn primary" id="opApplyAll">Ponerlo en mi equipo</button></div>`;
+    $('#mClose').onclick = () => $('#modal').classList.add('hide');
+    $('#opCopyAll').onclick = () => { navigator.clipboard.writeText($('#opTxt').value); $('#opAllMsg').textContent = 'Copiado: impórtalo en Showdown.'; };
+    $('#opApplyAll').onclick = async () => { team.text = $('#opTxt').value; await P.saveTeam(team); Calc.reloadTeams(); $('#opAllMsg').textContent = 'Puesto en tu equipo.'; render(); };
+    $('#modal').classList.remove('hide');
+  }
+
   VIEWS.opt = render;
-  return { render, run };
+  return { render, run, runAll };
 })();

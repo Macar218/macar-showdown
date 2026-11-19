@@ -152,7 +152,7 @@ const Calc = (() => {
     const q = (on) => (side === 'foe' && on ? ' <em title="Aún no se ha visto: es lo más probable">?</em>' : '');
     return `<div class="mcard ${side}">
       <div class="mtop">${spr(m.species)}<div class="mname"><b>${esc(m.species)}</b><span class="src ${toID(m.src)}">${esc(SRC[m.src] || m.src || '')}</span></div>
-        <button class="btn sm" data-edit="${side}">Editar</button></div>
+        <button class="btn sm ibtn" data-info="${esc(m.species)}" title="Info Pokémon: stats, tipos, velocidad y lo que lleva en torneos">i</button><button class="btn sm" data-edit="${side}">Editar</button></div>
       <div class="mhp"><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div>
         <label>PS <input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label>${st}</div>
       <div class="mline"><span title="Objeto">${esc(m.item || 'Sin objeto')}${q(m.item && !rv.item && m.live)}</span><span title="Habilidad">${esc(m.ability || '—')}${q(m.ability && !rv.ability && m.live)}</span></div>
@@ -176,10 +176,27 @@ const Calc = (() => {
       const mvd = P.moveOf(mv);
       const cat = mvd ? mvd.category : '';
       const tag = attSide === 'foe' && seen.length && !seen.includes(mv) ? '<em title="No lo ha usado todavía">?</em>' : '';
-      return `<tr><th class="mvn">${P.typeDot(mvd ? mvd.type : '')}${esc(mv)}${tag}${cat === 'Status' ? '<small>estado</small>' : ''}</th>${targets.map(i => (cat === 'Status' ? '<td class="dm none">—</td>' : P.cell(P.damage(att, S[defSide][i], mv, S.field, attSide)))).join('')}</tr>`;
+      return `<tr><th class="mvn">${P.typeDot(mvd ? mvd.type : '')}${esc(mv)}${tag}${cat === 'Status' ? '<small>estado</small>' : ''}</th>${targets.map(i => (cat === 'Status' ? '<td class="dm none">—</td>' : P.cell(P.damage(att, S[defSide][i], mv, S.field, attSide)).replace('<td class="dm', `<td data-det="${attSide}|${attSide === 'me' ? S.selMe : S.selFoe}|${i}|${esc(mv)}" title="Pulsa para ver cómo sale el daño" class="dmc dm`))).join('')}</tr>`;
     }).join('') : `<tr><td class="note" colspan="${targets.length + 1}">Sin movimientos. Pulsa Editar para ponerlos.</td></tr>`;
     return `<div class="dtable ${attSide}"><h3>${attSide === 'me' ? 'Tus ataques' : 'Sus ataques'} <span>${spr(att.species, 'xs')}${esc(att.species)}</span></h3>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  /** Cómo sale el daño del movimiento marcado: las 16 tiradas, PS que le quedan y qué lo cambia. */
+  function detail() {
+    if (!S.det) return '';
+    const [attSide, ai, di, mv] = S.det;
+    const defSide = attSide === 'me' ? 'foe' : 'me';
+    const att = S[attSide][+ai], def = S[defSide][+di];
+    if (!att || !def) return '';
+    const r = P.damage(att, def, mv, S.field, attSide);
+    if (!r || r.err || !r.rolls) return '';
+    const rolls = r.rolls.slice().sort((a, b) => a - b);
+    const hits = d => (d > 0 ? Math.ceil(r.cur / d) : '∞');
+    return `<div class="ddet"><h3>Cómo sale el daño <button class="dbtn" data-detx="1" title="Cerrar">×</button></h3>
+      <p class="note">${esc(att.species)} · ${esc(mv)} → ${esc(def.species)} (le quedan ${r.cur}/${r.max} PS)</p>
+      <div class="rolls">${rolls.map((d, i) => `<span class="${d >= r.cur ? 'ko' : ''}" title="Tirada ${i + 1} de 16"><b>${d}</b><small>${P.pct((d / r.max) * 100)}%</small><em>${d >= r.cur ? 'KO' : `${hits(d)} golpes`}</em></span>`).join('')}</div>
+      <p class="dcalc" style="margin-top:6px">${esc(r.desc)}</p>
+      <p class="note">${rolls.filter(d => d >= r.cur).length} de 16 tiradas lo dejan KO de un golpe${S.field.crit ? ' (con golpe crítico)' : ''}.</p></div>`;
   }
   function speedLine() {
     const a = S.me[S.selMe], b = S.foe[S.selFoe];
@@ -215,7 +232,7 @@ const Calc = (() => {
     const teamOpt = (side, v) => `<option value="">${side === 'me' ? 'Tu equipo…' : 'Equipo rival…'}</option>${TEAMS.filter(t => t.side === side).map(t => `<option value="${esc(t.id)}"${t.id === v ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}`;
     const keepScroll = el.scrollTop;
     el.innerHTML = `
-      <div class="ctop">${status}<label class="tog${S.follow ? ' on' : ''}" title="Cargar lo que pasa en el combate abierto en Jugar"><input type="checkbox" id="cFollow"${S.follow ? ' checked' : ''}>Seguir el combate</label></div>
+      <div class="ctop">${status}<button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button><label class="tog${S.follow ? ' on' : ''}" title="Cargar lo que pasa en el combate abierto en Jugar"><input type="checkbox" id="cFollow"${S.follow ? ' checked' : ''}>Seguir el combate</label></div>
       <div class="cteams"><select id="cTeamMe" title="Tu equipo (si no hay combate, o si eres espectador)">${teamOpt('me', S.teamMe)}</select>
         <select id="cTeamFoe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" id="cTeams" title="Pegar o traer de Pokepaste un equipo rival">+ Rival</button></div>
@@ -224,7 +241,7 @@ const Calc = (() => {
       <div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button></div>
       <div id="cTab">${S.tab === 'multi' ? Multi.render(api_state()) : `
         <div class="mcards">${monCard(S.me[S.selMe], 'me')}<span class="vs">VS</span>${monCard(S.foe[S.selFoe], 'foe')}</div>
-        ${speedLine()}${table('me')}${table('foe')}`}</div>
+        ${speedLine()}${table('me')}${table('foe')}${detail()}`}</div>
       ${fieldBox()}
       <p class="note usage" id="cUsage">${esc(usageMsg)}</p>`;
     el.scrollTop = keepScroll;
@@ -234,6 +251,16 @@ const Calc = (() => {
 
   /* ---------- editar / añadir ---------- */
   function edit(side, idx, isNew) {
+    if (isNew) {
+      P.pickMon({ side, title: side === 'me' ? 'Elegir tu Pokémon' : 'Elegir rival', onPick: m => {
+        m.src = m.src === 'pc' ? 'pc' : m.src === 'torneo' ? 'torneo' : m.src === 'uso' ? 'uso' : 'manual';
+        S.manual[side].push(P.clone(m));
+        if (S.battleId) S[side].push(m); else applyManual();
+        if (side === 'me') S.selMe = S[side].length - 1; else S.selFoe = S[side].length - 1;
+        persist(); lastHash = ''; render();
+      } });
+      return;
+    }
     const cur = isNew ? null : S[side][idx];
     P.openEditor({
       set: cur || P.blankMon(''), side, usage: U, live: true,
@@ -304,6 +331,9 @@ const Calc = (() => {
     el.addEventListener('click', e => {
       const t = e.target.closest('button');
       if (!t) return;
+      if (t.dataset.info) { P.openInfo(t.dataset.info); return; }
+      if (t.dataset.dex) { P.openInfo((S.foe[S.selFoe] || S.me[S.selMe] || {}).species || 'Garchomp'); return; }
+      if (t.dataset.detx) { S.det = null; render(); return; }
       if (t.dataset.pick) { const [side, i] = t.dataset.pick.split(':'); if (side === 'me') S.selMe = +i; else S.selFoe = +i; render(); }
       else if (t.dataset.add) edit(t.dataset.add, -1, true);
       else if (t.dataset.edit) edit(t.dataset.edit, t.dataset.edit === 'me' ? S.selMe : S.selFoe, false);
@@ -319,6 +349,7 @@ const Calc = (() => {
       else if (t.id === 'cTeams') quickRival();
       else if (Multi.click(t, api_state())) render();
     });
+    el.addEventListener('click', e => { const c = e.target.closest('[data-det]'); if (c) { S.det = c.dataset.det.split('|'); render(); setTimeout(() => { const d = $('.ddet'); if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 30); } });
     el.addEventListener('contextmenu', e => {
       const t = e.target.closest('[data-pick]');
       if (!t || S.battleId) return;

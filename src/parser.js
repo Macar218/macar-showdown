@@ -29,9 +29,18 @@ function extractLog(text) {
   return null;
 }
 
+/** Equipo empaquetado de Showdown (nombre|especie|objeto|habilidad|movimientos|naturaleza|…]…) a sets sencillos. */
+function unpackTeam(buf) {
+  return String(buf || '').split(']').filter(Boolean).map(x => {
+    const f = x.split('|');
+    const misc = (f[11] || '').split(',');
+    return { species: f[1] || f[0] || '', item: f[2] || '', ability: f[3] || '', moves: (f[4] || '').split(',').filter(Boolean), nature: f[5] || '', tera: misc[5] || '' };
+  }).filter(s => s.species);
+}
+
 function parseLog(log, opts = {}) {
   const lines = String(log).split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.startsWith('|'));
-  const side = () => ({ name: '', rating: null, ratingAfter: null, preview: [], leads: [], brought: [], megas: [], moves: {}, fainted: [], minTime: null });
+  const side = () => ({ name: '', rating: null, ratingAfter: null, preview: [], leads: [], brought: [], megas: [], moves: {}, fainted: [], minTime: null, sheet: null });
   const S = { p1: side(), p2: side() };
   let format = '', gametype = '', rated = false, turns = 0, winner = null, tie = false, forfeit = null, timeout = null, started = false, lastT = null;
 
@@ -91,6 +100,8 @@ function parseLog(log, opts = {}) {
         add(S[sd].fainted, nick[p[2].replace(/^(p\d)[a-z]:/, '$1:')] || p[2].split(': ')[1]);
         break;
       }
+      // Hoja de equipo abierta (Bo3 / torneos): el equipo completo, en formato empaquetado de Showdown.
+      case 'showteam': { const sd = p[2]; if (S[sd]) S[sd].sheet = unpackTeam(p.slice(3).join('|')); break; }
       case 'win': winner = p[2] || null; break;
       case 'tie': tie = true; break;
       case 'inactive': case 'inactiveoff': {
@@ -138,4 +149,4 @@ function parseFile(text, opts = {}) {
   return { summary: r, log: x.log };
 }
 
-module.exports = { toID, stripMega, extractLog, parseLog, parseFile };
+module.exports = { toID, stripMega, extractLog, parseLog, parseFile, unpackTeam };

@@ -14,6 +14,7 @@
 <body>
 <aside class="side">
   <div class="brand"><span class="lens" aria-hidden="true"></span><b>MACAR <span>SHOWDOWN</span></b></div>
+  <button class="sessbtn" id="sessBtn" title="Tu sesión: aquí se apuntan las partidas. Cambia a otra o crea una nueva."><small>Tu sesión</small><b id="sessName">Sin sesión</b></button>
   <nav class="nav" aria-label="Secciones">
     <button data-v="jugar" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
     <button data-v="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Dashboard</button>
@@ -35,7 +36,7 @@
   <section class="view on" id="v-jugar">
     <div class="playbar">
       <span class="pstat" id="playStat">Juega como siempre: al terminar cada combate, la partida se guarda sola.</span>
-      <span class="tools"><span class="recdot hide" id="recDot" title="Grabando el combate">● REC</span><button class="btn" id="reloadSd">Recargar Showdown</button></span>
+      <span class="tools"><span class="recdot hide" id="recDot" title="Grabando el combate">● REC</span><button class="btn" id="sdTeam" title="Tu equipo, en la carpeta «Macar Showdown» del teambuilder de Showdown">Llevar mi equipo a Showdown</button><button class="btn primary" id="sdSearch" title="Busca partida en el ladder con tu equipo">Buscar partida (Reg M-C)</button><button class="btn" id="reloadSd" title="Recargar Showdown">⟳</button></span>
     </div>
     <div class="playwrap">
       <div class="sdcol">
@@ -73,5 +74,6 @@
 <script src="optimizer.js"></script>
 <script src="doc.js"></script>
 <script src="play.js"></script>
+<script src="sessions.js"></script>
 </body>
 </html>

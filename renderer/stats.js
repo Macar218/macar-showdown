@@ -24,6 +24,7 @@
       if (f.lead && leadKey(mine(s).leads) !== f.lead) return false;
       if (f.rival && !theirs(s).preview.includes(f.rival)) return false;
       if (f.team && f.teamOf && f.teamOf(s) !== f.team) return false;
+      if (f.session && f.session !== 'all' && (s.session || '-') !== f.session) return false;
       if (f.from && s.endedAt < f.from) return false;
       if (f.to && s.endedAt > f.to) return false;
       return true;

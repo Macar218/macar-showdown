@@ -139,7 +139,7 @@ body.resizing .calc{transition:none}
 .btn.sm{padding:4px 10px;font-size:12px;border-radius:8px}
 .btn.x{float:right}
 .ctop{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
-.ctop .tog{margin-left:auto}
+.ctop [data-dex]{margin-left:auto}
 .pill.live{background:rgba(255,107,107,.18);color:#ff8f8f;animation:livep 2s ease-in-out infinite}
 @keyframes livep{50%{box-shadow:0 0 10px rgba(255,107,107,.6)}}
 .cteams{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
@@ -538,3 +538,70 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .tpick{display:grid;grid-template-columns:repeat(8,26px);gap:3px;margin-top:10px}
 .tpick i{width:26px;height:26px;border:1px solid var(--line);border-radius:4px;background:var(--surface);cursor:pointer}
 .tpick i.on{background:var(--accent-soft);border-color:var(--accent)}
+
+/* ---------- Sesiones ---------- */
+.sessbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--gold);border-radius:12px;background:rgba(255,226,122,.08);cursor:pointer}
+.sessbtn small{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+.sessbtn b{font-family:var(--display);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sessbtn.none{border-color:var(--line);background:none}.sessbtn.none small{color:var(--muted)}.sessbtn.none b{color:var(--muted)}
+.sessbtn:hover{border-color:var(--accent)}
+.sslist{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.ssrow{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--shell)}
+.ssrow.on{border-color:var(--gold)}
+.ssrow > div:first-child{flex:1;display:flex;flex-direction:column;min-width:0}
+.sesscard{display:grid;grid-template-columns:minmax(160px,1fr) 2fr minmax(140px,1fr);gap:16px;align-items:center;margin-bottom:14px;border-color:var(--gold)}
+.sesscard small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.sesscard b{font-family:var(--display);font-size:20px}
+.sesscard .sgoal span{font-size:15px}
+
+/* ---------- Partidas: Bo3 ---------- */
+.bo3{border:1px solid var(--gold);border-radius:12px;background:linear-gradient(180deg,#14275e,#0b1a46);padding:8px 12px}
+.bo3head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bo3g{display:flex;gap:4px;margin-left:auto}
+.gbtn{border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer;background:var(--surface)}
+.gbtn.win{border-color:var(--good);color:var(--good)}.gbtn.loss{border-color:var(--bad);color:var(--bad)}
+.rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.round{border:1px solid var(--line);border-radius:12px;background:var(--shell);padding:10px;display:flex;flex-direction:column;gap:8px}
+.rhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rhead b{font-family:var(--display);font-size:18px}
+.rgrid{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:12px;color:var(--muted)}
+.rgrid span:nth-child(even){color:var(--ink);display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.sheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
+.sheetmon{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--shell);font-size:12px}
+.sheetmon > div{display:flex;flex-direction:column;min-width:0}
+.sheetmon small{color:var(--muted)}
+
+/* ---------- Elegir Pokémon, ficha y detalle de tiradas ---------- */
+.pkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-top:10px;max-height:60vh;overflow:auto}
+.pkcell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:1px solid var(--line);border-radius:10px;background:var(--shell);cursor:pointer;min-width:0}
+.pkcell:hover{border-color:var(--accent);background:var(--accent-soft)}
+.pkcell b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pkcell small{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.dxlist{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px}
+.dxlist .chipbtn{display:inline-flex;align-items:center;gap:3px}
+.dxhead{display:flex;gap:14px;align-items:center;margin-top:10px}
+.dxhead b{font-family:var(--display);font-size:22px;display:block}
+.dxstats{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.dxstats div{display:flex;flex-direction:column;gap:2px;background:var(--shell);border:1px solid var(--line);border-radius:8px;padding:6px}
+.dxstats small{font-size:10px;color:var(--muted)}.dxstats b{font-family:var(--mono)}
+.dxstats i{display:block;height:4px;border-radius:2px;background:rgba(0,0,0,.4);overflow:hidden}
+.dxstats i i{height:100%;background:var(--accent)}.dxstats i i.hi{background:var(--good)}.dxstats i i.lo{background:var(--bad)}
+.dxeff{display:inline-flex;align-items:center;gap:4px;margin:0 8px 6px 0;font-size:12px}
+.dmc{cursor:pointer}
+.dmc:hover{outline:1px solid var(--accent)}
+.ddet{border:1px solid var(--accent);border-radius:12px;background:var(--shell);padding:8px 10px}
+.ddet h3{margin:0;font-family:var(--display);font-size:13px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.rolls{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:6px}
+.rolls span{display:flex;flex-direction:column;align-items:center;background:var(--surface);border-radius:6px;padding:3px 0;font-size:11px}
+.rolls span.ko{background:rgba(255,107,107,.25)}
+.rolls small{color:var(--muted);font-size:10px}.rolls em{font-style:normal;font-size:9px;color:var(--muted)}
+.rolls span.ko em{color:#ff9f9f;font-weight:700}
+
+.extlist{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.extrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--shell)}
+.extrow b{flex:1}
+
+.uset span.chipbtn{display:inline-block;cursor:default}
+.ssrow b .pill{font-size:10px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.sesscard b + .note{display:block}
+.btn.sm.ibtn{padding:4px 8px;font-family:var(--mono)}

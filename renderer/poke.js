@@ -515,7 +515,84 @@ const P = (() => {
     if (!m.species) $('#eSp').focus();
   }
 
+  /* ---------- elegir un Pokémon (rejilla) ---------- */
+  /** opts: { side, title, onPick(set) } — pestañas: más llevados en torneos, Mi PC, todos. */
+  async function pickMon(opts) {
+    const [U, T, PC] = await Promise.all([usage(), tour(), pcList()]);
+    const box = $('#modalBox');
+    box.onclick = box.onchange = box.oninput = null;
+    let tab = T ? 'tour' : 'all', q = '';
+    const rank = T ? tourRank(T).map(id => calcSpecies(id)).filter(Boolean) : usageRank(U).map(n => calcSpecies(n)).filter(Boolean);
+    const draw = () => {
+      let items;
+      if (tab === 'pc') items = PC.map(x => ({ x, s: parseSet(x.text) })).filter(o => o.s && !o.s.bad && (!opts.side || x_side(o.x) === opts.side || true)).map(o => ({ key: `pc:${o.x.id}`, species: o.s.species, label: o.x.name || o.s.species, sub: `${o.s.item || 'Sin objeto'} · ${o.x.side === 'me' ? 'tuyo' : 'rival'}` }));
+      else if (tab === 'tour') items = rank.map(sp => { const t = tourOf(T, sp); return { key: `sp:${sp}`, species: sp, label: sp, sub: t ? `${String(t.usage).replace('.', ',')}% de los equipos` : '' }; });
+      else items = SPECIES.map(sp => ({ key: `sp:${sp}`, species: sp, label: sp, sub: typesOf(sp).map(t => TYPES_ES[t]).join(' / ') }));
+      if (q) items = items.filter(i => `${i.label} ${i.species}`.toLowerCase().includes(q));
+      box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>${esc(opts.title || 'Elige un Pokémon')}</h2>
+        <p class="note">Elige un set: uno de los más llevados en los torneos, uno de tu PC o cualquiera (luego lo retocas en Editar).</p>
+        <div class="row-btns"><div class="seg">${[['tour', 'Más usados'], ['pc', `Mi PC (${PC.length})`], ['all', 'Todos']].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>
+          <input type="search" id="pkQ" placeholder="Buscar por nombre…" value="${esc(q)}" style="flex:1"><button class="btn" data-pkmanual="1">Pegar un set…</button></div>
+        <div class="pkgrid">${items.slice(0, 240).map(i => `<button class="pkcell" data-pk="${esc(i.key)}" title="${esc(i.label)}">${spr(i.species)}<b>${esc(i.label)}</b><small>${esc(i.sub)}</small></button>`).join('') || '<p class="note">Nada coincide con esa búsqueda.</p>'}</div>`;
+      $('#mClose').onclick = closeModal;
+    };
+    const x_side = x => x.side;
+    draw();
+    box.oninput = e => { if (e.target.id === 'pkQ') { q = e.target.value.toLowerCase(); const pos = e.target.selectionStart; draw(); const i = $('#pkQ'); i.focus(); i.setSelectionRange(pos, pos); } };
+    box.onclick = e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.ptab) { tab = b.dataset.ptab; draw(); return; }
+      if (b.dataset.pkmanual) { closeModal(); openEditor({ set: blankMon(''), side: opts.side, title: opts.title, live: true, onSave: opts.onPick }); return; }
+      if (!b.dataset.pk) return;
+      const [kind, val] = b.dataset.pk.split(/:(.+)/);
+      let set;
+      if (kind === 'pc') { const x = PC.find(y => y.id === val); set = { ...parseSet(x.text), src: 'pc' }; }
+      else set = (opts.side === 'foe' || opts.side === 'me' ? tourSet(T, U, val) || usageSet(U, val) : null) || blankMon(val);
+      closeModal();
+      opts.onPick({ ...blankMon(set.species), ...set, hp: 100, status: '', boosts: {} });
+    };
+    $('#modal').classList.remove('hide');
+    $('#pkQ').focus();
+  }
+
+  /* ---------- ficha de un Pokémon (Pokédex) ---------- */
+  async function openInfo(species) {
+    const [U, T] = await Promise.all([usage(), tour()]);
+    const box = $('#modalBox');
+    box.onclick = box.onchange = box.oninput = null;
+    let cur = calcSpecies(species) || SPECIES[0], q = '';
+    const draw = () => {
+      const s = spOf(cur), b = s.baseStats, tot = STATS.reduce((a, k) => a + b[k], 0);
+      const types = s.types;
+      const eff = TYPES.map(t => ({ t, e: effectiveness(t, types) })).filter(x => x.e !== 1).sort((a, z) => z.e - a.e);
+      const speedAt = (sp, mult) => Math.floor((b.spe + 20 + sp) * mult);
+      const t = tourOf(T, cur), u = usageOf(U, cur);
+      const list = q ? SPECIES.filter(n => n.toLowerCase().includes(q)).slice(0, 40) : [];
+      const chips = (arr, table) => arr.slice(0, 6).map(([k, pc]) => `<span class="chipbtn">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', ',')}%</em></span>`).join('');
+      box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Info Pokémon</h2>
+        <div class="row-btns"><input type="search" id="dxQ" list="dlSpecies" placeholder="Buscar por nombre…" value="${esc(q)}" style="flex:1"></div>
+        ${list.length ? `<div class="dxlist">${list.map(n => `<button class="chipbtn" data-dx="${esc(n)}">${spr(n, 'xs')}${esc(n)}</button>`).join('')}</div>` : ''}
+        <div class="dxhead">${spr(cur, 'big')}<div><b>${esc(cur)}</b><span class="note">${s.weightkg} kg</span><div class="edtypes">${types.map(typeBadge).join('')}</div>
+          <p class="note" style="margin-top:4px">Habilidades: ${abilitiesOf(cur).map(esc).join(' · ')}</p></div></div>
+        <div class="dxstats">${STATS.map(k => `<div><small>${SL[k]}</small><b>${b[k]}</b><i><i style="width:${Math.min(100, (b[k] / 200) * 100)}%" class="${b[k] >= 110 ? 'hi' : b[k] < 60 ? 'lo' : ''}"></i></i></div>`).join('')}<div><small>Total</small><b>${tot}</b></div></div>
+        <div class="grid" style="margin-top:10px">
+          <div class="card"><h2>Tipos contra él</h2>${eff.map(x => `<span class="dxeff">${typeBadge(x.t)}<b class="${x.e > 1 ? 'badc' : 'okc'}">×${String(x.e).replace('.', ',')}</b></span>`).join('') || '<p class="note">Todo le hace daño normal.</p>'}</div>
+          <div class="card"><h2>Velocidad a nivel 50</h2><table class="lb"><tr><td>Sin puntos, naturaleza que la baja</td><td><b>${speedAt(0, 0.9)}</b></td></tr><tr><td>Sin puntos</td><td><b>${speedAt(0, 1)}</b></td></tr><tr><td>32 SP</td><td><b>${speedAt(32, 1)}</b></td></tr><tr><td>32 SP y naturaleza que la sube</td><td><b>${speedAt(32, 1.1)}</b></td></tr><tr><td>Máxima con Viento Afín</td><td><b>${speedAt(32, 1.1) * 2}</b></td></tr><tr><td>Máxima con Pañuelo</td><td><b>${Math.floor(speedAt(32, 1.1) * 1.5)}</b></td></tr></table></div>
+          ${t ? `<div class="card"><h2>En torneos</h2><p class="note">${String(t.usage).replace('.', ',')}% de los equipos · ${t.n} equipos</p><div class="uset"><div><small>Objetos</small>${chips(t.items, 'items')}</div><div><small>Naturalezas</small>${chips(t.natures)}</div><div><small>Movimientos</small>${chips(t.moves, 'moves')}</div><div><small>Suele ir con</small>${chips(t.mates.map(([k, v]) => [calcSpecies(k) || k, v]))}</div></div></div>` : ''}
+          ${u ? `<div class="card"><h2>En Smogon</h2><div class="uset"><div><small>Repartos</small>${u.spreads.slice(0, 3).map(sp => `<span class="chipbtn">${esc(sp.nature)} ${sp.sp.join('/')} <em>${String(sp.pc).replace('.', ',')}%</em></span>`).join('')}</div><div><small>Habilidades</small>${chips(u.abilities, 'abilities')}</div></div></div>` : ''}
+        </div>`;
+      $('#mClose').onclick = closeModal;
+    };
+    datalists();
+    draw();
+    box.oninput = e => { if (e.target.id === 'dxQ') { q = e.target.value.trim().toLowerCase(); const exact = calcSpecies(e.target.value.trim()); if (exact && spOf(e.target.value.trim())) { cur = exact; q = ''; } const pos = e.target.selectionStart; draw(); const i = $('#dxQ'); i.focus(); try { i.setSelectionRange(pos, pos); } catch (err) { /* nada */ } } };
+    box.onclick = e => { const b = e.target.closest('[data-dx]'); if (b) { cur = b.dataset.dx; q = ''; draw(); } };
+    $('#modal').classList.remove('hide');
+  }
+
   return {
+    pickMon, openInfo,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,

@@ -13,17 +13,18 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `main.js` | Proceso principal: ventana, webview de Showdown, IPC, carpeta de datos (OneDrive), PDF, vídeo (protocolo `msvideo://`), replays, torneos, actualización. Modo pruebas con variables `MACAR_*` |
 | `preload.js` | Puente seguro (`window.macar`). Nada de Node en la página |
 | `src/parser.js` | Lector de registros de Showdown → resumen de partida |
-| `src/store.js` | Guardado: una partida por archivo + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`) y ajustes |
+| `src/store.js` | Guardado: una partida por archivo + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`, `sesiones`, `bo3Notes`) y ajustes (`sessionId` = sesión abierta) |
 | `src/capture.js` | Captura: guarda cada combate al terminar |
 | `src/live.js` | Lee el combate abierto para la calculadora en directo |
 | `src/media.js` | Combate actual (notas y grabación) y subida de replays (`/savereplay`) |
 | `src/usage.js` | Sets más usados de Smogon (chaos, 1760+), en caché en `<datos>/uso` |
+| `src/extensions.js` | Extensiones de Chrome para la sesión de Showdown (Chrome Web Store, .crx/.zip, carpeta), en `<userData>/extensiones` |
 | `src/tournaments.js` | Torneos online de Limitless (API pública, M-C, 30 días, ≥16 jugadores): sets de torneo y equipos del top 8, en `<datos>/torneos.json` |
 | `renderer/app.js` | Navegación, Dashboard, Partidas, Ajustes |
 | `renderer/stats.js` | Estadísticas (también en Node para los tests) |
 | `renderer/poke.js` | Piezas comunes: datos del motor, sets Showdown, daño/velocidad, editor de Pokémon, datos de uso y de torneo, Team Box, Mi PC |
 | `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia) y Multicalc |
-| `renderer/team.js`, `pc.js`, `optimizer.js`, `doc.js`, `play.js` | Teambuilder, Mi PC, Optimizador SP, Documento, Jugar (notas, grabación, aviso de versión) |
+| `renderer/team.js`, `pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Teambuilder, Mi PC, Optimizador SP, Documento, Jugar (notas, grabación, buscar partida, aviso de versión), Sesiones |
 | `renderer/index.html`, `style.css` | Marcado y estilos |
 
 ## Reglas que no se pueden romper
@@ -42,9 +43,10 @@ npm install            # con npm 11 puede no bajar Electron: node node_modules/e
 npm test               # 12 pruebas: lector, guardado, estadísticas, torneos, motor
 npm start
 ```
-Pruebas de interfaz sin tocar datos reales: `MACAR_DATOS=<carpeta>` (datos), `MACAR_VIDEOS=<carpeta>`, `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).
+Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de Electron aparte: sin tu sesión de Showdown ni tus extensiones), `MACAR_DATOS=<carpeta>` (datos), `MACAR_VIDEOS=<carpeta>`, `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).
 
 ## Pendiente / ideas
 - Probar con un combate jugado por el usuario: subida de replay y vídeo al terminar.
 - La primera actualización automática real se verá al publicar la 0.4.1 o posterior.
-- Posibles mejoras: Bo3 agrupado (G1/G2/G3) en Partidas con notas por ronda; "Objetivo de la sesión" en el Dashboard; vista de equipos de torneo también en el Teambuilder.
+- Sin probar con la cuenta del usuario: «Buscar partida (Reg M-C)» (usa `/utm` + `/search`) y añadir una extensión real desde la Chrome Web Store.
+- Fuera a propósito (no son utilidades): mascota y tour, sonidos, idiomas, cuenta y plan de pago, modo del juego real (OCR).

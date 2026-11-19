@@ -6,7 +6,7 @@
  * - Grabación: graba solo el Showdown (no la calculadora) desde que empieza tu combate hasta que acaba.
  * - Aviso de versión nueva (se descarga sola y se instala al reiniciar).
  */
-/* global api, DB, $, esc, SET */
+/* global api, DB, P, $, esc, SET */
 
 const Play = (() => {
   const st = { cur: null, mid: null, saveT: null, open: true, rec: null, recMid: null, stopT: null, gone: 0 };
@@ -97,6 +97,32 @@ const Play = (() => {
   }
   setInterval(tick, 1500);
   tick();
+
+  /* ---------- tu equipo a Showdown y buscar partida ---------- */
+  let searching = false;
+  async function myTeamText() {
+    const t = SET.teamId ? await P.teamById(SET.teamId) : null;
+    return t && t.text.trim() ? t : null;
+  }
+  const flash = msg => { const s = $('#playStat'); s.textContent = msg; };
+  $('#sdTeam').addEventListener('click', async () => {
+    const t = await myTeamText();
+    if (!t) { flash('Primero elige tu equipo en el Teambuilder (Usar como mi equipo).'); return; }
+    const r = await api.sdAddTeam(t.name, t.text);
+    flash(r.ok ? `Ese es tu equipo, en la carpeta «Macar Showdown» de Showdown: ${t.name}.` : `No se ha podido llevar el equipo a Showdown: ${r.why}`);
+  });
+  $('#sdSearch').addEventListener('click', async () => {
+    const b = $('#sdSearch');
+    if (searching) { await api.sdCancelSearch(); searching = false; b.textContent = 'Buscar partida (Reg M-C)'; b.classList.add('primary'); flash('Búsqueda cancelada.'); return; }
+    const t = await myTeamText();
+    if (!t) { flash('Primero elige tu equipo en el Teambuilder (Usar como mi equipo).'); return; }
+    const r = await api.sdSearch(t.name, t.text);
+    if (!r.ok) { flash(`No se ha podido buscar la partida: ${r.why}`); return; }
+    searching = true; b.textContent = 'Cancelar búsqueda'; b.classList.remove('primary');
+    flash(`Buscando una partida de la Reg M-C con ${t.name}…`);
+  });
+  const resetSearch = () => { if (searching && st.cur && !st.cur.ended) { searching = false; const b = $('#sdSearch'); b.textContent = 'Buscar partida (Reg M-C)'; b.classList.add('primary'); } };
+  setInterval(resetSearch, 1500);
 
   /* ---------- versión nueva ---------- */
   function showUpdate(u) {

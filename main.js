@@ -10,6 +10,7 @@ const { LIVE } = require('./src/live');
 const { Usage } = require('./src/usage');
 const { CURRENT, uploadReplay } = require('./src/media');
 const { Tournaments } = require('./src/tournaments');
+const { Extensions } = require('./src/extensions');
 const { matchId } = require('./src/store');
 
 // Vídeos de las partidas: se sirven a la interfaz por msvideo:// (con saltos dentro del vídeo).
@@ -22,11 +23,14 @@ let win = null;
 let store = null;
 let usage = null;
 let tours = null;
+let exts = null;
 let sdContents = null; // el webview de Showdown, para leer el combate en directo
 let capStatus = { ok: false, why: 'Abre la pestaña Jugar para empezar', open: 0, finished: 0, saved: 0 };
 const replaying = new Set();
 let rec = null; // grabación en curso: { mid, file, stream }
 
+// Solo desarrollo: un perfil aparte (sin tu sesión de Showdown ni tus extensiones) para pruebas.
+if (!app.isPackaged && process.env.MACAR_PERFIL) app.setPath('userData', process.env.MACAR_PERFIL);
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
@@ -197,6 +201,7 @@ function registerIpc() {
     if (patch && typeof patch.showdownName === 'string') clean.showdownName = patch.showdownName.slice(0, 200);
     if (patch && typeof patch.teamId === 'string') clean.teamId = patch.teamId.slice(0, 60);
     if (patch && typeof patch.autoReplay === 'boolean') clean.autoReplay = patch.autoReplay;
+    if (patch && typeof patch.sessionId === 'string') clean.sessionId = patch.sessionId.slice(0, 60);
     if (patch && typeof patch.recordVideo === 'boolean') clean.recordVideo = patch.recordVideo;
     const s = store.setSettings(clean);
     notify();
@@ -212,6 +217,37 @@ function registerIpc() {
     try { const c = await sdContents.executeJavaScript(CURRENT, false); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
   });
   ipcMain.handle('ms:matchExists', (_e, id) => !!store.get(String(id)));
+  ipcMain.handle('ms:downloadReplay', async (_e, id) => {
+    const m = store.get(String(id));
+    if (!m) return { ok: false, why: 'No está guardada' };
+    const s = m.summary;
+    const title = `${s.format} ${s.p1.name} vs ${s.p2.name}`.replace(/[\\/:*?"<>|]/g, '_');
+    const r = await dialog.showSaveDialog(win, { title: 'Descargar replay', defaultPath: path.join(app.getPath('downloads'), `${title.slice(0, 120)}.html`), filters: [{ name: 'Replay de Showdown', extensions: ['html'] }] });
+    if (r.canceled || !r.filePath) return { ok: false };
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<!DOCTYPE html>
+<meta charset="utf-8" />
+<!-- version 1 -->
+<title>${esc(title)}</title>
+<style>html,body {font-family:Verdana, sans-serif;font-size:10pt;margin:0;padding:0;}body{padding:12px 0;} .battle-log {font-family:Verdana, sans-serif;font-size:10pt;} .battle-log-inline {border:1px solid #AAAAAA;background:#EEF2F5;color:black;max-width:640px;margin:0 auto 80px;padding-bottom:5px;} .battle-log .inner {padding:4px 8px 0px 8px;} .battle-log .inner-preempt {padding:0 8px 4px 8px;} .battle-log .inner-after {margin-top:0.5em;} .battle-log h2 {margin:0.5em -8px;padding:4px 8px;border:1px solid #AAAAAA;background:#E0E7EA;border-left:0;border-right:0;font-family:Verdana, sans-serif;font-size:13pt;} .battle-log .chat {vertical-align:middle;padding:3px 0 3px 0;font-size:8pt;} .battle-log .chat strong {color:#40576A;} .battle-log .chat em {padding:1px 4px 1px 3px;color:#000000;font-style:normal;} .chat.mine {background:rgba(0,0,0,0.05);margin-left:-8px;margin-right:-8px;padding-left:8px;padding-right:8px;} .spoiler {color:#BBBBBB;background:#BBBBBB;padding:0px 3px;} .spoiler:hover, .spoiler:active, .spoiler-shown {color:#000000;background:#E2E2E2;padding:0px 3px;} .spoiler a {color:#BBBBBB;} .spoiler:hover a, .spoiler:active a, .spoiler-shown a {color:#2288CC;} .chat code, .chat .spoiler:hover code, .chat .spoiler:active code, .chat .spoiler-shown code {border:1px solid #C0C0C0;background:#EEEEEE;color:black;padding:0 2px;} .chat .spoiler code {border:1px solid #CCCCCC;background:#CCCCCC;color:#CCCCCC;} .battle-log .rated {padding:3px 4px;} .battle-log .rated strong {color:white;background:#89A;padding:1px 4px;border-radius:4px;} .spacer {margin-top:0.5em;} .message-announce {background:#6688AA;color:white;padding:1px 4px 2px;} .message-announce a, .broadcast-green a, .broadcast-blue a, .broadcast-red a {color:#DDEEFF;} .broadcast-green {background-color:#559955;color:white;padding:2px 4px;} .broadcast-blue {background-color:#6688AA;color:white;padding:2px 4px;} .infobox {border:1px solid #6688AA;padding:2px 4px;} .infobox-limited {max-height:200px;overflow:auto;overflow-x:hidden;} .broadcast-red {background-color:#AA5544;color:white;padding:2px 4px;} .message-learn-canlearn {font-weight:bold;color:#228822;text-decoration:underline;} .message-learn-cannotlearn {font-weight:bold;color:#CC2222;text-decoration:underline;} .message-effect-weak {font-weight:bold;color:#CC2222;} .message-effect-resist {font-weight:bold;color:#6688AA;} .message-effect-immune {font-weight:bold;color:#666666;} .message-learn-list {margin-top:0;margin-bottom:0;} .message-throttle-notice, .message-error {color:#992222;} .message-overflow, .chat small.message-overflow {font-size:0pt;} .message-overflow::before {font-size:9pt;content:'...';} .subtle {color:#3A4A66;}</style>
+<div class="wrapper replay-wrapper" style="max-width:1180px;margin:0 auto">
+<input type="hidden" name="replayid" value="${esc(s.id)}" />
+<div class="battle"></div><div class="battle-log"></div><div class="replay-controls"></div><div class="replay-controls-2"></div>
+<h1 style="font-weight:normal;text-align:center"><strong>${esc(s.format)}</strong><br /><a href="https://pokemonshowdown.com/users/${esc(s.p1.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p1.name)}</a> vs. <a href="https://pokemonshowdown.com/users/${esc(s.p2.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p2.name)}</a></h1>
+<script type="text/plain" class="battle-log-data">${m.log.replace(/\//g, '\\/')}</script>
+</div>
+<div class="battle-log battle-log-inline"><div class="inner"></div></div>
+</div>
+<script>
+let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="https://play.pokemonshowdown.com/js/replay-embed.js?version'+daily+'"></'+'script>');
+</script>
+`;
+    fs.writeFileSync(r.filePath, html);
+    shell.showItemInFolder(r.filePath);
+    return { ok: true, file: r.filePath };
+  });
+  ipcMain.handle('ms:setMatchSession', (_e, id, sid) => { const r = store.setSession(String(id), sid ? String(sid) : null); notify(); return r; });
+  ipcMain.handle('ms:clearSession', (_e, sid) => { const n = store.clearSession(String(sid)); notify(); return n; });
   ipcMain.handle('ms:replayNow', async (_e, id) => {
     const m = store.get(String(id));
     if (!m) return { ok: false, why: 'No está guardada' };
@@ -251,6 +287,37 @@ function registerIpc() {
     return { ok: true, dir: r.filePaths[0] };
   });
   ipcMain.handle('ms:openVideos', () => { fs.mkdirSync(videosDir(), { recursive: true }); return shell.openPath(videosDir()); });
+
+  // Extensiones de Chrome dentro de Showdown.
+  ipcMain.handle('ms:extList', () => exts.list().map(({ id, name, version, source }) => ({ id, name, version, source })));
+  ipcMain.handle('ms:extAdd', async (_e, kind, value) => {
+    try {
+      let r;
+      if (kind === 'store') r = await exts.addStore(String(value || ''));
+      else if (kind === 'folder' || kind === 'file') {
+        const d = await dialog.showOpenDialog(win, kind === 'folder'
+          ? { title: 'Carpeta descomprimida de la extensión', properties: ['openDirectory'] }
+          : { title: 'Extensión (.crx o .zip)', properties: ['openFile'], filters: [{ name: 'Extensión de Chrome', extensions: ['crx', 'zip'] }] });
+        if (d.canceled || !d.filePaths[0]) return { ok: false };
+        r = kind === 'folder' ? await exts.addFolder(d.filePaths[0]) : await exts.addFile(d.filePaths[0]);
+      } else return { ok: false, why: 'Tipo desconocido' };
+      return { ok: true, ...r };
+    } catch (e) { return { ok: false, why: e.message }; }
+  });
+  ipcMain.handle('ms:extRemove', (_e, id) => exts.remove(String(id)));
+
+  // Tu ELO y GXE en el ladder (perfil público de Showdown).
+  ipcMain.handle('ms:ladder', async (_e, name) => {
+    const id = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!id) return { ok: false };
+    try {
+      const r = await fetch(`https://pokemonshowdown.com/users/${id}.json`, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return { ok: false, why: `Showdown respondió ${r.status}` };
+      const j = await r.json();
+      const ratings = Object.entries(j.ratings || {}).filter(([k]) => /champions/.test(k)).map(([format, x]) => ({ format, elo: Math.round(x.elo), gxe: x.gxe, w: x.w, l: x.l }));
+      return { ok: true, user: j.username, ratings };
+    } catch (e) { return { ok: false, why: e.message }; }
+  });
 
   // Equipos y sets de torneo (Limitless).
   ipcMain.handle('ms:tournaments', async (_e, force) => {
@@ -292,37 +359,37 @@ function registerIpc() {
       return { ok: true, dir: target, copied };
     } catch (e) { return { ok: false, why: e.message }; }
   });
-  // Añadir un equipo al teambuilder de Showdown (se guarda en la sesión de Showdown de la pestaña Jugar).
-  ipcMain.handle('ms:sdAddTeam', async (_e, name, text, format) => {
-    if (!sdContents || sdContents.isDestroyed()) return { ok: false, why: 'Abre la pestaña Jugar primero' };
-    const js = `(() => { try {
-      const S = window.Storage;
-      if (!S || !S.importTeam || !S.packTeam || !S.teams) return { ok: false, why: 'Showdown aún no ha cargado' };
+  // Llevar un equipo al teambuilder de Showdown (carpeta «Macar Showdown»; si ya estaba con ese nombre, se actualiza)
+  // y, si se pide, buscar partida con él en el ladder.
+  const SD_TEAM = (name, text, format, search) => `(() => { try {
+      const S = window.Storage, a = window.app;
+      if (!S || !S.importTeam || !S.packTeam || !S.teams || !a) return { ok: false, why: 'Showdown aún no ha cargado' };
       const team = S.importTeam(${JSON.stringify(String(text || '').slice(0, 20000))});
       if (!team || !team.length) return { ok: false, why: 'El equipo está vacío' };
-      S.teams.unshift({ name: ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format: ${JSON.stringify(String(format || 'gen9championsvgc2026regmc'))}, team: S.packTeam(team), folder: '', iconCache: '' });
+      const packed = S.packTeam(team), name = ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format = ${JSON.stringify(String(format || 'gen9championsvgc2026regmc'))};
+      const old = S.teams.find(t => t.folder === 'Macar Showdown' && t.name === name);
+      if (old) { old.team = packed; old.format = format; old.iconCache = ''; }
+      else S.teams.unshift({ name, format, team: packed, folder: 'Macar Showdown', iconCache: '' });
       S.saveTeams();
-      try { window.app.user.trigger('saveteams'); } catch (e) {}
+      try { a.user.trigger('saveteams'); } catch (e) {}
+      if (${search ? 'true' : 'false'}) {
+        if (!a.user || !a.user.get('named')) return { ok: false, why: 'Inicia sesión en Showdown para buscar partida' };
+        a.send('/utm ' + packed);
+        a.send('/search ' + format);
+      }
       return { ok: true };
     } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } })()`;
-    try { return await sdContents.executeJavaScript(js, false); } catch (e) { return { ok: false, why: e.message }; }
+  ipcMain.handle('ms:sdAddTeam', async (_e, name, text, format) => {
+    if (!sdContents || sdContents.isDestroyed()) return { ok: false, why: 'Abre la pestaña Jugar primero' };
+    try { return await sdContents.executeJavaScript(SD_TEAM(name, text, format, false), false); } catch (e) { return { ok: false, why: e.message }; }
   });
-  // Documento de preparación a PDF: se pinta en una ventana oculta y se imprime.
-  ipcMain.handle('ms:savePdf', async (_e, html, name) => {
-    const devPdf = !app.isPackaged && process.env.MACAR_PDF;
-    const r = devPdf ? { canceled: false, filePath: devPdf } : await dialog.showSaveDialog(win, { title: 'Guardar PDF de preparación', defaultPath: path.join(app.getPath('documents'), String(name || 'preparacion.pdf').replace(/[\\/:*?"<>|]/g, '_')), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-    if (r.canceled || !r.filePath) return { ok: false, why: null };
-    const w = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false } });
-    try {
-      w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      w.webContents.on('will-navigate', ev => ev.preventDefault());
-      await w.loadURL(`data:text/html;charset=utf-8;base64,${Buffer.from(String(html)).toString('base64')}`);
-      await new Promise(res => setTimeout(res, 1200)); // que carguen los sprites
-      const pdf = await w.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'none' } });
-      fs.writeFileSync(r.filePath, pdf);
-      if (!devPdf) shell.showItemInFolder(r.filePath);
-      return { ok: true, file: r.filePath };
-    } catch (e) { return { ok: false, why: e.message }; } finally { w.destroy(); }
+  ipcMain.handle('ms:sdSearch', async (_e, name, text, format) => {
+    if (!sdContents || sdContents.isDestroyed()) return { ok: false, why: 'Abre la pestaña Jugar primero' };
+    try { return await sdContents.executeJavaScript(SD_TEAM(name, text, format, true), false); } catch (e) { return { ok: false, why: e.message }; }
+  });
+  ipcMain.handle('ms:sdCancelSearch', async () => {
+    if (!sdContents || sdContents.isDestroyed()) return false;
+    try { await sdContents.executeJavaScript("window.app && window.app.send('/cancelsearch'), true", false); return true; } catch (e) { return false; }
   });
   ipcMain.handle('ms:fetchPaste', async (_e, url) => {
     let u;
@@ -374,7 +441,7 @@ function registerIpc() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setAppUserModelId('app.macar.showdown');
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir());
@@ -393,6 +460,8 @@ app.whenReady().then(() => {
   // Showdown no necesita permisos especiales (cámara, ubicación…): se deniegan todos.
   session.fromPartition(PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
   registerIpc();
+  exts = new Extensions(app.getPath('userData'), session.fromPartition(PARTITION));
+  try { await exts.loadAll(); } catch (e) { console.error('[extensiones]', e); }
   createWindow();
   setupUpdater();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

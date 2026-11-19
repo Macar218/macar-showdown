@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('macar', {
   savePdf: (html, name) => ipcRenderer.invoke('ms:savePdf', html, name),
   current: () => ipcRenderer.invoke('ms:current'),
   matchExists: id => ipcRenderer.invoke('ms:matchExists', id),
+  downloadReplay: id => ipcRenderer.invoke('ms:downloadReplay', id),
+  setMatchSession: (id, sid) => ipcRenderer.invoke('ms:setMatchSession', id, sid),
+  clearSession: sid => ipcRenderer.invoke('ms:clearSession', sid),
   replayNow: id => ipcRenderer.invoke('ms:replayNow', id),
   recStart: id => ipcRenderer.invoke('ms:recStart', id),
   recChunk: buf => ipcRenderer.send('ms:recChunk', buf),
@@ -35,10 +38,16 @@ contextBridge.exposeInMainWorld('macar', {
   setVideosDir: () => ipcRenderer.invoke('ms:setVideosDir'),
   openVideos: () => ipcRenderer.invoke('ms:openVideos'),
   tournaments: force => ipcRenderer.invoke('ms:tournaments', force),
+  extList: () => ipcRenderer.invoke('ms:extList'),
+  extAdd: (kind, value) => ipcRenderer.invoke('ms:extAdd', kind, value),
+  extRemove: id => ipcRenderer.invoke('ms:extRemove', id),
+  ladder: name => ipcRenderer.invoke('ms:ladder', name),
   updateInstall: () => ipcRenderer.invoke('ms:updateInstall'),
   updateState: () => ipcRenderer.invoke('ms:updateState'),
   onUpdate: cb => { const f = (_e, d) => cb(d); ipcRenderer.on('ms:update', f); return () => ipcRenderer.removeListener('ms:update', f); },
   sdAddTeam: (name, text, format) => ipcRenderer.invoke('ms:sdAddTeam', name, text, format),
+  sdSearch: (name, text, format) => ipcRenderer.invoke('ms:sdSearch', name, text, format),
+  sdCancelSearch: () => ipcRenderer.invoke('ms:sdCancelSearch'),
   onChanged: cb => {
     const f = (_e, d) => cb(d);
     ipcRenderer.on('ms:changed', f);
