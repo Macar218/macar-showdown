@@ -25,6 +25,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/poke.js` | Piezas comunes: datos del motor, sets Showdown, daño/velocidad, editor de Pokémon, datos de uso y de torneo, Team Box, Mi PC |
 | `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia) y Multicalc |
 | `renderer/team.js`, `pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Teambuilder, Mi PC, Optimizador SP, Documento, Jugar (notas, grabación, buscar partida, aviso de versión), Sesiones |
+| `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla) o su vídeo, con leads/reserva y notas con marcas `[T5]` / `[1:23]` que saltan a ese momento |
 | `renderer/i18n.js` | Idiomas: la interfaz se escribe en español; en inglés se traduce lo que se ve (diccionario de frases, frases con números `#` y trozos seguros). Textos nuevos: añadir su traducción aquí |
 | `renderer/items-data.js` | Objetos de Champions (nombre EN/ES, descripción EN/ES, grupo, icono), sacados de la Macar Dex |
 | `renderer/index.html`, `style.css` | Marcado y estilos |
@@ -35,7 +36,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 - Muchos movimientos de estado vienen sin categoría (o ni vienen) en los datos del motor: usar siempre `P.moveOf()`, que los completa (y su prioridad).
 - Con su megapiedra, el Pokémon se calcula en forma Mega con la habilidad de la Mega (`P.megaOf`).
 - Datos del usuario en la carpeta de datos (por defecto `%APPDATA%\Macar Showdown\datos`, o la de OneDrive que elija): formatos compatibles siempre. Los ajustes de este ordenador (carpeta de vídeos) van en `local.json` de `userData`, no en la carpeta de datos.
-- El webview solo puede ser Showdown; la página de la app no navega a ningún sitio; CSP sin scripts externos.
+- Los webviews solo pueden ser Showdown (`persist:showdown`) o el visor de replays (`msreplay://` en `persist:replay`, que carga el reproductor de play.pokemonshowdown.com); la página de la app no navega a ningún sitio; CSP sin scripts externos.
 - Replays: solo de combates del usuario y si `autoReplay` está activado. Vídeo: solo el webview de Showdown, solo si `recordVideo` está activado.
 - Nada de `prompt()` (Electron no lo tiene): formularios propios. `confirm()` sí funciona (y se traduce).
 - Idioma: cada texto nuevo de la interfaz necesita su traducción en `renderer/i18n.js`. No traducir trozos de una sola palabra corriente (cambiarían nombres puestos por el usuario).

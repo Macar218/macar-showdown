@@ -14,10 +14,12 @@ const { Extensions } = require('./src/extensions');
 const { matchId } = require('./src/store');
 
 // Vídeos de las partidas: se sirven a la interfaz por msvideo:// (con saltos dentro del vídeo).
-protocol.registerSchemesAsPrivileged([{ scheme: 'msvideo', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: 'msvideo', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }, { scheme: 'msreplay', privileges: { standard: true, secure: true } }]);
 
 const SHOWDOWN = /^https:\/\/([a-z0-9-]+\.)*pokemonshowdown\.com(\/|$)/i;
 const PARTITION = 'persist:showdown';
+const REPLAY_PARTITION = 'persist:replay'; // visor de replays: el reproductor oficial de Showdown con el registro guardado
+const REPLAY_URL = /^msreplay:\/\/r\/[A-Za-z0-9_-]+$/;
 
 let win = null;
 let store = null;
@@ -60,9 +62,16 @@ function createWindow() {
     prefs.nodeIntegration = false;
     prefs.contextIsolation = true;
     prefs.sandbox = true;
-    if (params.partition !== PARTITION || !SHOWDOWN.test(params.src)) event.preventDefault();
+    const sd = params.partition === PARTITION && SHOWDOWN.test(params.src);
+    const rp = params.partition === REPLAY_PARTITION && REPLAY_URL.test(params.src);
+    if (!sd && !rp) event.preventDefault();
   });
   win.webContents.on('did-attach-webview', (_e, contents) => {
+    if (contents.session === session.fromPartition(REPLAY_PARTITION)) {
+      contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
+      contents.on('will-navigate', (event, url) => { if (!REPLAY_URL.test(url)) { event.preventDefault(); openExternal(url); } });
+      return;
+    }
     contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
     contents.on('will-navigate', (event, url) => { if (!SHOWDOWN.test(url)) { event.preventDefault(); openExternal(url); } });
     sdContents = contents;
@@ -241,24 +250,7 @@ function registerIpc() {
     const title = `${s.format} ${s.p1.name} vs ${s.p2.name}`.replace(/[\\/:*?"<>|]/g, '_');
     const r = await dialog.showSaveDialog(win, { title: 'Descargar replay', defaultPath: path.join(app.getPath('downloads'), `${title.slice(0, 120)}.html`), filters: [{ name: 'Replay de Showdown', extensions: ['html'] }] });
     if (r.canceled || !r.filePath) return { ok: false };
-    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const html = `<!DOCTYPE html>
-<meta charset="utf-8" />
-<!-- version 1 -->
-<title>${esc(title)}</title>
-<style>html,body {font-family:Verdana, sans-serif;font-size:10pt;margin:0;padding:0;}body{padding:12px 0;} .battle-log {font-family:Verdana, sans-serif;font-size:10pt;} .battle-log-inline {border:1px solid #AAAAAA;background:#EEF2F5;color:black;max-width:640px;margin:0 auto 80px;padding-bottom:5px;} .battle-log .inner {padding:4px 8px 0px 8px;} .battle-log .inner-preempt {padding:0 8px 4px 8px;} .battle-log .inner-after {margin-top:0.5em;} .battle-log h2 {margin:0.5em -8px;padding:4px 8px;border:1px solid #AAAAAA;background:#E0E7EA;border-left:0;border-right:0;font-family:Verdana, sans-serif;font-size:13pt;} .battle-log .chat {vertical-align:middle;padding:3px 0 3px 0;font-size:8pt;} .battle-log .chat strong {color:#40576A;} .battle-log .chat em {padding:1px 4px 1px 3px;color:#000000;font-style:normal;} .chat.mine {background:rgba(0,0,0,0.05);margin-left:-8px;margin-right:-8px;padding-left:8px;padding-right:8px;} .spoiler {color:#BBBBBB;background:#BBBBBB;padding:0px 3px;} .spoiler:hover, .spoiler:active, .spoiler-shown {color:#000000;background:#E2E2E2;padding:0px 3px;} .spoiler a {color:#BBBBBB;} .spoiler:hover a, .spoiler:active a, .spoiler-shown a {color:#2288CC;} .chat code, .chat .spoiler:hover code, .chat .spoiler:active code, .chat .spoiler-shown code {border:1px solid #C0C0C0;background:#EEEEEE;color:black;padding:0 2px;} .chat .spoiler code {border:1px solid #CCCCCC;background:#CCCCCC;color:#CCCCCC;} .battle-log .rated {padding:3px 4px;} .battle-log .rated strong {color:white;background:#89A;padding:1px 4px;border-radius:4px;} .spacer {margin-top:0.5em;} .message-announce {background:#6688AA;color:white;padding:1px 4px 2px;} .message-announce a, .broadcast-green a, .broadcast-blue a, .broadcast-red a {color:#DDEEFF;} .broadcast-green {background-color:#559955;color:white;padding:2px 4px;} .broadcast-blue {background-color:#6688AA;color:white;padding:2px 4px;} .infobox {border:1px solid #6688AA;padding:2px 4px;} .infobox-limited {max-height:200px;overflow:auto;overflow-x:hidden;} .broadcast-red {background-color:#AA5544;color:white;padding:2px 4px;} .message-learn-canlearn {font-weight:bold;color:#228822;text-decoration:underline;} .message-learn-cannotlearn {font-weight:bold;color:#CC2222;text-decoration:underline;} .message-effect-weak {font-weight:bold;color:#CC2222;} .message-effect-resist {font-weight:bold;color:#6688AA;} .message-effect-immune {font-weight:bold;color:#666666;} .message-learn-list {margin-top:0;margin-bottom:0;} .message-throttle-notice, .message-error {color:#992222;} .message-overflow, .chat small.message-overflow {font-size:0pt;} .message-overflow::before {font-size:9pt;content:'...';} .subtle {color:#3A4A66;}</style>
-<div class="wrapper replay-wrapper" style="max-width:1180px;margin:0 auto">
-<input type="hidden" name="replayid" value="${esc(s.id)}" />
-<div class="battle"></div><div class="battle-log"></div><div class="replay-controls"></div><div class="replay-controls-2"></div>
-<h1 style="font-weight:normal;text-align:center"><strong>${esc(s.format)}</strong><br /><a href="https://pokemonshowdown.com/users/${esc(s.p1.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p1.name)}</a> vs. <a href="https://pokemonshowdown.com/users/${esc(s.p2.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p2.name)}</a></h1>
-<script type="text/plain" class="battle-log-data">${m.log.replace(/\//g, '\\/')}</script>
-</div>
-<div class="battle-log battle-log-inline"><div class="inner"></div></div>
-</div>
-<script>
-let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="https://play.pokemonshowdown.com/js/replay-embed.js?version'+daily+'"></'+'script>');
-</script>
-`;
+    const html = replayHTML(m, title);
     fs.writeFileSync(r.filePath, html);
     shell.showItemInFolder(r.filePath);
     return { ok: true, file: r.filePath };
@@ -458,6 +450,29 @@ let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="ht
   });
 }
 
+/** Replay de Showdown (el formato de sus archivos .html descargados) con el registro guardado. */
+function replayHTML(m, title) {
+  const s = m.summary;
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!DOCTYPE html>
+<meta charset="utf-8" />
+<!-- version 1 -->
+<title>${esc(title)}</title>
+<style>html,body {font-family:Verdana, sans-serif;font-size:10pt;margin:0;padding:0;}body{padding:12px 0;} .battle-log {font-family:Verdana, sans-serif;font-size:10pt;} .battle-log-inline {border:1px solid #AAAAAA;background:#EEF2F5;color:black;max-width:640px;margin:0 auto 80px;padding-bottom:5px;} .battle-log .inner {padding:4px 8px 0px 8px;} .battle-log .inner-preempt {padding:0 8px 4px 8px;} .battle-log .inner-after {margin-top:0.5em;} .battle-log h2 {margin:0.5em -8px;padding:4px 8px;border:1px solid #AAAAAA;background:#E0E7EA;border-left:0;border-right:0;font-family:Verdana, sans-serif;font-size:13pt;} .battle-log .chat {vertical-align:middle;padding:3px 0 3px 0;font-size:8pt;} .battle-log .chat strong {color:#40576A;} .battle-log .chat em {padding:1px 4px 1px 3px;color:#000000;font-style:normal;} .chat.mine {background:rgba(0,0,0,0.05);margin-left:-8px;margin-right:-8px;padding-left:8px;padding-right:8px;} .spoiler {color:#BBBBBB;background:#BBBBBB;padding:0px 3px;} .spoiler:hover, .spoiler:active, .spoiler-shown {color:#000000;background:#E2E2E2;padding:0px 3px;} .spoiler a {color:#BBBBBB;} .spoiler:hover a, .spoiler:active a, .spoiler-shown a {color:#2288CC;} .chat code, .chat .spoiler:hover code, .chat .spoiler:active code, .chat .spoiler-shown code {border:1px solid #C0C0C0;background:#EEEEEE;color:black;padding:0 2px;} .chat .spoiler code {border:1px solid #CCCCCC;background:#CCCCCC;color:#CCCCCC;} .battle-log .rated {padding:3px 4px;} .battle-log .rated strong {color:white;background:#89A;padding:1px 4px;border-radius:4px;} .spacer {margin-top:0.5em;} .message-announce {background:#6688AA;color:white;padding:1px 4px 2px;} .message-announce a, .broadcast-green a, .broadcast-blue a, .broadcast-red a {color:#DDEEFF;} .broadcast-green {background-color:#559955;color:white;padding:2px 4px;} .broadcast-blue {background-color:#6688AA;color:white;padding:2px 4px;} .infobox {border:1px solid #6688AA;padding:2px 4px;} .infobox-limited {max-height:200px;overflow:auto;overflow-x:hidden;} .broadcast-red {background-color:#AA5544;color:white;padding:2px 4px;} .message-learn-canlearn {font-weight:bold;color:#228822;text-decoration:underline;} .message-learn-cannotlearn {font-weight:bold;color:#CC2222;text-decoration:underline;} .message-effect-weak {font-weight:bold;color:#CC2222;} .message-effect-resist {font-weight:bold;color:#6688AA;} .message-effect-immune {font-weight:bold;color:#666666;} .message-learn-list {margin-top:0;margin-bottom:0;} .message-throttle-notice, .message-error {color:#992222;} .message-overflow, .chat small.message-overflow {font-size:0pt;} .message-overflow::before {font-size:9pt;content:'...';} .subtle {color:#3A4A66;}</style>
+<div class="wrapper replay-wrapper" style="max-width:1180px;margin:0 auto">
+<input type="hidden" name="replayid" value="${esc(s.id)}" />
+<div class="battle"></div><div class="battle-log"></div><div class="replay-controls"></div><div class="replay-controls-2"></div>
+<h1 style="font-weight:normal;text-align:center"><strong>${esc(s.format)}</strong><br /><a href="https://pokemonshowdown.com/users/${esc(s.p1.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p1.name)}</a> vs. <a href="https://pokemonshowdown.com/users/${esc(s.p2.name.toLowerCase().replace(/[^a-z0-9]/g, ''))}" class="subtle" target="_blank">${esc(s.p2.name)}</a></h1>
+<script type="text/plain" class="battle-log-data">${m.log.replace(/\//g, '\\/')}</script>
+</div>
+<div class="battle-log battle-log-inline"><div class="inner"></div></div>
+</div>
+<script>
+let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="https://play.pokemonshowdown.com/js/replay-embed.js?version'+daily+'"></'+'script>');
+</script>
+`;
+}
+
 app.whenReady().then(async () => {
   app.setAppUserModelId('app.macar.showdown');
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
@@ -469,6 +484,16 @@ app.whenReady().then(async () => {
     const name = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''));
     if (!/^[a-zA-Z0-9_-]+\.webm$/.test(name)) return new Response('no', { status: 404 });
     return net.fetch(pathToFileURL(path.join(videosDir(), name)).toString(), { headers: req.headers });
+  });
+  // Visor de replays: la partida guardada en el reproductor oficial de Showdown (sin tener que subirla).
+  const rs = session.fromPartition(REPLAY_PARTITION);
+  rs.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  rs.protocol.handle('msreplay', req => {
+    const id = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''));
+    const m = /^[A-Za-z0-9_-]+$/.test(id) ? store.get(id) : null;
+    if (!m || !m.log) return new Response('Not found', { status: 404 });
+    const s = m.summary;
+    return new Response(replayHTML(m, `${s.format} ${s.p1.name} vs ${s.p2.name}`), { headers: { 'content-type': 'text/html; charset=utf-8' } });
   });
   // La grabación pide "compartir pantalla": se le da solo el webview de Showdown, sin preguntar.
   session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {

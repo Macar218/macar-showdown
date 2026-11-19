@@ -11,6 +11,16 @@ let SET = {};        // ajustes
 let VIEW = 'jugar';
 const F = { result: 'all', days: 0, format: '', lead: '', rival: '', team: '', from: 0, to: 0, session: null };
 
+/** Los WebM grabados vienen sin duración: se busca el final una vez para que la barra del vídeo funcione. */
+function fixDuration(v) {
+  if (!v) return;
+  v.addEventListener('loadedmetadata', () => {
+    if (v.duration !== Infinity) return;
+    const back = () => { v.removeEventListener('durationchange', back); v.currentTime = 0; };
+    v.addEventListener('durationchange', back);
+    v.currentTime = 1e101;
+  }, { once: true });
+}
 /* ---------- sprites ---------- */
 const NOHYPHEN = new Set(['kommoo', 'hakamoo', 'jangmoo', 'hooh', 'porygonz', 'chiyu', 'chienpao', 'tinglu', 'wochien', 'mrmime', 'mimejr', 'typenull', 'mrrime', 'nidoranf', 'nidoranm']);
 function spriteId(name) {
@@ -365,7 +375,7 @@ async function openSet(ids) {
   $('#modalBox').innerHTML = `<div class="head"><div><h1 style="font-size:22px">Bo3 vs ${esc(s0[opSd].name)} <span class="pill ${w > l ? 'win' : l > w ? 'loss' : 'tie'}">${w}–${l}</span></h1>
       <p class="note">${fmtDate(s0.endedAt)} · ${esc(s0.format)}${w === 1 && games[0].summary.result === 'loss' && w + l < 3 ? '' : ''}</p></div><button class="btn" id="mClose">Cerrar</button></div>
     <div class="rounds">${games.map((g, i) => { const s = g.summary; return `<div class="round">
-      <div class="rhead"><b>G${i + 1}</b>${pill(s.result)}<span class="note">${s.turns} turnos</span>${s.replay ? `<button class="btn sm" data-ext="${esc(s.replay)}">Ver replay</button>` : ''}<button class="btn sm" data-open="${esc(s.id)}">Ver partida</button></div>
+      <div class="rhead"><b>G${i + 1}</b>${pill(s.result)}<span class="note">${s.turns} turnos</span><button class="btn sm primary" data-view="${esc(s.id)}">▶ Ver replay</button><button class="btn sm" data-open="${esc(s.id)}">Ver partida</button></div>
       <div class="rgrid"><span>Tus leads</span><span>${s[meSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Tu reserva</span><span>${back(meSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
         <span>Sus leads</span><span>${s[opSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Su reserva</span><span>${back(opSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
         <span>Mega rival</span><span>${s[opSd].megas.map(n => `${spr(n, 'sm')}${esc(n)}`).join(' ') || '—'}</span></div>
@@ -386,7 +396,7 @@ async function openSet(ids) {
       $('#bo3Saved').textContent = 'Notas guardadas';
     }, 600);
   };
-  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.open) openDetail(b.dataset.open); if (b.dataset.sheetcalc) sheetToCalc(sheet, s0[opSd].name); };
+  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.view) Viewer.open(b.dataset.view); if (b.dataset.open) openDetail(b.dataset.open); if (b.dataset.sheetcalc) sheetToCalc(sheet, s0[opSd].name); };
 }
 /** Hoja de equipo abierta → tabla con sus sets y botón para cargarla como rival. */
 function sheetHTML(sheet) {
@@ -445,7 +455,7 @@ async function openDetail(id) {
   $('#modalBox').innerHTML = `<div class="head"><div><h1 style="font-size:22px">${s.me ? `vs ${esc(s[b].name)}` : `${esc(s.p1.name)} vs ${esc(s.p2.name)}`}</h1>
       <p class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos${s.forfeit ? ` · ${esc(s.forfeit)} abandonó` : ''}${s.timeout ? ` · ${esc(s.timeout)} perdió por tiempo` : ''} · ${s.source === 'importada' ? 'importada' : 'guardada al jugar'}</p></div>
       <div style="display:flex;gap:8px;align-items:center">${pill(s.result)}<button class="btn" id="mClose">Cerrar</button></div></div>
-    <div class="mlinks">${s.replay ? `<button class="btn sm" id="mReplay">Ver replay en Showdown</button><button class="btn sm" id="mReplayCopy">Copiar enlace</button>` : (s.me ? '<button class="btn sm" id="mReplayUp" title="Solo funciona si la sala del combate sigue abierta en Jugar">Subir replay</button>' : '')}<button class="btn sm" id="mReplayDl" title="Guarda la replay en un archivo .html que se abre en el navegador">Descargar replay</button><span class="note" id="mLinkMsg"></span></div>
+    <div class="mlinks"><button class="btn sm primary" id="mView" title="La replay dentro de la app, con tus notas por turno">▶ Ver replay</button>${s.replay ? `<button class="btn sm" id="mReplay">Abrir en Showdown</button><button class="btn sm" id="mReplayCopy">Copiar enlace</button>` : (s.me ? '<button class="btn sm" id="mReplayUp" title="Solo funciona si la sala del combate sigue abierta en Jugar">Subir replay</button>' : '')}<button class="btn sm" id="mReplayDl" title="Guarda la replay en un archivo .html que se abre en el navegador">Descargar replay</button><span class="note" id="mLinkMsg"></span></div>
     <div id="mVideo"></div>
     <div class="sides">${sideCard(s, a, s.me ? 'Tú' : 'Jugador 1')}${sideCard(s, b, s.me ? 'Rival' : 'Jugador 2')}</div>
     ${s[b].sheet ? `<h3 style="margin:4px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(s[b].sheet).replace('data-sheetcalc="1"', 'id="mSheetCalc"')}` : ''}
@@ -455,6 +465,7 @@ async function openDetail(id) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="note" id="mSaved"></span><button class="btn danger" id="mDel">Borrar partida</button></div>`;
   $('#modal').classList.remove('hide');
   $('#mClose').onclick = closeModal;
+  $('#mView').onclick = () => Viewer.open(id);
   if ($('#mReplay')) $('#mReplay').onclick = () => api.openExternal(s.replay);
   if ($('#mReplayCopy')) $('#mReplayCopy').onclick = () => { navigator.clipboard.writeText(s.replay); $('#mLinkMsg').textContent = 'Enlace copiado'; };
   $('#mReplayDl').onclick = async () => { const r = await api.downloadReplay(id); if (r.ok) $('#mLinkMsg').textContent = 'Replay guardada.'; };
@@ -463,6 +474,7 @@ async function openDetail(id) {
   api.videoFor(id).then(v => {
     if (!v || !$('#mVideo')) return;
     $('#mVideo').innerHTML = `<video class="mvideo" controls preload="metadata" src="${esc(v)}"></video><div class="row-btns" style="margin-top:0;margin-bottom:10px"><button class="btn sm" id="mVidOpen">Abrir carpeta de vídeos</button><button class="btn sm danger" id="mVidDel">Borrar vídeo</button></div>`;
+    fixDuration($('#mVideo video'));
     $('#mVidOpen').onclick = () => api.openVideos();
     $('#mVidDel').onclick = async () => { if (!confirm('¿Borrar el vídeo de esta partida?')) return; await api.deleteVideo(id); $('#mVideo').innerHTML = ''; };
   });

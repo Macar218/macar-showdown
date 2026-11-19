@@ -11,6 +11,7 @@ Cada cambio en `main` también genera el instalador en **Actions** (artefacto `m
 
 ## Qué hace (versión 0.6)
 
+- **Visor de replays**: «▶ Ver replay» en cada partida (y en los Bo3) la abre dentro de la app con el reproductor de Showdown, aunque no la hayas subido. Turno a turno, velocidad, cambiar de lado y, si se grabó, el vídeo. Al lado, leads y reserva de los dos y tus notas: «+ Nota» apunta el turno (`[T5]`) o el minuto del vídeo (`[1:23]`) y al pulsar esa línea salta allí.
 - **Inglés y español**: la app sale en inglés (como Showdown) y se puede pasar a español (Settings → Language). Lo que escribes tú (notas, documento) no se toca; el documento se monta en el idioma elegido.
 
 - **Jugar**: Pokémon Showdown dentro de la app, con tu sesión guardada. La **calculadora es un cajón** que sale y se esconde por la derecha (pestaña «Calculadora» o Ctrl+K) y abajo tienes las **notas de la partida**, que se guardan con ella.
