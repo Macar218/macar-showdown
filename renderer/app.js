@@ -504,9 +504,9 @@ async function renderSettings() {
       <dl class="kv"><dt>Estado</dt><dd>${st.ok ? 'Activa' : esc(st.why || '—')}</dd><dt>Conectado como</dt><dd>${esc(st.me || '—')}</dd>
       <dt>Combates abiertos</dt><dd>${st.open ?? 0}</dd><dt>Guardadas en esta sesión</dt><dd>${st.saved ?? 0}</dd>
       <dt>Última comprobación</dt><dd>${st.lastCheck ? new Date(st.lastCheck).toLocaleTimeString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES')) : '—'}</dd></dl></div>
-    <div class="card"><h2>Idioma · Language</h2>
+    <div class="card"><h2>Language · Idioma</h2>
       <p class="note" style="margin-bottom:10px">El idioma de toda la app. Al cambiarlo, la app se recarga.</p>
-      <div class="seg nolang"><button data-lang="es" aria-pressed="${I18N.lang === 'es'}">Español</button><button data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button></div></div>
+      <div class="seg nolang"><button data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button data-lang="es" aria-pressed="${I18N.lang === 'es'}">Español</button></div></div>
     <div class="card"><h2>Replays y vídeo</h2>
       <label class="tog${SET.autoReplay !== false ? ' on' : ''}" style="margin-bottom:8px"><input type="checkbox" id="sReplay"${SET.autoReplay !== false ? ' checked' : ''}>Subir la replay de cada combate a Showdown</label>
       <p class="note" style="margin-bottom:10px">Al acabar tus combates se sube sola (quien tenga el enlace puede verla) y queda enlazada en la partida.</p>

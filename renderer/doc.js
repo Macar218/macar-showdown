@@ -290,7 +290,7 @@ const Doc = (() => {
     const css = [...document.styleSheets].map(s => { try { return [...s.cssRules].map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
     const pages = doc.pages.map(p => p.blocks.filter(b => b.on && b.type !== 'hint')).filter(bs => bs.length);
     const body = pages.map((bs, i) => `<div class="dsheet ${doc.style === 'light' ? 'light' : 'dark'} preview pdfpage">${bs.map(b => blockHTML(b, false)).join('')}${i === pages.length - 1 ? '<p class="dfoot">Hecho con Macar Showdown</p>' : ''}</div>`).join('');
-    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${css}
+    const html = `<!doctype html><html lang="${I18N.lang}"><head><meta charset="utf-8"><style>${css}
       @page{size:A4;margin:0}html,body{display:block!important;height:auto!important;overflow:visible!important;margin:0;background:${doc.style === 'light' ? '#fff' : '#050d24'}!important}
       .pdfpage{box-shadow:none!important;margin:0!important;width:210mm!important;min-height:297mm;border:0!important;border-radius:0!important;break-after:page;box-sizing:border-box;padding:16mm 16mm!important}
       .pdfpage:last-child{break-after:auto}.dblock{break-inside:avoid}h2,h3{break-after:avoid}.fill{display:none}</style></head><body>${body}</body></html>`;

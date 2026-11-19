@@ -230,28 +230,59 @@ const Multi = (() => {
       return rows.slice(0, 4);
     } finally { CTX = keep; }
   }
-  function hpChips(st, hp) {
-    return SLOTS.map(([s, side]) => { const m = monOf(st, s); if (!m) return ''; const v = hp[s] ?? 0; return `<span class="tchip ${side}${v <= 0 ? ' dead' : ''}" title="${esc(m.species)}">${spr(m.species, 'xs')}${v <= 0 ? 'KO' : `${P.pct(v)}%`}</span>`; }).join('');
+  /** Una jugada en dibujo: quién, qué movimiento (color de su tipo) y a quién. */
+  function actHTML(st, s, o, hp) {
+    const m = monOf(st, s);
+    if (!m) return '';
+    if ((hp[s] ?? 0) <= 0) return `<div class="tact out">${spr(m.species, 'xs dim')}<span class="tmv none">KO</span></div>`;
+    if (!o || o.mv < 0) return `<div class="tact">${spr(m.species, 'xs')}<span class="tmv none">—</span></div>`;
+    const name = m.moves[o.mv], d = P.moveOf(name) || {};
+    const area = ['allAdjacentFoes', 'allAdjacent'].includes(d.target);
+    let tg = '';
+    if (o.tgt && monOf(st, o.tgt)) tg = `<i class="tarr">➜</i>${spr(monOf(st, o.tgt).species, 'xs')}`;
+    else if (area) tg = `<i class="tarr">➜</i>${(d.target === 'allAdjacent' ? [...foesOf(s), allyOf(s)] : foesOf(s)).map(t => monOf(st, t) && (hp[t] ?? 0) > 0 ? spr(monOf(st, t).species, 'xs') : '').join('')}`;
+    const prio = d.priority ? `<small>${d.priority > 0 ? '+' : ''}${d.priority}</small>` : '';
+    return `<div class="tact">${spr(m.species, 'xs')}<span class="tmv t-${esc(d.type || '')}${d.category === 'Status' ? ' st' : ''}" title="${esc(name)}">${esc(name)}${prio}</span>${tg}</div>`;
   }
+  /** Los cuatro tras el turno: barra de PS con lo que pierden en el turno. */
+  function boardHTML(st, before, after) {
+    const mon = s => {
+      const m = monOf(st, s);
+      if (!m) return '';
+      const b0 = Math.max(0, before[s] ?? 0), v = Math.max(0, after[s] ?? 0), dead = v <= 0;
+      const cls = v <= 25 ? 'r' : v <= 50 ? 'y' : '';
+      return `<div class="tmon${dead ? ' dead' : ''}" title="${esc(m.species)}">${spr(m.species, 'sm')}<div class="tbar"><i class="lost" style="width:${b0}%"></i><i class="${cls}" style="width:${v}%"></i></div><b>${dead ? 'KO' : `${P.pct(v)}%`}</b>${b0 > v && !dead ? `<small>−${P.pct(b0 - v)}</small>` : ''}</div>`;
+    };
+    return `<div class="tboard"><div class="tside me">${mon('a')}${mon('b')}</div><div class="tside foe">${mon('c')}${mon('d')}</div></div>`;
+  }
+  const badge = o => {
+    const cls = o.kos > o.lost ? 'good' : o.lost > o.kos ? 'bad' : '';
+    const txt = [o.kos ? `${o.kos} KO` : '', o.lost ? `pierdes ${o.lost}` : ''].filter(Boolean).join(' · ') || 'Ningún KO';
+    return `<span class="tbadge ${cls}">${txt}</span>`;
+  };
   function treeHTML(st, state, path, depth) {
     const rows = M.tree[path] || (M.tree[path] = branch(st, state));
-    const saveCtx = CTX;
-    CTX = state;
-    const lbl = (s, o) => label(st, s, o);
-    CTX = saveCtx;
     if (!rows.length) return '<p class="note">Faltan Pokémon o movimientos para ver las opciones.</p>';
-    return `<ol class="tree">${rows.map((row, i) => {
+    const hp0 = state.hp;
+    return `<ol class="ttree">${rows.map((row, i) => {
       const key = `${path}.${i}`;
-      return `<li><div class="tmy"><span class="tturn">T${state.turn}</span><b>${esc(lbl('a', row.oa))}</b><span class="note">+</span><b>${esc(lbl('b', row.ob))}</b>
-        <span class="tres ${row.worst.kos > row.worst.lost ? 'good' : row.worst.lost > row.worst.kos ? 'bad' : ''}">peor caso: ${outcome(row.worst)}</span></div>
-        <ul>${row.replies.map((rep, j) => {
+      const cls = row.worst.kos > row.worst.lost ? 'good' : row.worst.lost > row.worst.kos ? 'bad' : '';
+      return `<li class="tbranch"><div class="tcard my ${cls}">
+          <div class="trank"><b>${i + 1}</b><span>T${state.turn}</span></div>
+          <div class="tacts">${actHTML(st, 'a', row.oa, hp0)}${actHTML(st, 'b', row.ob, hp0)}</div>
+          <div class="tsum"><span class="note">Peor caso</span>${badge(row.worst)}</div></div>
+        <ul class="treps">${row.replies.map((rep, j) => {
           const k2 = `${key}.${j}`;
           const next = { hp: { ...rep.r.hp }, mods: nextMods(state.mods || {}, rep.r.fx, st), turn: state.turn + 1 };
-          const alive = s => (next.hp[s] || 0) > 0;
+          const alive = x => (next.hp[x] || 0) > 0;
           const canGo = ['a', 'b'].some(alive) && ['c', 'd'].some(alive) && depth < 3;
-          return `<li><div class="trep"><span class="note">Si el rival hace</span> ${esc(lbl('c', rep.plays.c))} / ${esc(lbl('d', rep.plays.d))} → <span class="tchips">${hpChips(st, rep.r.hp)}</span>
-            ${canGo ? `<button class="btn sm" data-tnext="${k2}">${M.open[k2] ? 'Ocultar' : 'Y luego ▸'}</button>` : ''}<button class="btn sm" data-tuse="${k2}" title="Pone este turno (PS y movimientos) en la Multicalc">Usarlo este turno</button></div>
-            ${M.open[k2] ? treeHTML(st, next, k2, depth + 1) : ''}</li>`;
+          const fx = [rep.r.fx.tr && 'Espacio Raro', (rep.r.fx.twMe || rep.r.fx.twFoe) && 'Viento Afín'].filter(Boolean);
+          return `<li><div class="tcard rep${j === 0 ? ' worst' : ''}">
+              <div class="trephead"><span class="note">${j === 0 ? 'Su respuesta más dura' : 'Si el rival hace'}</span><div class="tacts">${actHTML(st, 'c', rep.plays.c, hp0)}${actHTML(st, 'd', rep.plays.d, hp0)}</div>${badge(rep.sc)}</div>
+              ${boardHTML(st, hp0, rep.r.hp)}
+              <div class="tfoot"><span class="torder"><span class="note">Orden</span>${rep.r.order.map(x => spr(monOf(st, x).species, 'xs')).join('<i>›</i>')}</span>${fx.length ? `<span class="pill tie">${fx.join(' · ')}</span>` : ''}
+                <span style="flex:1"></span>${canGo ? `<button class="btn sm${M.open[k2] ? '' : ' primary'}" data-tnext="${k2}">${M.open[k2] ? 'Ocultar' : `Turno ${state.turn + 1} ▸`}</button>` : ''}<button class="btn sm" data-tuse="${k2}" title="Pone este turno (PS y movimientos) en la Multicalc">Usarlo este turno</button></div></div>
+            ${M.open[k2] ? `<div class="tsub">${treeHTML(st, next, k2, depth + 1)}</div>` : ''}</li>`;
         }).join('')}</ul></li>`;
     }).join('')}</ol>`;
   }

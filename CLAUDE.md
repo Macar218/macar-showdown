@@ -1,6 +1,6 @@
 # Macar Showdown — notas para Claude Code
 
-Dueño: Arturo (Macar). Háblale en español de España: frases cortas, al grano, una recomendación cuando pide decidir, honesto, sin halagos. La app está en español; los nombres de Pokémon, movimientos, objetos y habilidades, en inglés (como en Showdown).
+Dueño: Arturo (Macar). Háblale en español de España: frases cortas, al grano, una recomendación cuando pide decidir, honesto, sin halagos. La app sale en inglés por defecto (Arturo juega Showdown en inglés); se puede pasar a español en Settings. El código y los textos fuente están en español y `renderer/i18n.js` los traduce. Los nombres de Pokémon, movimientos, objetos y habilidades, siempre en inglés.
 
 ## Qué es
 App de escritorio para Windows (Electron) para jugar Pokémon Champions VGC (Reg M-C, nivel 50) en Pokémon Showdown y prepararse: Showdown dentro de la app, captura automática de partidas, Dashboard, calculadora con Multicalc, Teambuilder, Mi PC, Optimizador SP y documento de preparación (prep doc). Uso personal. Inspirada en las funciones de la app Flinched (instalada en `C:\Program Files\Flinched`), pero con código propio y el estilo de la Macar Dex: nunca copiar su código, imágenes ni textos.

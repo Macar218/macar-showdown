@@ -7,8 +7,8 @@
  * ni Showdown. Los nombres de Pokémon, movimientos, objetos y habilidades ya están en inglés.
  */
 const I18N = (() => {
-  let lang = 'es';
-  try { lang = localStorage.getItem('msLang') === 'en' ? 'en' : 'es'; } catch (e) { /* nada */ }
+  let lang = 'en';
+  try { lang = localStorage.getItem('msLang2') === 'es' ? 'es' : 'en'; } catch (e) { /* nada */ }
   document.documentElement.lang = lang;
 
   /* ---------- frases exactas ---------- */
@@ -70,7 +70,7 @@ const I18N = (() => {
     'Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno': 'Your best plays, what the rival can answer and what happens next, turn by turn',
     'Todas tus jugadas contra todas las suyas': 'All your plays against all of theirs', 'Tu jugada': 'Your play', 'su mejor respuesta, malas tiradas': 'their best answer, bad rolls', 'Usarla': 'Use it',
     'Si el rival hace': 'If the rival does', 'Si el rival hace:': 'If the rival does:', 'Y luego ▸': 'And then ▸', 'Ocultar': 'Hide', 'Usarlo este turno': 'Use it this turn', 'Pone este turno (PS y movimientos) en la Multicalc': 'Puts this turn (HP and moves) in the Multicalc',
-    'Ningún KO': 'No KO', 'Faltan Pokémon o movimientos para ver las opciones.': 'Pokémon or moves are missing to see the options.',
+    'Ningún KO': 'No KO', 'Todos los equipos': 'All teams', 'Peor caso': 'Worst case', 'Su respuesta más dura': 'Their strongest answer', 'Orden': 'Order', 'Viento Afín': 'Tailwind', 'Espacio Raro': 'Trick Room', 'Espacio Raro · Viento Afín': 'Trick Room · Tailwind', 'Turno # ▸': 'Turn # ▸', 'Faltan Pokémon o movimientos para ver las opciones.': 'Pokémon or moves are missing to see the options.',
     'Faltan Pokémon: carga tu equipo y el rival (o abre un combate) para usar la Multicalc.': 'Pokémon missing: load your team and the rival (or open a battle) to use the Multicalc.',
     // dashboard
     'Partidas seguidas': 'Back-to-back matches', 'Récord': 'Record', 'Victorias': 'Wins', 'Derrotas': 'Losses', 'ELO': 'ELO', 'GXE': 'GXE', 'Racha': 'Streak', 'Turnos': 'Turns', 'Apuros de tiempo': 'Time trouble',
@@ -297,6 +297,8 @@ const I18N = (() => {
     for (const [re, b] of RX) out = out.replace(re, b);
     return m[1] + out + m[3];
   }
+  /* títulos de página (dos colores) */
+  const H1 = { 'Partidas': ['Mat', 'ches'], 'Ajustes': ['Sett', 'ings'], 'Mi PC': ['My ', 'PC'], 'Documento de preparación': ['Prep ', 'document'], 'Optimizador SP': ['SP ', 'Optimizer'] };
   const SKIP = '.dcontent, textarea, [contenteditable], webview, .dcalc, .dcalcprev, script, style, .nolang, #opTxt, .pastebox textarea';
   function trNode(n) {
     if (n.nodeType === 3) {
@@ -305,6 +307,7 @@ const I18N = (() => {
       const v = tr(n.nodeValue);
       if (v !== n.nodeValue) n.nodeValue = v;
     } else if (n.nodeType === 1) {
+      if (n.tagName === 'H1' && H1[n.textContent.trim()]) { const [x, y] = H1[n.textContent.trim()]; n.innerHTML = `${x}<span>${y}</span>`; return; }
       if (n.matches && n.matches(SKIP) && n.tagName !== 'TEXTAREA') return;
       for (const a of ['title', 'placeholder', 'aria-label']) if (n.hasAttribute && n.hasAttribute(a)) { const v = tr(n.getAttribute(a)); if (v !== n.getAttribute(a)) n.setAttribute(a, v); }
       if (n.tagName === 'TEXTAREA' || n.tagName === 'INPUT') return;
@@ -340,6 +343,6 @@ const I18N = (() => {
     D['Se monta con tus datos de ahora y se pierden tus cambios. ¿Seguir?'] = 'It is rebuilt with your current data and your changes are lost. Continue?';
     D['¿Quitar este bloque?'] = 'Remove this block?';
   }
-  function setLang(v) { try { localStorage.setItem('msLang', v === 'en' ? 'en' : 'es'); } catch (e) { /* nada */ } location.reload(); }
+  function setLang(v) { try { localStorage.setItem('msLang2', v === 'en' ? 'en' : 'es'); } catch (e) { /* nada */ } location.reload(); }
   return { lang, tr, trHTML, setLang, t: tr };
 })();

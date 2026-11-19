@@ -256,14 +256,15 @@ const P = (() => {
   }
 
   /* ---------- textos y piezas de interfaz ---------- */
-  const pct = x => (x >= 100 ? Math.round(x) : Math.round(x * 10) / 10).toString().replace('.', ',');
+  const DEC = () => ((typeof I18N !== 'undefined' && I18N.lang === 'en') ? '.' : ',');
+  const pct = x => (x >= 100 ? Math.round(x) : Math.round(x * 10) / 10).toString().replace('.', DEC());
   const koClass = ko => (/guaranteed OHKO|^OHKO/i.test(ko) ? 'k1' : /OHKO/i.test(ko) ? 'k1p' : /2HKO/i.test(ko) ? 'k2' : /3HKO/i.test(ko) ? 'k3' : '');
   function koEs(ko) {
     if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') return String(ko || '');
     return String(ko || '')
       .replace(/guaranteed OHKO/i, 'KO seguro').replace(/guaranteed (\d)HKO/i, 'KO seguro en $1')
-      .replace(/([\d.]+)% chance to OHKO/i, (_, p) => `${p.replace('.', ',')}% de KO`)
-      .replace(/([\d.]+)% chance to (\d)HKO/i, (_, p, n) => `${p.replace('.', ',')}% de KO en ${n}`)
+      .replace(/([\d.]+)% chance to OHKO/i, (_, p) => `${p.replace('.', DEC())}% de KO`)
+      .replace(/([\d.]+)% chance to (\d)HKO/i, (_, p, n) => `${p.replace('.', DEC())}% de KO en ${n}`)
       .replace(/possible (\d)HKO/i, 'KO posible en $1').replace(/possible OHKO/i, 'KO posible')
       .replace(/(\d)HKO/i, 'KO en $1').replace(/OHKO/i, 'KO')
       .replace(/after ([^,]+)$/i, 'tras $1').replace(/ and /g, ' y ');
@@ -394,7 +395,7 @@ const P = (() => {
   const lang = () => ((typeof I18N !== 'undefined' && I18N.lang) === 'en' ? 'en' : 'es');
   function itemRow(x, pc) {
     const es = lang() === 'es';
-    return `<button class="itrow" data-pickitem="${esc(x.n)}" title="${esc(es ? x.dEs : x.d)}">${x.img ? `<img src="${x.img}" alt="">` : '<i></i>'}<span><b>${esc(x.n)}${es && x.es && x.es !== x.n ? ` <small>· ${esc(x.es)}</small>` : ''}</b><small>${esc(es ? x.dEs : x.d)}</small></span>${pc != null ? `<em>${String(pc).replace('.', ',')}%</em>` : ''}</button>`;
+    return `<button class="itrow" data-pickitem="${esc(x.n)}" title="${esc(es ? x.dEs : x.d)}">${x.img ? `<img src="${x.img}" alt="">` : '<i></i>'}<span><b>${esc(x.n)}${es && x.es && x.es !== x.n ? ` <small>· ${esc(x.es)}</small>` : ''}</b><small>${esc(es ? x.dEs : x.d)}</small></span>${pc != null ? `<em>${String(pc).replace('.', DEC())}%</em>` : ''}</button>`;
   }
   /** Panel para elegir objeto (dentro del editor). */
   function itemPanel(species, U, T, tab, q) {
@@ -471,17 +472,17 @@ const P = (() => {
         ${opts.live ? `<div class="ed" style="margin-top:12px">
           <label class="field">Estado<select id="eSt">${STATUS.map(([k, l]) => `<option value="${k}"${k === m.status ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
           <label class="field">PS (%)<input type="number" id="eHp" min="0" max="100" value="${Math.round(m.hp)}"></label></div>` : ''}
-        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', ',')}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
+        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
           <div><small>Objetos</small>${ch(t.items, 'uitem', 'items')}</div>
           <div><small>Habilidades</small>${ch(t.abilities, 'uab', 'abilities')}</div>
           <div><small>Naturalezas</small>${ch(t.natures, 'unat', null)}</div>
           <div><small>Movimientos</small>${ch(t.moves, 'umove', 'moves')}</div>
           <div><button class="btn sm" data-tourset="1">Poner el set de torneo entero</button></div></div>`; })() : ''}
         ${u ? `<div class="flabel" style="margin-top:14px">Más usados en Smogon <span class="note">· pulsa para ponerlo</span></div><div class="uset">
-          <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn" data-spread="${i}">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', ',')}%</em></button>`).join('')}</div>
-          <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', ',')}%</em></button>`).join('')}</div>
-          <div><small>Habilidades</small>${u.abilities.map(([k, pc]) => `<button class="chipbtn" data-uab="${esc(nameOf('abilities', k))}">${esc(nameOf('abilities', k))} <em>${String(pc).replace('.', ',')}%</em></button>`).join('')}</div>
-          <div><small>Movimientos</small>${u.moves.map(([k, pc]) => `<button class="chipbtn" data-umove="${esc(nameOf('moves', k))}">${esc(nameOf('moves', k))} <em>${String(pc).replace('.', ',')}%</em></button>`).join('')}</div></div>` : ''}
+          <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn" data-spread="${i}">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+          <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+          <div><small>Habilidades</small>${u.abilities.map(([k, pc]) => `<button class="chipbtn" data-uab="${esc(nameOf('abilities', k))}">${esc(nameOf('abilities', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+          <div><small>Movimientos</small>${u.moves.map(([k, pc]) => `<button class="chipbtn" data-umove="${esc(nameOf('moves', k))}">${esc(nameOf('moves', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div></div>` : ''}
         ${mine.length ? `<div class="flabel" style="margin-top:14px">En Mi PC</div><div class="pcpick">${mine.slice(0, 30).map(x => { const s = parseSet(x.text) || {}; return `<button class="chipbtn" data-pc="${esc(x.id)}" title="${esc(x.notes || '')}">${s.species ? spr(s.species, 'xs') : ''}${esc(x.name || s.species || '')}</button>`; }).join('')}</div>` : ''}
         <details class="pastebox"><summary>Pegar o copiar el set (formato Showdown)</summary>
           <textarea id="ePaste" rows="5" placeholder="Pega aquí un Pokémon exportado de Showdown">${esc(m.species ? exportSet(m) : '')}</textarea>
@@ -568,7 +569,7 @@ const P = (() => {
     const draw = () => {
       let items;
       if (tab === 'pc') items = PC.map(x => ({ x, s: parseSet(x.text) })).filter(o => o.s && !o.s.bad && (!opts.side || x_side(o.x) === opts.side || true)).map(o => ({ key: `pc:${o.x.id}`, species: o.s.species, label: o.x.name || o.s.species, sub: `${o.s.item || 'Sin objeto'} · ${o.x.side === 'me' ? 'tuyo' : 'rival'}` }));
-      else if (tab === 'tour') items = rank.map(sp => { const t = tourOf(T, sp); return { key: `sp:${sp}`, species: sp, label: sp, sub: t ? `${String(t.usage).replace('.', ',')}% de los equipos` : '' }; });
+      else if (tab === 'tour') items = rank.map(sp => { const t = tourOf(T, sp); return { key: `sp:${sp}`, species: sp, label: sp, sub: t ? `${String(t.usage).replace('.', DEC())}% de los equipos` : '' }; });
       else items = SPECIES.map(sp => ({ key: `sp:${sp}`, species: sp, label: sp, sub: typesOf(sp).map(t => TYPES_ES[t]).join(' / ') }));
       if (q) items = items.filter(i => `${i.label} ${i.species}`.toLowerCase().includes(q));
       box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>${esc(opts.title || 'Elige un Pokémon')}</h2>
@@ -611,7 +612,7 @@ const P = (() => {
       const speedAt = (sp, mult) => Math.floor((b.spe + 20 + sp) * mult);
       const t = tourOf(T, cur), u = usageOf(U, cur);
       const list = q ? SPECIES.filter(n => n.toLowerCase().includes(q)).slice(0, 40) : [];
-      const chips = (arr, table) => arr.slice(0, 6).map(([k, pc]) => `<span class="chipbtn">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', ',')}%</em></span>`).join('');
+      const chips = (arr, table) => arr.slice(0, 6).map(([k, pc]) => `<span class="chipbtn">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></span>`).join('');
       box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Info Pokémon</h2>
         <div class="row-btns"><input type="search" id="dxQ" list="dlSpecies" placeholder="Buscar por nombre…" value="${esc(q)}" style="flex:1"></div>
         ${list.length ? `<div class="dxlist">${list.map(n => `<button class="chipbtn" data-dx="${esc(n)}">${spr(n, 'xs')}${esc(n)}</button>`).join('')}</div>` : ''}
@@ -619,10 +620,10 @@ const P = (() => {
           <p class="note" style="margin-top:4px">Habilidades: ${abilitiesOf(cur).map(esc).join(' · ')}</p></div></div>
         <div class="dxstats">${STATS.map(k => `<div><small>${SL[k]}</small><b>${b[k]}</b><i><i style="width:${Math.min(100, (b[k] / 200) * 100)}%" class="${b[k] >= 110 ? 'hi' : b[k] < 60 ? 'lo' : ''}"></i></i></div>`).join('')}<div><small>Total</small><b>${tot}</b></div></div>
         <div class="grid" style="margin-top:10px">
-          <div class="card"><h2>Tipos contra él</h2>${eff.map(x => `<span class="dxeff">${typeBadge(x.t)}<b class="${x.e > 1 ? 'badc' : 'okc'}">×${String(x.e).replace('.', ',')}</b></span>`).join('') || '<p class="note">Todo le hace daño normal.</p>'}</div>
+          <div class="card"><h2>Tipos contra él</h2>${eff.map(x => `<span class="dxeff">${typeBadge(x.t)}<b class="${x.e > 1 ? 'badc' : 'okc'}">×${String(x.e).replace('.', DEC())}</b></span>`).join('') || '<p class="note">Todo le hace daño normal.</p>'}</div>
           <div class="card"><h2>Velocidad a nivel 50</h2><table class="lb"><tr><td>Sin puntos, naturaleza que la baja</td><td><b>${speedAt(0, 0.9)}</b></td></tr><tr><td>Sin puntos</td><td><b>${speedAt(0, 1)}</b></td></tr><tr><td>32 SP</td><td><b>${speedAt(32, 1)}</b></td></tr><tr><td>32 SP y naturaleza que la sube</td><td><b>${speedAt(32, 1.1)}</b></td></tr><tr><td>Máxima con Viento Afín</td><td><b>${speedAt(32, 1.1) * 2}</b></td></tr><tr><td>Máxima con Pañuelo</td><td><b>${Math.floor(speedAt(32, 1.1) * 1.5)}</b></td></tr></table></div>
-          ${t ? `<div class="card"><h2>En torneos</h2><p class="note">${String(t.usage).replace('.', ',')}% de los equipos · ${t.n} equipos</p><div class="uset"><div><small>Objetos</small>${chips(t.items, 'items')}</div><div><small>Naturalezas</small>${chips(t.natures)}</div><div><small>Movimientos</small>${chips(t.moves, 'moves')}</div><div><small>Suele ir con</small>${chips(t.mates.map(([k, v]) => [calcSpecies(k) || k, v]))}</div></div></div>` : ''}
-          ${u ? `<div class="card"><h2>En Smogon</h2><div class="uset"><div><small>Repartos</small>${u.spreads.slice(0, 3).map(sp => `<span class="chipbtn">${esc(sp.nature)} ${sp.sp.join('/')} <em>${String(sp.pc).replace('.', ',')}%</em></span>`).join('')}</div><div><small>Habilidades</small>${chips(u.abilities, 'abilities')}</div></div></div>` : ''}
+          ${t ? `<div class="card"><h2>En torneos</h2><p class="note">${String(t.usage).replace('.', DEC())}% de los equipos · ${t.n} equipos</p><div class="uset"><div><small>Objetos</small>${chips(t.items, 'items')}</div><div><small>Naturalezas</small>${chips(t.natures)}</div><div><small>Movimientos</small>${chips(t.moves, 'moves')}</div><div><small>Suele ir con</small>${chips(t.mates.map(([k, v]) => [calcSpecies(k) || k, v]))}</div></div></div>` : ''}
+          ${u ? `<div class="card"><h2>En Smogon</h2><div class="uset"><div><small>Repartos</small>${u.spreads.slice(0, 3).map(sp => `<span class="chipbtn">${esc(sp.nature)} ${sp.sp.join('/')} <em>${String(sp.pc).replace('.', DEC())}%</em></span>`).join('')}</div><div><small>Habilidades</small>${chips(u.abilities, 'abilities')}</div></div></div>` : ''}
         </div>`;
       $('#mClose').onclick = closeModal;
     };
