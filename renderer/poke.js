@@ -259,6 +259,7 @@ const P = (() => {
   const pct = x => (x >= 100 ? Math.round(x) : Math.round(x * 10) / 10).toString().replace('.', ',');
   const koClass = ko => (/guaranteed OHKO|^OHKO/i.test(ko) ? 'k1' : /OHKO/i.test(ko) ? 'k1p' : /2HKO/i.test(ko) ? 'k2' : /3HKO/i.test(ko) ? 'k3' : '');
   function koEs(ko) {
+    if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') return String(ko || '');
     return String(ko || '')
       .replace(/guaranteed OHKO/i, 'KO seguro').replace(/guaranteed (\d)HKO/i, 'KO seguro en $1')
       .replace(/([\d.]+)% chance to OHKO/i, (_, p) => `${p.replace('.', ',')}% de KO`)
@@ -384,6 +385,42 @@ const P = (() => {
     return { ok: true, item: v };
   }
 
+  /* ---------- objetos: nombre en español, descripción, grupo e icono ---------- */
+  const IDATA = Object.fromEntries((window.ITEMS_DATA || []).map(x => [toID(x.n), x]));
+  const itemInfo = name => IDATA[toID(name)] || null;
+  const ICAT = [['Damage', 'Daño'], ['Survival', 'Aguante'], ['Berry', 'Bayas'], ['Speed', 'Velocidad'], ['Field', 'Campo'], ['Utility', 'Utilidad'], ['Mega Stone', 'Megapiedras']];
+  const isResistBerry = x => x.cat === 'Berry' && /super.?effective/i.test(x.d);
+  const typeOfItem = x => { const m = x.d.match(/(\w+)-type (attacks|moves)/i); return m && TYPES_ES[m[1]] && x.cat !== 'Berry' ? m[1] : null; };
+  const lang = () => ((typeof I18N !== 'undefined' && I18N.lang) === 'en' ? 'en' : 'es');
+  function itemRow(x, pc) {
+    const es = lang() === 'es';
+    return `<button class="itrow" data-pickitem="${esc(x.n)}" title="${esc(es ? x.dEs : x.d)}">${x.img ? `<img src="${x.img}" alt="">` : '<i></i>'}<span><b>${esc(x.n)}${es && x.es && x.es !== x.n ? ` <small>· ${esc(x.es)}</small>` : ''}</b><small>${esc(es ? x.dEs : x.d)}</small></span>${pc != null ? `<em>${String(pc).replace('.', ',')}%</em>` : ''}</button>`;
+  }
+  /** Panel para elegir objeto (dentro del editor). */
+  function itemPanel(species, U, T, tab, q) {
+    const all = (window.ITEMS_DATA || []).slice();
+    const megaFor = species ? all.filter(x => x.mega && toID(baseSpecies(x.mega)) === toID(baseSpecies(species))) : [];
+    let body = '';
+    const ql = (q || '').toLowerCase();
+    const match = x => !ql || `${x.n} ${x.es} ${x.d} ${x.dEs}`.toLowerCase().includes(ql);
+    if (ql) body = all.filter(match).slice(0, 60).map(x => itemRow(x)).join('') || '<p class="note">Sin resultados.</p>';
+    else if (tab === 'top') {
+      const t = species ? tourOf(T, species) : null, u = species ? usageOf(U, species) : null;
+      const seen = new Set();
+      const rows = [];
+      for (const [k, pc] of (t ? t.items : [])) { const x = itemInfo(k); if (x && !seen.has(x.n)) { seen.add(x.n); rows.push(itemRow(x, pc)); } }
+      const tourRows = rows.length;
+      for (const [k, pc] of (u ? u.items : [])) { const x = itemInfo(nameOf('items', k)); if (x && !seen.has(x.n)) { seen.add(x.n); rows.push(itemRow(x, pc)); } }
+      for (const x of megaFor) if (!seen.has(x.n)) rows.push(itemRow(x));
+      body = rows.length ? `${tourRows ? '<div class="itsec">En torneos</div>' : ''}${rows.slice(0, tourRows).join('')}${rows.length > tourRows ? '<div class="itsec">En Smogon y su megapiedra</div>' : ''}${rows.slice(tourRows).join('')}` : '<p class="note">Elige antes un Pokémon para ver sus objetos más usados.</p>';
+    } else if (tab === 'group') body = ICAT.map(([c, l]) => { const xs = all.filter(x => x.cat === c && (c !== 'Mega Stone' || !species || megaFor.includes(x))); return xs.length ? `<div class="itsec">${l}</div>${xs.map(x => itemRow(x)).join('')}` : ''; }).join('');
+    else if (tab === 'resist') body = all.filter(isResistBerry).map(x => itemRow(x)).join('');
+    else if (tab === 'type') body = TYPES.map(ty => { const xs = all.filter(x => typeOfItem(x) === ty); return xs.length ? `<div class="itsec">${typeBadge(ty)}</div>${xs.map(x => itemRow(x)).join('')}` : ''; }).join('');
+    return `<div class="itpanel"><div class="row-btns" style="margin-top:0"><div class="seg">${[['top', 'Más usados'], ['group', 'Por grupo'], ['resist', 'Bayas de resistencia'], ['type', 'Por tipo']].map(([k, l]) => `<button data-ittab="${k}" aria-pressed="${tab === k && !ql}">${l}</button>`).join('')}</div>
+      <input type="search" id="itQ" placeholder="Buscar objeto…" value="${esc(q || '')}" style="flex:1"><button class="btn sm" data-pickitem="">Sin objeto</button></div>
+      <div class="itlist">${body}</div></div>`;
+  }
+
   /* ---------- editor de un Pokémon ---------- */
   function datalists() {
     if ($('#dlSpecies')) return;
@@ -410,7 +447,7 @@ const P = (() => {
     const T = await tour();
     const PC = await pcList();
     const box = $('#modalBox');
-    let msg = '';
+    let msg = '', itOpen = false, itTab = 'top', itQ = '';
     const draw = () => {
       const tot = m.sp.reduce((a, b) => a + b, 0);
       const u = m.species ? usageOf(U, m.species) : null;
@@ -421,10 +458,11 @@ const P = (() => {
         <div class="ed">
           <label class="field">Pokémon<input list="dlSpecies" id="eSp" value="${esc(m.species)}" autocomplete="off" placeholder="Nombre en inglés: Garchomp…"></label>
           <label class="field">Mote<input id="eNick" value="${esc(m.nick || '')}" autocomplete="off"></label>
-          <label class="field">Objeto<input list="dlItems" id="eIt" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"></label>
+          <label class="field">Objeto<span class="itfield">${m.item && itemInfo(m.item) && itemInfo(m.item).img ? `<img src="${itemInfo(m.item).img}" alt="">` : ''}<input list="dlItems" id="eIt" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"><button class="btn sm" data-itopen="1" title="Elige el objeto">Elegir</button></span></label>
           <label class="field">Habilidad<select id="eAb">${[...new Set([m.ability, ...abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
           <label class="field">Naturaleza<select id="eNat">${NATURES.map(n => `<option value="${n.name}"${n.name === m.nature ? ' selected' : ''}>${esc(natLabel(n.name))}</option>`).join('')}</select></label>
         </div>
+        ${itOpen ? itemPanel(m.species, U, T, itTab, itQ) : (m.item && itemInfo(m.item) ? `<p class="note itdesc">${esc(lang() === 'es' ? itemInfo(m.item).dEs : itemInfo(m.item).d)}</p>` : '')}
         <div class="flabel" style="margin-top:12px">Puntos (SP) · <span class="${tot > SP_TOTAL ? 'errmsg' : ''}">${tot}/${SP_TOTAL}</span> · máximo ${SP_MAX} por característica</div>
         <div class="sps">${STATS.map((s, i) => `<label><small>${SL[s]}</small><input type="number" min="0" max="${SP_MAX}" value="${m.sp[i]}" data-sp="${i}"></label>`).join('')}<button class="btn sm" id="eSp0">A 0</button></div>
         <div class="statl">${m.species ? statTiles(m) : ''}</div>
@@ -475,11 +513,15 @@ const P = (() => {
     };
     const redraw = () => { const f = document.activeElement && document.activeElement.id; draw(); if (f && $(`#${f}`)) $(`#${f}`).focus(); };
     draw();
-    box.onchange = e => { if (e.target.id === 'ePaste') return; readForm(); redraw(); };
+    box.onchange = e => { if (e.target.id === 'ePaste' || e.target.id === 'itQ') return; readForm(); redraw(); };
+    box.oninput = e => { if (e.target.id !== 'itQ') return; itQ = e.target.value; const pos = e.target.selectionStart; readForm(); draw(); const i = $('#itQ'); i.focus(); i.setSelectionRange(pos, pos); };
     box.onclick = async e => {
       const t = e.target.closest('button');
       if (!t) return;
       const u = usageOf(U, m.species);
+      if (t.dataset.itopen) { readForm(); itOpen = !itOpen; itQ = ''; draw(); return; }
+      if (t.dataset.ittab) { readForm(); itTab = t.dataset.ittab; itQ = ''; draw(); return; }
+      if (t.dataset.pickitem != null) { readForm(); m.item = t.dataset.pickitem; itOpen = false; draw(); return; }
       if (t.dataset.spread != null) { readForm(); const s = u.spreads[+t.dataset.spread]; m.nature = NAT[s.nature] ? s.nature : m.nature; m.sp = s.sp.map(x => Math.min(SP_MAX, x || 0)); draw(); }
       else if (t.dataset.uitem != null) { readForm(); m.item = t.dataset.uitem; draw(); }
       else if (t.dataset.uab != null) { readForm(); m.ability = t.dataset.uab; draw(); }
@@ -592,7 +634,7 @@ const P = (() => {
   }
 
   return {
-    pickMon, openInfo,
+    pickMon, openInfo, itemInfo,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,

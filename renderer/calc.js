@@ -155,7 +155,7 @@ const Calc = (() => {
         <button class="btn sm ibtn" data-info="${esc(m.species)}" title="Info Pokémon: stats, tipos, velocidad y lo que lleva en torneos">i</button><button class="btn sm" data-edit="${side}">Editar</button></div>
       <div class="mhp"><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div>
         <label>PS <input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label>${st}</div>
-      <div class="mline"><span title="Objeto">${esc(m.item || 'Sin objeto')}${q(m.item && !rv.item && m.live)}</span><span title="Habilidad">${esc(m.ability || '—')}${q(m.ability && !rv.ability && m.live)}</span></div>
+      <div class="mline"><span title="${esc((P.itemInfo(m.item) || {})[(typeof I18N !== 'undefined' && I18N.lang) === 'en' ? 'd' : 'dEs'] || 'Objeto')}">${esc(m.item || 'Sin objeto')}${q(m.item && !rv.item && m.live)}</span><span title="Habilidad">${esc(m.ability || '—')}${q(m.ability && !rv.ability && m.live)}</span></div>
       <div class="mline small"><span>${esc(P.natLabel(m.nature))}</span><span>${esc(P.spLine(m))}</span></div>
       <div class="boosts">${STATS.slice(1).map(s => { const v = (m.boosts && m.boosts[s]) || 0; return `<span class="bstep"><button data-boost="${side}:${s}:-1" aria-label="Bajar ${SL[s]}">−</button><b class="${v > 0 ? 'up' : v < 0 ? 'dn' : ''}">${SL[s]} ${v > 0 ? '+' : ''}${v}</b><button data-boost="${side}:${s}:1" aria-label="Subir ${SL[s]}">+</button></span>`; }).join('')}</div>
     </div>`;

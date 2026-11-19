@@ -48,7 +48,7 @@ const PC = (() => {
   function teamsView(teams) {
     return `<div class="row-btns" style="margin-bottom:12px"><button class="btn primary" id="pcTeamAdd">Añadir un equipo al Team Box</button><button class="btn" id="pcTeamExport">Exportar el Team Box</button></div>
       ${teams.length ? `<div class="pcteams">${teams.map(t => { const S = P.parseTeam(t.text).sets; return `<div class="pcteam">
-        <div class="pchead"><div><b>${esc(t.name)}</b>${SET.teamId === t.id ? ' <span class="pill win">mi equipo</span>' : ''}<span class="note">${t.side === 'me' ? 'Tuyo' : 'De un rival'} · ${new Date(t.up).toLocaleDateString('es-ES')}</span></div></div>
+        <div class="pchead"><div><b>${esc(t.name)}</b>${SET.teamId === t.id ? ' <span class="pill win">mi equipo</span>' : ''}<span class="note">${t.side === 'me' ? 'Tuyo' : 'De un rival'} · ${new Date(t.up).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))}</span></div></div>
         <div class="pcmons">${S.map(m => spr(m.species, 'sm')).join('')}</div>
         ${t.notes ? `<p class="pcnotes">${esc(t.notes)}</p>` : ''}
         <div class="pcbtns">${t.side === 'me' ? `<button class="btn sm" data-tbopen="${t.id}">Abrir en el Teambuilder</button>${SET.teamId === t.id ? '' : `<button class="btn sm" data-tbmine="${t.id}">Usar como mi equipo</button>`}` : `<button class="btn sm" data-tbrival="${t.id}" title="La Calculadora usará sus sets">Rival en la calculadora</button>`}
@@ -75,7 +75,7 @@ const PC = (() => {
         <label class="tog${V.tmine ? ' on' : ''}" title="${myIds.length ? '' : 'Añade Pokémon a tu equipo para filtrar por ellos'}"><input type="checkbox" id="tMine"${V.tmine ? ' checked' : ''}${myIds.length ? '' : ' disabled'}>Con alguno de mis Pokémon</label>
         <span class="note">Top ${8} de ${T.tours} torneos online de los últimos ${T.days} días (Limitless) · ${L.length} equipos</span><button class="btn sm" id="tRefresh">Actualizar</button></div>
       ${shown.length ? `<div class="pcteams">${shown.map(t => `<div class="pcteam tourteam">
-        <div class="pchead"><div><b>${esc(t.player)} <span class="pill ${t.place === 1 ? 'win' : 'tie'}">${t.place === 1 ? '1.º' : `${t.place}.º`}</span></b><span class="note">${esc(t.tour)} · ${new Date(t.date).toLocaleDateString('es-ES')} · ${t.players} jugadores${t.record ? ` · ${t.record.wins}-${t.record.losses}` : ''}</span></div></div>
+        <div class="pchead"><div><b>${esc(t.player)} <span class="pill ${t.place === 1 ? 'win' : 'tie'}">${t.place === 1 ? '1.º' : `${t.place}.º`}</span></b><span class="note">${esc(t.tour)} · ${new Date(t.date).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))} · ${t.players} jugadores${t.record ? ` · ${t.record.wins}-${t.record.losses}` : ''}</span></div></div>
         <div class="tourmons">${t.team.map(d => `<span title="${esc(`${d.name} @ ${d.item} · ${d.ability} · ${d.nature} · ${d.moves.join(', ')}`)}">${spr(P.calcSpecies(d.id) || d.name, 'sm')}<small>${esc(d.item)}</small></span>`).join('')}</div>
         <div class="pcbtns"><button class="btn sm" data-trival="${idx(t)}" title="La Calculadora usará sus sets">Rival en la calculadora</button><button class="btn sm" data-tbox="${idx(t)}">Guardar en Team Box</button><button class="btn sm" data-tmineteam="${idx(t)}" title="Lo guarda como tuyo y lo abre en el Teambuilder">Usarlo yo</button><button class="btn sm" data-tcopy="${idx(t)}">Copiar</button></div>
       </div>`).join('')}</div>
@@ -184,7 +184,7 @@ const PC = (() => {
     else if (d.trival || d.tbox || d.tmineteam || d.tcopy) {
       const tt = V.T.teams[+(d.trival || d.tbox || d.tmineteam || d.tcopy)];
       if (d.tcopy) { navigator.clipboard.writeText(tourText(tt)); t.textContent = 'Copiado'; return; }
-      const v = await P.saveTeam({ name: tourName(tt), side: d.tmineteam ? 'me' : 'foe', text: tourText(tt), notes: `${tt.tour} (${new Date(tt.date).toLocaleDateString('es-ES')}), ${tt.place}.º de ${tt.players}. Puntos (SP) estimados con Smogon.` });
+      const v = await P.saveTeam({ name: tourName(tt), side: d.tmineteam ? 'me' : 'foe', text: tourText(tt), notes: `${tt.tour} (${new Date(tt.date).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))}), ${tt.place}.º de ${tt.players}. Puntos (SP) estimados con Smogon.` });
       Calc.reloadTeams();
       if (d.trival) { Calc.setTeams(undefined, v.id); show('calc'); }
       else if (d.tmineteam) { show('equipo'); setTimeout(() => $(`[data-tsel="${v.id}"]`) && $(`[data-tsel="${v.id}"]`).click(), 60); }

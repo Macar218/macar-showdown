@@ -17,6 +17,7 @@ const Doc = (() => {
     ['list', 'Lista', 'Una lista para ir apuntando'],
     ['table', 'Tabla…', 'Insertar una tabla del tamaño que quieras'],
     ['img', 'Imagen…', 'Una imagen de tu ordenador (también puedes pegarla con Ctrl+V)'],
+    ['sprite', 'Sprites…', 'Sprites de Pokémon: en la línea del texto o en una fila'],
     ['calc', 'Otro cálculo', 'Una línea de cálculo de daño'],
     ['page', 'Página nueva', 'Lo que sigue, en otra hoja']
   ];
@@ -36,7 +37,7 @@ const Doc = (() => {
 
     // 1. Portada: tu equipo
     pages.push(page([
-      block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · Reg M-C · ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
+      block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · Reg M-C · ${new Date().toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
       block('kv', `<p><b>Pokepaste del equipo:</b> ${fill('pega aquí el enlace')}</p><p><b>Código de alquiler:</b> ${fill('—')}</p>${ms.length ? `<p><b>Récord con Macar Showdown:</b> ${pctTxt(r.w, r.n)} en ${r.n} partidas${r.eloNow ? ` · ELO ${r.eloNow}` : ''}</p>` : ''}`),
       block('h', '<h2>Mi equipo</h2>'),
       block('team', teamHTML(sets)),
@@ -71,6 +72,7 @@ const Doc = (() => {
     if (mu.length === 1) mu.push(block('box', `<h3>Equipo rival</h3><p>${fill('Añade equipos rivales en Mi PC → Team Box (o juega partidas con este equipo) y aquí salen sus matchups con tu récord, con qué ganas y sus replays.')}</p>`));
     mu.push(block('box', `<h3>Notas</h3><p>${fill('Escribe aquí…')}</p>`));
     pages.push(page(mu));
+    if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') for (const pg of pages) for (const b of pg.blocks) b.html = I18N.trHTML(b.html);
     return { v: 2, teamId: team.id, style: 'dark', zoom: 1, pages, up: Date.now() };
   }
   function threats(U, T, r) {
@@ -409,6 +411,7 @@ const Doc = (() => {
     if (k === 'img') { $('#dImgFile').click(); return; }
     if (k === 'calc') { calcLine(doc); return; }
     if (k === 'table') { tablePicker(doc); return; }
+    if (k === 'sprite') { spritePicker(doc); return; }
     if (k === 'page') { const p = page([block('p', '<p>Escribe aquí…</p>')]); const at = doc.pages.findIndex(x => x.id === V.page); doc.pages.splice(at >= 0 ? at + 1 : doc.pages.length, 0, p); V.page = p.id; }
     else {
       const html = { p: '<p>Escribe aquí…</p>', box: '<h3>Título</h3><p>Escribe aquí…</p>', key: '<p><b>La idea clave.</b></p>', list: '<ul><li>Primer punto</li><li>Segundo punto</li></ul>' }[k];
@@ -430,6 +433,55 @@ const Doc = (() => {
     const w = whereBlock(doc, V.sel); if (!w) return;
     w.p.blocks.splice(w.i, 1); V.sel = null; await saveDoc(doc); render();
   });
+
+  /* Dónde estaba el cursor dentro de la hoja (para poner sprites en la línea del texto). */
+  let lastRange = null;
+  document.addEventListener('selectionchange', () => {
+    const s = window.getSelection();
+    if (!s || !s.rangeCount) return;
+    const r = s.getRangeAt(0);
+    const host = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+    if (host && host.closest && host.closest('#v-doc .dcontent[contenteditable]')) lastRange = r.cloneRange();
+  });
+  /** Elegir sprites de Pokémon: en la línea del texto (donde estaba el cursor) o en una fila propia. */
+  function spritePicker(doc) {
+    const box = $('#modalBox');
+    box.onclick = box.onchange = box.oninput = null;
+    const picked = [];
+    let mode = lastRange ? 'inline' : 'row', names = true;
+    const draw = () => {
+      box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Sprites</h2>
+        <div class="row-btns"><input id="spQ" list="dlSpecies" placeholder="Nombre en inglés: Garchomp…" style="flex:1"><button class="btn" id="spAdd">Añadir</button></div>
+        <div class="sppicked">${picked.map((n, i) => `<button class="chipbtn" data-sprm="${i}" title="Quitar">${spr(n, 'sm')}${esc(n)} ×</button>`).join('') || '<span class="note">Añade uno o varios Pokémon.</span>'}</div>
+        <div class="row-btns"><div class="seg"><button data-spmode="inline" aria-pressed="${mode === 'inline'}"${lastRange ? '' : ' disabled title="Pon antes el cursor dentro de un texto de la hoja"'}>En la línea del texto</button><button data-spmode="row" aria-pressed="${mode === 'row'}">Fila de sprites</button></div>
+          ${mode === 'row' ? `<label class="tog${names ? ' on' : ''}"><input type="checkbox" id="spNames"${names ? ' checked' : ''}>Con nombres</label>` : ''}<span style="flex:1"></span><button class="btn primary" id="spOk"${picked.length ? '' : ' disabled'}>Añadir a la página</button></div>`;
+      $('#spQ').focus();
+    };
+    const add = () => { const sp = P.calcSpecies($('#spQ').value.trim()); if (sp && !picked.includes(sp)) picked.push(sp); draw(); };
+    P.datalists();
+    draw();
+    box.onchange = e => { if (e.target.id === 'spNames') { names = e.target.checked; draw(); } else if (e.target.id === 'spQ' && P.calcSpecies(e.target.value.trim())) add(); };
+    box.onkeydown = e => { if (e.target.id === 'spQ' && e.key === 'Enter') { e.preventDefault(); add(); } };
+    box.onclick = async e => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.id === 'mClose') { $('#modal').classList.add('hide'); box.onclick = box.onchange = box.onkeydown = null; return; }
+      if (t.id === 'spAdd') add();
+      else if (t.dataset.sprm != null) { picked.splice(+t.dataset.sprm, 1); draw(); }
+      else if (t.dataset.spmode) { mode = t.dataset.spmode; draw(); }
+      else if (t.id === 'spOk') {
+        $('#modal').classList.add('hide'); box.onclick = box.onchange = box.onkeydown = null;
+        if (mode === 'inline' && lastRange) {
+          const s = window.getSelection(); s.removeAllRanges(); s.addRange(lastRange);
+          document.execCommand('insertHTML', false, picked.map(n => spr(n, 'dspr')).join(''));
+          await persist(); render(); return;
+        }
+        insertBlock(doc, block('sprites', `<div class="dsprrow">${picked.map(n => `<span>${spr(n)}${names ? `<small>${esc(n)}</small>` : ''}</span>`).join('')}</div>`));
+        await saveDoc(doc); render();
+      }
+    };
+    $('#modal').classList.remove('hide');
+  }
 
   /** Elegir el tamaño de la tabla. */
   function tablePicker(doc) {

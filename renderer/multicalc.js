@@ -11,7 +11,8 @@ const Multi = (() => {
   const SLOTS = [['a', 'me', 0], ['b', 'me', 1], ['c', 'foe', 0], ['d', 'foe', 1]];
   const PROTECT = new Set(['protect', 'detect', 'spikyshield', 'banefulbunker', 'silktrap', 'burningbulwark', 'kingsshield', 'obstruct']);
   const ROLLS = [['peor', 'Peor caso'], ['media', 'Normal'], ['mejor', 'Mejor caso']];
-  const M = { slots: {}, roll: 'media', turn: 1, hp: null, key: '', all: null, allKey: '', mods: {} };
+  const M = { slots: {}, roll: 'media', turn: 1, hp: null, key: '', all: null, allKey: '', mods: {}, tree: null, open: {} };
+  let CTX = null; // estado de una rama del árbol (PS y efectos), mientras se calcula
   const toID = P.toID;
 
   /** Quién está en cada hueco (por defecto, los del campo). */
@@ -30,7 +31,7 @@ const Multi = (() => {
       M.slots[s] = keepMove ? prev : { idx, mv: -1, tgt: side === 'me' ? 'c' : 'a' };
     }
     for (const [s] of SLOTS) if (M.slots[s].mv === -1 && M.slots[s].idx >= 0 && !M.slots[s].userSet) Object.assign(M.slots[s], bestPlay(st, s));
-    M.hp = null; M.turn = 1; M.all = null; M.mods = {};
+    M.hp = null; M.turn = 1; M.all = null; M.mods = {}; M.tree = null; M.open = {};
   }
   /** La jugada que más daño hace (en % de PS) contra los del otro lado. */
   function bestPlay(st, s) {
@@ -60,7 +61,7 @@ const Multi = (() => {
   function fieldFor(st) {
     let f = st.field;
     if (!st.live && !st.field.userWT) { const a = P.autoField(SLOTS.map(([s]) => monOf(st, s))); f = { ...f, weather: a.weather, terrain: a.terrain }; }
-    const md = M.mods || {};
+    const md = (CTX ? CTX.mods : M.mods) || {};
     if (md.tr != null || md.twMe || md.twFoe) f = { ...f, tr: md.tr != null ? md.tr : f.tr, me: { ...f.me, tw: f.me.tw || !!md.twMe }, foe: { ...f.foe, tw: f.foe.tw || !!md.twFoe } };
     return f;
   }
@@ -68,7 +69,7 @@ const Multi = (() => {
   const sideOf = s => (s === 'a' || s === 'b' ? 'me' : 'foe');
   const foesOf = s => (sideOf(s) === 'me' ? ['c', 'd'] : ['a', 'b']);
   const allyOf = s => ({ a: 'b', b: 'a', c: 'd', d: 'c' }[s]);
-  const startHP = (st, s) => { if (M.hp && M.hp[s] != null) return M.hp[s]; const m = monOf(st, s); return m ? (m.fainted ? 0 : m.hp) : 0; };
+  const startHP = (st, s) => { if (CTX && CTX.hp && CTX.hp[s] != null) return CTX.hp[s]; if (M.hp && M.hp[s] != null) return M.hp[s]; const m = monOf(st, s); return m ? (m.fainted ? 0 : m.hp) : 0; };
 
   /* ---------- simular un turno ---------- */
   function makeDamage(st) {
@@ -205,6 +206,71 @@ const Multi = (() => {
     return { rows: rows.slice(0, 40), total: rows.length, foeTotal: C.length * D.length };
   }
 
+  /* ---------- árbol: todas las opciones, turno a turno ---------- */
+  const nextMods = (mods, fx, st) => { const m = { ...mods }; if (fx.tr) m.tr = !(m.tr != null ? m.tr : st.field.tr); if (fx.twMe) m.twMe = true; if (fx.twFoe) m.twFoe = true; return m; };
+  /** Desde un estado: tus 4 mejores jugadas (por su peor caso) y, de cada una, las 3 respuestas del rival que más te duelen. */
+  function branch(st, state) {
+    const keep = CTX;
+    CTX = state;
+    try {
+      const dmgOf = makeDamage(st);
+      const A = optionsFor(st, 'a'), B = optionsFor(st, 'b'), C = optionsFor(st, 'c'), D = optionsFor(st, 'd');
+      const rows = [];
+      for (const oa of A) for (const ob of B) {
+        const replies = [];
+        for (const oc of C) for (const od of D) {
+          const plays = { a: oa, b: ob, c: oc, d: od };
+          const r = simulate(st, plays, M.roll, dmgOf, state.turn);
+          replies.push({ plays, r, sc: score(st, r) });
+        }
+        replies.sort((x, y) => x.sc.v - y.sc.v);
+        rows.push({ oa, ob, worst: replies[0].sc, replies: replies.slice(0, 3) });
+      }
+      rows.sort((x, y) => y.worst.v - x.worst.v);
+      return rows.slice(0, 4);
+    } finally { CTX = keep; }
+  }
+  function hpChips(st, hp) {
+    return SLOTS.map(([s, side]) => { const m = monOf(st, s); if (!m) return ''; const v = hp[s] ?? 0; return `<span class="tchip ${side}${v <= 0 ? ' dead' : ''}" title="${esc(m.species)}">${spr(m.species, 'xs')}${v <= 0 ? 'KO' : `${P.pct(v)}%`}</span>`; }).join('');
+  }
+  function treeHTML(st, state, path, depth) {
+    const rows = M.tree[path] || (M.tree[path] = branch(st, state));
+    const saveCtx = CTX;
+    CTX = state;
+    const lbl = (s, o) => label(st, s, o);
+    CTX = saveCtx;
+    if (!rows.length) return '<p class="note">Faltan Pokémon o movimientos para ver las opciones.</p>';
+    return `<ol class="tree">${rows.map((row, i) => {
+      const key = `${path}.${i}`;
+      return `<li><div class="tmy"><span class="tturn">T${state.turn}</span><b>${esc(lbl('a', row.oa))}</b><span class="note">+</span><b>${esc(lbl('b', row.ob))}</b>
+        <span class="tres ${row.worst.kos > row.worst.lost ? 'good' : row.worst.lost > row.worst.kos ? 'bad' : ''}">peor caso: ${outcome(row.worst)}</span></div>
+        <ul>${row.replies.map((rep, j) => {
+          const k2 = `${key}.${j}`;
+          const next = { hp: { ...rep.r.hp }, mods: nextMods(state.mods || {}, rep.r.fx, st), turn: state.turn + 1 };
+          const alive = s => (next.hp[s] || 0) > 0;
+          const canGo = ['a', 'b'].some(alive) && ['c', 'd'].some(alive) && depth < 3;
+          return `<li><div class="trep"><span class="note">Si el rival hace</span> ${esc(lbl('c', rep.plays.c))} / ${esc(lbl('d', rep.plays.d))} → <span class="tchips">${hpChips(st, rep.r.hp)}</span>
+            ${canGo ? `<button class="btn sm" data-tnext="${k2}">${M.open[k2] ? 'Ocultar' : 'Y luego ▸'}</button>` : ''}<button class="btn sm" data-tuse="${k2}" title="Pone este turno (PS y movimientos) en la Multicalc">Usarlo este turno</button></div>
+            ${M.open[k2] ? treeHTML(st, next, k2, depth + 1) : ''}</li>`;
+        }).join('')}</ul></li>`;
+    }).join('')}</ol>`;
+  }
+  /** Busca el estado y las jugadas de una rama por su ruta ("r.0.1.2.0…"). */
+  function nodeAt(st, path) {
+    const parts = path.split('.').slice(1).map(Number);
+    let state = rootState(st), p = 'r', node = null;
+    for (let i = 0; i < parts.length; i += 2) {
+      const rows = M.tree[p] || (M.tree[p] = branch(st, state));
+      const row = rows[parts[i]], rep = row && row.replies[parts[i + 1]];
+      if (!rep) return null;
+      node = { state, plays: rep.plays };
+      state = { hp: { ...rep.r.hp }, mods: nextMods(state.mods || {}, rep.r.fx, st), turn: state.turn + 1 };
+      p = `${p}.${parts[i]}.${parts[i + 1]}`;
+    }
+    return node;
+  }
+  const rootState = st => ({ hp: Object.fromEntries(SLOTS.map(([s]) => [s, startHP(st, s)])), mods: { ...M.mods }, turn: M.turn });
+
   /* ---------- pintar ---------- */
   function slotBox(st, s) {
     const side = sideOf(s), sl = M.slots[s], list = st[side];
@@ -250,7 +316,9 @@ const Multi = (() => {
         <span style="flex:1"></span><button class="btn sm" data-mnext="1">Siguiente turno</button><button class="btn sm" data-mreset="1" title="Vuelve al turno 1 con los PS de ahora">Reiniciar turnos</button></div>
       <div class="mlog"><h3>Qué pasa este turno</h3>${r.ev.length ? `<ol>${r.ev.map(e => `<li class="${sideOf(e.s)}${e.ko ? ' ko' : ''}">${esc(e.t)}</li>`).join('')}</ol>` : '<p class="note">Nadie ataca este turno.</p>'}</div>
       <div class="mresults">${res}</div>
-      <button class="btn${M.all ? '' : ' primary'}" data-mall="1">${M.all ? 'Recalcular todas las opciones' : 'Ver todas las opciones'}</button>
+      <div class="row-btns"><button class="btn${M.all ? '' : ' primary'}" data-mall="1" title="Todas tus jugadas contra todas las del rival, y qué pasa en cada caso">${M.all ? 'Recalcular la tabla' : 'Todas las opciones (tabla)'}</button>
+        <button class="btn${M.tree ? '' : ' primary'}" data-mtree="1" title="Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno">${M.tree ? 'Recalcular el árbol' : 'Todas las opciones, turno a turno'}</button></div>
+      ${M.tree ? `<div class="mtree"><h3>Todas las opciones, turno a turno <span class="note">tus 4 mejores jugadas (por su peor caso) y las 3 respuestas del rival que más te duelen · ${ROLLS.find(r => r[0] === M.roll)[1].toLowerCase()} · los que caen no se sustituyen</span></h3>${treeHTML(st, rootState(st), 'r', 1)}</div>` : ''}
       ${all}
     </div>`;
   }
@@ -259,7 +327,7 @@ const Multi = (() => {
   /* ---------- eventos (los recibe el panel de la calculadora) ---------- */
   function click(t, st) {
     if (t.dataset.mtgt) { const [s, tg] = t.dataset.mtgt.split(':'); M.slots[s].tgt = tg; M.slots[s].userSet = true; M.all = null; return true; }
-    if (t.dataset.mroll) { M.roll = t.dataset.mroll; return true; }
+    if (t.dataset.mroll) { M.roll = t.dataset.mroll; if (M.tree) M.tree = {}; return true; }
     if (t.dataset.mnext) {
       const r = simulate(st, Object.fromEntries(SLOTS.map(([s]) => [s, M.slots[s]])), M.roll, makeDamage(st), M.turn);
       M.hp = { ...r.hp }; M.turn++; M.all = null;
@@ -271,6 +339,15 @@ const Multi = (() => {
     }
     if (t.dataset.mreset) { M.hp = null; M.turn = 1; M.all = null; M.mods = {}; return true; }
     if (t.dataset.mall) { M.all = computeAll(st); return true; }
+    if (t.dataset.mtree) { M.tree = {}; M.open = {}; return true; }
+    if (t.dataset.tnext) { M.open[t.dataset.tnext] = !M.open[t.dataset.tnext]; return true; }
+    if (t.dataset.tuse) {
+      const n = nodeAt(st, t.dataset.tuse);
+      if (!n) return false;
+      for (const [s] of SLOTS) if (M.slots[s] && n.plays[s]) Object.assign(M.slots[s], { mv: n.plays[s].mv, tgt: n.plays[s].tgt || M.slots[s].tgt, userSet: true });
+      M.hp = { ...n.state.hp }; M.mods = { ...(n.state.mods || {}) }; M.turn = n.state.turn; M.all = null;
+      return true;
+    }
     if (t.dataset.muse) {
       const row = M.all.rows[+t.dataset.muse];
       Object.assign(M.slots.a, row.oa.mv >= 0 ? { mv: row.oa.mv, tgt: row.oa.tgt || M.slots.a.tgt } : { mv: -1 });
@@ -283,6 +360,7 @@ const Multi = (() => {
   }
   function change(t, st) {
     if (t.dataset.mmv) { const [s, i] = t.dataset.mmv.split(':'); M.slots[s].mv = +i; M.slots[s].userSet = true; M.all = null; return true; }
+    if (t.dataset.mhp || t.dataset.mmon) { if (M.tree) { M.tree = {}; M.open = {}; } }
     if (t.dataset.mmon) { const s = t.dataset.mmon; const idx = +t.value; M.slots[s] = { idx, mv: -1, tgt: M.slots[s].tgt }; Object.assign(M.slots[s], bestPlay(st, s)); if (M.hp) delete M.hp[s]; M.all = null; return true; }
     if (t.dataset.mhp) { const s = t.dataset.mhp; M.hp = { ...(M.hp || {}), [s]: Math.max(0, Math.min(100, +t.value || 0)) }; M.all = null; return true; }
     return false;
