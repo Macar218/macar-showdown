@@ -353,6 +353,20 @@ const Multi = (() => {
       ${all}
     </div>`;
   }
+  /** Pestaña Árbol de la calculadora: solo el árbol de jugadas, desde los PS de ahora. */
+  function renderTree(st) {
+    sync(st);
+    if (!st.me.length || !st.foe.length) return '<p class="note">Faltan Pokémon: carga tu equipo y el rival (o abre un combate) para ver el árbol.</p>';
+    if (!M.tree) { M.tree = {}; M.open = {}; }
+    const on = s => monOf(st, s);
+    const side = ss => ss.map(s => (on(s) ? `${spr(on(s).species, 'sm')}<span class="nolang">${esc(on(s).species)}</span>` : '')).join('');
+    return `<div class="multi mtreetab">
+      <div class="mtreehead"><div class="mtvs"><span>${side(['a', 'b'])}</span><b>VS</b><span>${side(['c', 'd'])}</span></div>
+        <div class="seg">${ROLLS.map(([k, l]) => `<button data-mroll="${k}" aria-pressed="${M.roll === k}">${l}</button>`).join('')}</div>
+        <button class="btn sm" data-mtree="1" title="Volver a calcular desde los PS de ahora">Recalcular</button></div>
+      <p class="note">Tus 4 mejores jugadas (por su peor caso) y las 3 respuestas del rival que más te duelen. «Turno siguiente» abre lo que pasa después; «Usarlo este turno» lo lleva a la Multicalc. Los que están en el campo se eligen en las tiras de arriba (clic derecho).</p>
+      <div class="mtree">${treeHTML(st, rootState(st), 'r', 1)}</div></div>`;
+  }
   const outcome = o => `${o.kos ? `<b>${o.kos} KO</b>` : 'Ningún KO'}${o.lost ? ` · <b>pierdes ${o.lost}</b>` : ''}`;
 
   /* ---------- eventos (los recibe el panel de la calculadora) ---------- */
@@ -397,5 +411,5 @@ const Multi = (() => {
     return false;
   }
 
-  return { render, click, change, _sim: simulate };
+  return { render, renderTree, click, change, _sim: simulate };
 })();

@@ -26,7 +26,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/myteam.js` | Tu equipo: ficha de cada Pokémon del equipo de la sesión, usuario de Showdown, Pokepaste, cambiarlo |
 | `renderer/stats.js` | Estadísticas (también en Node para los tests) |
 | `renderer/poke.js` | Piezas comunes: datos del motor, sets Showdown, daño/velocidad, editor de Pokémon, datos de uso y de torneo, Team Box, Mi PC |
-| `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia) y Multicalc |
+| `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia), pestañas Daño (estilo calculadora de Showdown, edición en el sitio), Multicalc y Árbol (`Multi.renderTree`) |
 | `renderer/team.js` | Teambuilder: pestañas de los 6 y editor en la página (puntos estilo Showdown primero; el editor completo en «Más opciones») |
 | `renderer/pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
 | `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla), con sonido apagado al empezar, leads/reserva y notas con marcas `[T5]` que saltan a ese turno |

@@ -223,6 +223,97 @@ const Calc = (() => {
       ${S.battleId && S.follow ? '<p class="note">Clima, campo, pantallas y Viento Afín se copian del combate en cada turno.</p>' : ''}</details>`;
   }
 
+  /* ---------- pestaña Daño, estilo calculadora de Showdown ---------- */
+  const cur = side => S[side][side === 'me' ? S.selMe : S.selFoe];
+  /** Los 4 movimientos de un lado contra el Pokémon elegido del otro, con su %; pulsar uno lo enseña abajo. */
+  function moveCol(attSide) {
+    const att = cur(attSide), def = cur(attSide === 'me' ? 'foe' : 'me');
+    if (!att) return `<div class="sdmvs ${attSide}"><p class="note">${attSide === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'} o añade uno con +.</p></div>`;
+    const seen = att.seenMoves || [];
+    return `<div class="sdmvs ${attSide}"><h4>${spr(att.species, 'xs')}<span class="nolang">${esc(att.species)}</span></h4>${att.moves.map(mv => {
+      if (!mv) return '<span class="sdmv empty">—</span>';
+      const d = P.moveOf(mv), r = def ? P.damage(att, def, mv, S.field, attSide) : null;
+      const on = S.selMove && S.selMove[0] === attSide && S.selMove[1] === mv;
+      const val = d && d.category === 'Status' ? '<small>estado</small>' : r && !r.err ? `${P.pct(r.pLo)} - ${P.pct(r.pHi)}%` : '';
+      const tag = attSide === 'foe' && seen.length && !seen.includes(mv) ? '<em title="No lo ha usado todavía">?</em>' : '';
+      return `<button class="sdmv${on ? ' on' : ''} ${r && !r.err ? P.koClass(r.ko) : ''}" data-smv="${attSide}|${esc(mv)}">${P.typeDot(d ? d.type : '')}<span class="nolang">${esc(mv)}</span>${tag}<b>${val}</b></button>`;
+    }).join('')}</div>`;
+  }
+  /** El cálculo del movimiento elegido: el texto de Showdown, el KO y las tiradas. */
+  function mainResult() {
+    let [side, mv] = S.selMove || [];
+    const valid = side && cur(side) && cur(side).moves.includes(mv);
+    if (!valid) {
+      const a = cur('me');
+      const first = a && a.moves.find(x => x && P.moveOf(x) && P.moveOf(x).category !== 'Status');
+      if (!first) return '<div class="sdmain"><p class="note">Elige un movimiento.</p></div>';
+      S.selMove = ['me', first]; [side, mv] = S.selMove;
+    }
+    const att = cur(side), def = cur(side === 'me' ? 'foe' : 'me');
+    if (!def) return '<div class="sdmain"><p class="note">Falta el otro Pokémon.</p></div>';
+    const r = P.damage(att, def, mv, S.field, side);
+    if (!r) return `<div class="sdmain"><p class="sddesc nolang">${esc(mv)}</p><p class="note">Movimiento de estado: no hace daño.</p></div>`;
+    if (r.err) return `<div class="sdmain"><p class="note">No se puede calcular: ${esc(r.err)}</p></div>`;
+    const rolls = r.rolls.slice().sort((x, y) => x - y);
+    S.det = [side, side === 'me' ? S.selMe : S.selFoe, side === 'me' ? S.selFoe : S.selMe, mv];
+    return `<div class="sdmain"><p class="sddesc nolang">${esc(r.desc || `${att.species} ${mv} vs ${def.species}`)}</p>
+      <div class="sdko"><b class="${P.koClass(r.ko)}">${esc(P.koEs(r.ko)) || 'Sin KO'}</b>${P.bar(r)}<span>${P.pct(r.pLo)} - ${P.pct(r.pHi)}% · ${r.lo}-${r.hi} de ${r.cur}/${r.max} PS</span></div>
+      <p class="sdrolls"><span class="note">Posibles daños:</span> <span class="nolang">(${rolls.join(', ')})</span></p>
+      <button class="btn sm" data-sdroll="1">${S.showRolls ? 'Ocultar tiradas' : 'Cómo sale el daño'}</button>${S.showRolls ? detail() : ''}</div>`;
+  }
+  /** Un Pokémon, editable aquí mismo como en Showdown. */
+  function pokePanel(side) {
+    const m = cur(side);
+    if (!m) return `<div class="sdpoke ${side} empty"><p class="note">${side === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'} o añade uno con +.</p></div>`;
+    const st = P.stats(m) || {}, sp = P.spOf(m.species);
+    const rv = m.revealed || {};
+    const q = on => (side === 'foe' && on ? ' <em title="Aún no se ha visto: es lo más probable">?</em>' : '');
+    const opt = (list, v) => list.map(([k, l]) => `<option value="${esc(k)}"${k === v ? ' selected' : ''}>${l}</option>`).join('');
+    return `<div class="sdpoke ${side}">
+      <div class="sdph">${spr(m.species)}<div class="sdpn"><b class="nolang">${esc(m.species)}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div><span class="src ${toID(m.src)}">${esc(SRC[m.src] || m.src || '')}</span></div>
+        <span style="flex:1"></span><button class="btn sm ibtn" data-info="${esc(m.species)}" title="Info Pokémon: stats, tipos, velocidad y lo que lleva en torneos">i</button><button class="btn sm" data-edit="${side}" title="Editor completo: sets más usados, Mi PC, pegar el set">Editar</button></div>
+      <div class="sdgrid">
+        <label class="field">Objeto${q(m.item && !rv.item && m.live)}<input list="dlItems" data-ce="${side}:item" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"></label>
+        <label class="field">Habilidad${q(m.ability && !rv.ability && m.live)}<select data-ce="${side}:ability">${[...new Set([m.ability, ...P.abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
+        <label class="field">Naturaleza<select data-ce="${side}:nature">${P.NATURES.map(n => `<option value="${n.name}"${n.name === m.nature ? ' selected' : ''}>${esc(P.natLabel(n.name))}</option>`).join('')}</select></label>
+        <label class="field">Estado<select data-ce="${side}:status">${opt(P.STATUS, m.status || '')}</select></label>
+      </div>
+      <table class="sdstats"><thead><tr><th></th><th>Base</th><th>SP</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
+        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}</th><td>${sp ? sp.baseStats[k] : ''}</td>
+          <td><input type="number" min="0" max="${P.SP_MAX}" value="${m.sp[i] || 0}" data-ce="${side}:sp:${i}"></td><td><b>${st[k] ?? ''}</b></td>
+          <td>${i ? `<select data-ce="${side}:boost:${k}" class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${[6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6].map(v => `<option value="${v}"${v === b ? ' selected' : ''}>${v > 0 ? `+${v}` : v}</option>`).join('')}</select>` : ''}</td></tr>`; }).join('')}
+      </tbody></table>
+      <div class="sdhp"><span>PS</span><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div><label><input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label></div>
+      <div class="sdmoves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || '', d = x && P.moveOf(x); return `<label>${P.typeDot(d ? d.type : '')}<input list="dlMoves" data-ce="${side}:move:${i}" value="${esc(x)}" autocomplete="off" placeholder="Movimiento ${i + 1}"></label>`; }).join('')}</div>
+    </div>`;
+  }
+  /** Cambiar algo del Pokémon desde la calculadora (se recuerda como cambio a mano). */
+  function applyEdit(side, key, value, extra) {
+    const m = cur(side);
+    if (!m) return;
+    const patch = {};
+    if (key === 'item') patch.item = value.trim() ? P.nameOf('items', value.trim()) : '';
+    else if (key === 'ability' || key === 'nature' || key === 'status') patch[key] = value;
+    else if (key === 'sp') { const sp = m.sp.slice(); sp[+extra] = Math.max(0, Math.min(P.SP_MAX, Math.round(+value || 0))); patch.sp = sp; }
+    else if (key === 'boost') patch.boosts = { ...(m.boosts || {}), [extra]: +value || 0 };
+    else if (key === 'move') { const mv = m.moves.slice(); mv[+extra] = value.trim() ? P.nameOf('moves', value.trim()) : ''; patch.moves = mv; }
+    Object.assign(m, patch);
+    if (key !== 'boost' && key !== 'status' && m.src !== 'exacto') m.src = 'manual';
+    S.edits[side][m.species] = { ...(S.edits[side][m.species] || {}), ...patch, ...(m.src === 'manual' ? { src: 'manual' } : {}) };
+  }
+  /** Campo como en Showdown: botones. */
+  function fieldPanel() {
+    const f = S.field;
+    const b = (attr, val, label, on) => `<button class="${on ? 'on' : ''}" data-${attr}="${esc(val)}">${label}</button>`;
+    const sideRow = side => `<div class="sdfrow"><span class="lbl">${side === 'me' ? 'Tu lado' : 'Su lado'}</span><div class="sdbtns">${SIDE_FX.map(([k, l]) => b('cfs', `${side}.${k}`, l, f[side][k])).join('')}</div></div>`;
+    return `<div class="sdfield"><h4>Campo</h4>
+      <div class="sdfrow"><span class="lbl">Clima</span><div class="sdbtns">${WEATHERS.map(([k, l]) => b('cfw', k, l, f.weather === k)).join('')}</div></div>
+      <div class="sdfrow"><span class="lbl">Campo</span><div class="sdbtns">${TERRAINS.map(([k, l]) => b('cft', k, l, f.terrain === k)).join('')}</div></div>
+      <div class="sdfrow"><span class="lbl">Otros</span><div class="sdbtns">${b('cfo', 'tr', 'Espacio Raro', f.tr)}${b('cfo', 'grav', 'Gravedad', f.grav)}${b('cfo', 'crit', 'Golpe crítico', f.crit)}</div></div>
+      ${sideRow('me')}${sideRow('foe')}
+      ${S.battleId && S.follow ? '<p class="note">Clima, campo, pantallas y Viento Afín se copian del combate en cada turno.</p>' : ''}</div>`;
+  }
+
   function render() {
     const el = $('#calcBody');
     if (!el) return;
@@ -231,6 +322,7 @@ const Calc = (() => {
       : '<span class="pill">MANUAL</span><span>Sin combate abierto</span>';
     const teamOpt = (side, v) => `<option value="">${side === 'me' ? 'Tu equipo…' : 'Equipo rival…'}</option>${TEAMS.filter(t => t.side === side).map(t => `<option value="${esc(t.id)}"${t.id === v ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}`;
     const keepScroll = el.scrollTop;
+    P.datalists();
     el.innerHTML = `
       <div class="ctop">${status}<button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button><label class="tog${S.follow ? ' on' : ''}" title="Cargar lo que pasa en el combate abierto en Jugar"><input type="checkbox" id="cFollow"${S.follow ? ' checked' : ''}>Seguir el combate</label></div>
       <div class="cteams"><select id="cTeamMe" title="Tu equipo (si no hay combate, o si eres espectador)">${teamOpt('me', S.teamMe)}</select>
@@ -238,11 +330,12 @@ const Calc = (() => {
         <button class="btn sm" id="cTeams" title="Pegar o traer de Pokepaste un equipo rival">+ Rival</button></div>
       <div class="csrc"><span class="note">Sets del rival que no conoces:</span><div class="seg">${[['tour', 'Torneos'], ['smogon', 'Smogon']].map(([k, l]) => `<button data-csrc="${k}" aria-pressed="${(S.setSrc || 'tour') === k}">${l}</button>`).join('')}</div></div>
       ${strip('me')}${strip('foe')}
-      <div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button></div>
-      <div id="cTab">${S.tab === 'multi' ? Multi.render(api_state()) : `
-        <div class="mcards">${monCard(S.me[S.selMe], 'me')}<span class="vs">VS</span>${monCard(S.foe[S.selFoe], 'foe')}</div>
-        ${speedLine()}${table('me')}${table('foe')}${detail()}`}</div>
-      ${fieldBox()}
+      <div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button><button data-ctab="tree" aria-pressed="${S.tab === 'tree'}" title="Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno">Árbol</button></div>
+      <div id="cTab">${S.tab === 'multi' ? Multi.render(api_state()) : S.tab === 'tree' ? Multi.renderTree(api_state()) : `
+        <div class="sdres">${moveCol('me')}${moveCol('foe')}${mainResult()}</div>
+        ${speedLine()}
+        <div class="sdpanels">${pokePanel('me')}${pokePanel('foe')}</div>`}</div>
+      ${S.tab === 'dmg' ? fieldPanel() : fieldBox()}
       <p class="note usage" id="cUsage">${esc(usageMsg)}</p>`;
     el.scrollTop = keepScroll;
   }
@@ -333,7 +426,14 @@ const Calc = (() => {
       if (!t) return;
       if (t.dataset.info) { P.openInfo(t.dataset.info); return; }
       if (t.dataset.dex) { P.openInfo((S.foe[S.selFoe] || S.me[S.selMe] || {}).species || 'Garchomp'); return; }
-      if (t.dataset.detx) { S.det = null; render(); return; }
+      if (t.dataset.detx) { S.showRolls = false; render(); return; }
+      if (t.dataset.smv) { S.selMove = t.dataset.smv.split('|'); render(); return; }
+      if (t.dataset.sdroll) { S.showRolls = !S.showRolls; render(); return; }
+      if (t.dataset.cfw != null) { S.field.weather = t.dataset.cfw; S.field.userWT = true; persist(); render(); return; }
+      if (t.dataset.cft != null) { S.field.terrain = t.dataset.cft; S.field.userWT = true; persist(); render(); return; }
+      if (t.dataset.cfo) { S.field[t.dataset.cfo] = !S.field[t.dataset.cfo]; persist(); render(); return; }
+      if (t.dataset.cfs) { const [side, key] = t.dataset.cfs.split('.'); S.field[side][key] = !S.field[side][key]; persist(); render(); return; }
+      if (t.dataset.tuse) { Multi.click(t, api_state()); S.tab = 'multi'; persist(); render(); return; }
       if (t.dataset.pick) { const [side, i] = t.dataset.pick.split(':'); if (side === 'me') S.selMe = +i; else S.selFoe = +i; render(); }
       else if (t.dataset.add) edit(t.dataset.add, -1, true);
       else if (t.dataset.edit) edit(t.dataset.edit, t.dataset.edit === 'me' ? S.selMe : S.selFoe, false);
@@ -371,6 +471,7 @@ const Calc = (() => {
         S.edits[side][m.species] = { ...(S.edits[side][m.species] || {}), hp: m.hp };
         render(); return;
       }
+      if (t.dataset.ce) { const [side, key, extra] = t.dataset.ce.split(':'); applyEdit(side, key, t.value, extra); render(); return; }
       if (t.dataset.cf) {
         const k = t.dataset.cf, f = S.field;
         if (k.includes('.')) { const [side, key] = k.split('.'); f[side][key] = t.checked; }

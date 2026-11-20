@@ -11,6 +11,9 @@ Cada cambio en `main` también genera el instalador en **Actions** (artefacto `m
 
 ## Qué hace (versión 0.8)
 
+- **Menú con aspecto de Pokédex**: carcasa roja, lente y luces, y las secciones en una pantalla numerada.
+- **Calculadora estilo Showdown**: los 4 movimientos de cada lado con su %, el cálculo completo del elegido (texto de Showdown, KO y tiradas), los dos Pokémon editables ahí mismo (objeto, habilidad, naturaleza, estado, SP, niveles, PS y movimientos) y el campo con botones. Pestañas **Daño**, **Multicalc** y **Árbol** (tus mejores jugadas, sus respuestas y el turno siguiente).
+
 - **Teambuilder estilo Showdown**: pestañas con tus 6 Pokémon y, debajo, el elegido: primero sus puntos (base, deslizador, número, estadística final, «Quedan X de 66» y + / − de naturaleza), luego objeto, habilidad y movimientos. Se guarda solo.
 
 - **Inicio**: al abrir la app eliges **Cargar sesión** (las sesiones de cada uno de tus equipos) o **Nueva sesión**: con un equipo que ya tienes o con uno nuevo pegando su Pokepaste. La sesión nueva sale con un nombre editable («Sesión 20 Noviembre 2026 (equipo)») y un objetivo. Un equipo tiene sus sesiones: las estadísticas se ven por sesión o de todo el equipo.
