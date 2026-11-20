@@ -37,7 +37,7 @@ class Store {
   }
 
   settings() {
-    return { showdownName: '', teamId: '', sessionId: '', autoReplay: true, recordVideo: true, ...this.readJSON(this.settingsFile, {}) };
+    return { showdownName: '', teamId: '', sessionId: '', autoReplay: true, ...this.readJSON(this.settingsFile, {}) };
   }
 
   setSettings(patch) {
@@ -73,18 +73,39 @@ class Store {
     return this.settings().showdownName.split(',').map(x => x.trim()).filter(Boolean).concat(match && match.clientName ? [match.clientName] : []);
   }
 
+  /** Guarda una partida y apunta su fecha de modificación (para no releerla al volver a la ventana). */
+  writeMatch(id, m) {
+    const file = this.file(id);
+    this.writeAtomic(file, JSON.stringify(m));
+    if (this.cache) this.cache.set(id, m.summary);
+    try { (this.mtimes || (this.mtimes = new Map())).set(path.basename(file), { t: fs.statSync(file).mtimeMs, id }); } catch (e) { /* nada */ }
+  }
+
   file(id) { return path.join(this.mdir, `${String(id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120)}.json`); }
 
   list() {
-    if (!this.cache) {
-      this.cache = new Map();
-      for (const f of fs.readdirSync(this.mdir)) {
-        if (!f.endsWith('.json')) continue;
-        const m = this.readJSON(path.join(this.mdir, f), null);
-        if (m && m.summary && m.summary.id) this.cache.set(m.summary.id, m.summary);
-      }
-    }
+    if (!this.cache || this.stale) this.refresh();
     return [...this.cache.values()].sort((a, b) => b.endedAt - a.endedAt);
+  }
+
+  /**
+   * Relee la carpeta de partidas. Solo abre los archivos nuevos o cambiados (por fecha de modificación):
+   * así volver a la ventana no bloquea la app aunque haya cientos de partidas.
+   */
+  refresh() {
+    const old = this.cache || new Map(), seen = this.mtimes || new Map();
+    const cache = new Map(), mtimes = new Map();
+    for (const f of fs.readdirSync(this.mdir)) {
+      if (!f.endsWith('.json')) continue;
+      const file = path.join(this.mdir, f);
+      let t = 0;
+      try { t = fs.statSync(file).mtimeMs; } catch (e) { continue; }
+      const prev = seen.get(f);
+      if (prev && prev.t === t && old.has(prev.id)) { cache.set(prev.id, old.get(prev.id)); mtimes.set(f, prev); continue; }
+      const m = this.readJSON(file, null);
+      if (m && m.summary && m.summary.id) { cache.set(m.summary.id, m.summary); mtimes.set(f, { t, id: m.summary.id }); }
+    }
+    this.cache = cache; this.mtimes = mtimes; this.stale = false;
   }
 
   get(id) { return fs.existsSync(this.file(id)) ? this.readJSON(this.file(id), null) : null; }
@@ -102,7 +123,7 @@ class Store {
       // La partida se apunta en la sesión abierta al jugarla.
       session: prev ? prev.session || null : (this.settings().sessionId || null) };
     m.summary = this.summarize(mid, m, endedAt || (prev && prev.summary.endedAt) || Date.now());
-    this.writeAtomic(this.file(mid), JSON.stringify(m));
+    this.writeMatch(mid, m);
     this.cache.set(mid, m.summary);
     return { saved: true, summary: m.summary, isNew: !prev };
   }
@@ -123,7 +144,7 @@ class Store {
       const m = this.get(s.id);
       if (!m) continue;
       m.summary = this.summarize(s.id, m, s.endedAt);
-      this.writeAtomic(this.file(s.id), JSON.stringify(m));
+      this.writeMatch(s.id, m);
       this.cache.set(s.id, m.summary);
     }
   }
@@ -133,7 +154,7 @@ class Store {
     if (!m) return false;
     m.notes = String(notes || '').slice(0, 5000);
     m.summary.notes = m.notes;
-    this.writeAtomic(this.file(id), JSON.stringify(m));
+    this.writeMatch(id, m);
     this.cache.set(id, m.summary);
     return true;
   }
@@ -144,7 +165,7 @@ class Store {
     if (!m) return false;
     m.session = sid || null;
     m.summary.session = m.session;
-    this.writeAtomic(this.file(id), JSON.stringify(m));
+    this.writeMatch(id, m);
     if (this.cache) this.cache.set(id, m.summary);
     return true;
   }
@@ -161,7 +182,7 @@ class Store {
     if (!m) return false;
     m.replay = String(url || '') || null;
     m.summary.replay = m.replay;
-    this.writeAtomic(this.file(id), JSON.stringify(m));
+    this.writeMatch(id, m);
     if (this.cache) this.cache.set(id, m.summary);
     return true;
   }

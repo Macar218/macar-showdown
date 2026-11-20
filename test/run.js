@@ -177,6 +177,53 @@ t('motor de daño Champions (nivel 50, SP)', () => {
   assert.deepStrictEqual([a.maxHP(), a.rawStats.atk, a.rawStats.spe], [157, 200, 172]);
 });
 
+t('filtros y análisis del Dashboard (lead, reserva, rival, ELO, rivales, equipo, hábitos)', () => {
+  const side = (o) => ({ name: '', rating: null, ratingAfter: null, preview: [], leads: [], brought: [], megas: [], moves: {}, fainted: [], minTime: null, sheet: null, ...o });
+  const mk = (i, won, me, op, extra = {}) => ({ id: `g-${i}`, endedAt: 1e12 + i * 6e5, formatId: 'gen9championsvgc2026regmc', turns: 6 + i, me: 'p1', opp: 'p2', result: won ? 'win' : 'loss', p1: side(me), p2: side(op), ...extra });
+  const A = ['Garchomp', 'Kingambit', 'Charizard', 'Sylveon'];
+  const ms = [
+    mk(1, true, { leads: ['Garchomp', 'Kingambit'], brought: ['Garchomp', 'Kingambit', 'Charizard', 'Sylveon'], preview: A, moves: { Garchomp: ['Dragon Claw'] } }, { name: 'r1', rating: 1300, preview: ['Sneasler', 'Excadrill'], leads: ['Sneasler', 'Excadrill'], brought: ['Sneasler', 'Excadrill'], sheet: [{}] }),
+    mk(2, false, { leads: ['Charizard', 'Sylveon'], brought: ['Charizard', 'Sylveon', 'Garchomp', 'Kingambit'], preview: A, megas: ['Charizard-Mega-Y'] }, { name: 'r2', rating: 1100, preview: ['Sneasler', 'Tyranitar'], leads: ['Tyranitar', 'Excadrill'], brought: ['Tyranitar'] }),
+    mk(3, true, { leads: ['Garchomp', 'Charizard'], brought: ['Garchomp', 'Charizard', 'Kingambit', 'Sylveon'], preview: A, moves: { Garchomp: ['Dragon Claw', 'Earthquake'] } }, { name: 'r3', preview: ['Excadrill'], leads: ['Excadrill'], brought: ['Excadrill'] })
+  ];
+  const f = x => Stats.filter(ms, x).map(s => s.id);
+  assert.deepStrictEqual(f({ lead: 'Garchomp' }), ['g-1', 'g-3']);
+  assert.deepStrictEqual(f({ lead: 'Garchomp + Kingambit' }), ['g-1']);
+  assert.deepStrictEqual(f({ back: 'Kingambit' }), ['g-2', 'g-3']);
+  assert.deepStrictEqual(f({ rival: 'Sneasler' }), ['g-1', 'g-2']);
+  assert.deepStrictEqual(f({ oppLead: 'Tyranitar' }), ['g-2']);
+  assert.deepStrictEqual(f({ minElo: 1200 }), ['g-1']);
+  assert.deepStrictEqual(f({ ids: new Set(['g-3']) }), ['g-3']);
+  const ov = Stats.overview(ms);
+  assert.deepStrictEqual([ov.ots, ov.cts, ov.streak], [{ n: 1, w: 1 }, { n: 2, w: 1 }, 1]);
+  const R = Stats.rival(ms, 'Sneasler');
+  assert.deepStrictEqual([R.n, R.w, R.leadN, R.mates[0].key], [2, 1, 1, 'Excadrill']);
+  const [g] = Stats.teamCards(ms, ['Garchomp']);
+  assert.deepStrictEqual([g.n, g.w, g.lead, g.moves[0]], [3, 2, 2, ['Dragon Claw', 2]]);
+  const [c] = Stats.teamCards(ms, ['Charizard']);
+  assert.deepStrictEqual([c.mega.n, c.mega.w], [1, 0]);
+  const H = Stats.habits(ms);
+  assert.ok(H.n === 3 && Array.isArray(H.win) && Array.isArray(H.lose));
+});
+
+t('guardado: al volver a la ventana solo se releen las partidas cambiadas', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-cache-'));
+  const st = new Store(dir);
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-111', log: LOG });
+  assert.strictEqual(st.list().length, 1);
+  let reads = 0;
+  const orig = st.readJSON.bind(st);
+  st.readJSON = (...a) => { reads++; return orig(...a); };
+  st.stale = true;
+  assert.strictEqual(st.list().length, 1);
+  assert.strictEqual(reads, 0);
+  fs.copyFileSync(st.file('gen9championsvgc2026regmc-111'), path.join(dir, 'partidas', 'otra.json'));
+  const j = JSON.parse(fs.readFileSync(path.join(dir, 'partidas', 'otra.json'), 'utf8')); j.summary.id = 'otra'; fs.writeFileSync(path.join(dir, 'partidas', 'otra.json'), JSON.stringify(j));
+  st.stale = true;
+  assert.strictEqual(st.list().length, 2);
+  assert.strictEqual(reads, 1);
+});
+
 // Replays reales, si se indica una carpeta: REPLAYS=/ruta npm test
 if (process.env.REPLAYS) {
   for (const f of fs.readdirSync(process.env.REPLAYS)) {

@@ -225,12 +225,58 @@ const I18N = (() => {
     '# set guardado en Mi PC.': '# set saved to My PC.', '# sets guardados en Mi PC.': '# sets saved to My PC.', 'Guardado (# Pokémon).': 'Saved (# Pokémon).',
     'Top # de # torneos online de los últimos # días (Limitless) · # equipos': 'Top # of # online tournaments from the last # days (Limitless) · # teams',
     '# tuyas × # suyas · las # mejores': '# yours × # theirs · the best #', 'Hasta # %': 'Up to # %', 'Página # de #': 'Page # of #',
-    'Listo (# archivos copiados). Reiniciando…': 'Done (# files copied). Restarting…', 'Listo (# archivo copiados). Reiniciando…': 'Done (# file copied). Restarting…', '# golpes': '# hits', 'Página # de # ': 'Page # of # ', 'Bo3 #–#': 'Bo3 #–#', '# KO': '# KO', 'T#': 'T#', '# partida · #%': '# match · #%'
+    'Listo (# archivos copiados). Reiniciando…': 'Done (# files copied). Restarting…', 'Listo (# archivo copiados). Reiniciando…': 'Done (# file copied). Restarting…', '# golpes': '# hits', 'Página # de # ': 'Page # of # ', 'Bo3 #–#': 'Bo3 #–#', '# KO': '# KO', 'T#': 'T#', '# partida · #%': '# match · #%',
+    // 0.7: inicio, Dashboard nuevo, Tu equipo, sonido
+    'Resumen': 'Overview', 'Rivales': 'Rivals', 'Hábitos': 'Habits', 'Preparar': 'Prepare', 'Tu equipo': 'Your team',
+    'Tu reserva': 'Your back', 'Lead rival': 'Rival lead', 'ELO mín.': 'Min. ELO', 'Solo partidas contra rivales con este ELO o más': 'Only matches against rivals with this ELO or more', 'Quitar filtros': 'Clear filters', 'Elegir fechas': 'Pick dates',
+    'Sets Bo3': 'Bo3 sets', 'GXE del ladder de Showdown': 'Showdown ladder GXE', 'de victorias · # de #': 'win rate · # of #', 'Últimas # partidas': 'Last # matches', 'Últimas # partida': 'Last # match',
+    'Pulsa una para ver su replay': 'Click one to watch its replay', 'Sin partidas.': 'No matches.', 'cuando lo llevas': 'when you bring it', 'partidas': 'matches', 'abre': 'leads', 'Lo que más usas': 'What you use most',
+    'Hacen falta al menos 2 partidas contra el mismo Pokémon.': 'You need at least 2 matches against the same Pokémon.', '# de # ganadas': '# of # won',
+    'Filtrar por este lead': 'Filter by this lead', 'Filtrar por este lead rival': 'Filter by this rival lead',
+    'Tus leads más jugados': 'Your most played leads', 'Los leads que mejor te funcionan': 'Leads that work best for you', 'Hacen falta al menos 2 partidas con el mismo lead.': 'You need at least 2 matches with the same lead.',
+    'Los rivales que más te encuentras': 'Rivals you face most', 'En el #% de tus partidas': 'In #% of your matches', 'Ayer': 'Yesterday',
+    'Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.': 'Click a match to see its notes and write your final notes; ▶ opens the replay.', 'Exportar CSV': 'Export CSV',
+    'Sets ganados (Bo3)': 'Sets won (Bo3)', 'Ganas el G1': 'You win G1', 'Cierras tras ganar el G1': 'You close after winning G1', 'Remontas tras perder el G1': 'Comebacks after losing G1', 'Sets incompletos': 'Unfinished sets',
+    'Ver la replay de G#': 'Watch the G# replay', 'Ver la replay': 'Watch the replay',
+    'Lo ves en el #%': 'You see it in #%', 'Abre en el #%': 'Leads in #%', 'Lo saca en el #%': 'Brought in #%', 'Ver solo las partidas contra': 'Only matches against', 'Suele ir con': 'Usually paired with',
+    'Tus leads contra él': 'Your leads against it', 'Cómo abre con él': 'Their leads with it', 'Nunca te ha abierto con él.': 'It has never led against you.', 'Últimas partidas contra él': 'Latest matches against it', 'Sus movimientos': 'Its moves', 'y cómo te va': 'and how you do',
+    'Elige tu equipo al empezar la sesión y aquí verás cómo rinde cada Pokémon.': 'Pick your team when you start a session and see here how each Pokémon performs.',
+    'Lo llevas #% · Abre #%': 'Brought #% · Leads #%', 'Con mega: #% en # partidas': 'With mega: #% in # matches', 'Con mega: #% en # partida': 'With mega: #% in # match', 'Con mega: aún no ha megaevolucionado': 'With mega: it has not mega evolved yet', 'de más a menos jugadas': 'most played first',
+    'Con 30 partidas se ve claro qué te hace ganar o perder.': 'With 30 matches you can clearly see what makes you win or lose.', 'Llevas #: de momento son pistas, no conclusiones.': 'You have #: for now these are hints, not conclusions.',
+    'Tu media: #% de victorias. Al lado, cuánto más o menos ganas en cada caso.': 'Your average: #% wins. Next to each case, how much more or less you win.',
+    'Lo que más te hace ganar': 'What makes you win most', 'Lo que más te hace perder': 'What makes you lose most', 'Nada destaca todavía.': 'Nothing stands out yet.', 'Por hora': 'By hour', 'Lo que dice tu juego': 'What your games say',
+    'Jugando de #–# h': 'Playing #–# h', 'Los lunes': 'On Mondays', 'Los martes': 'On Tuesdays', 'Los miércoles': 'On Wednesdays', 'Los jueves': 'On Thursdays', 'Los viernes': 'On Fridays', 'Los sábados': 'On Saturdays', 'Los domingos': 'On Sundays',
+    'Con hojas abiertas (OTS)': 'Open team sheets (OTS)', 'Con hojas cerradas (CTS)': 'Closed team sheets (CTS)', 'Cuando megaevolucionas': 'When you mega evolve', 'Sin megaevolucionar': 'Without mega evolving', 'Cuando el rival megaevoluciona': 'When the rival mega evolves',
+    'Con apuros de tiempo (≤# s)': 'Short on time (≤# s)', 'Contra rivales con más ELO': 'Against higher-rated rivals', 'Contra rivales con menos ELO': 'Against lower-rated rivals', 'Cortas (≤# turnos)': 'Short (≤# turns)', 'Largas (># turnos)': 'Long (># turns)',
+    'Esta sesión': 'This session', 'Todo el equipo': 'Whole team', 'Qué partidas cuentan': 'Which matches count', 'Todas tus partidas': 'All your matches', 'Ir a Tu equipo': 'Go to Your team',
+    '# partidas sin identificar: no sé qué jugador eras. Pon tu usuario de Showdown en Tu equipo.': '# unidentified matches: I do not know which player you were. Enter your Showdown username in Your team.',
+    '# partida sin identificar: no sé qué jugador eras. Pon tu usuario de Showdown en Tu equipo.': '# unidentified match: I do not know which player you were. Enter your Showdown username in Your team.',
+    '¿Con qué juegas hoy?': 'What are you playing today?', 'Seguir donde lo dejaste': 'Pick up where you left off', 'Cargar sesión': 'Load session', 'Sigue con una sesión de uno de tus equipos.': 'Continue a session of one of your teams.', 'Aún no tienes sesiones.': 'You have no sessions yet.',
+    'Con un equipo que ya tienes o con uno nuevo (pega su Pokepaste).': 'With a team you already have or a new one (paste its Pokepaste).', 'Entrar sin sesión': 'Continue without a session',
+    'Cancelar': 'Cancel', 'Seguir': 'Continue', 'Cargar': 'Load', 'Cambiar nombre u objetivo': 'Rename or change the goal', 'Borrar la sesión (las partidas se quedan)': 'Delete the session (its matches stay)',
+    'Atrás': 'Back', 'Nueva sesión': 'New session', 'Sin sesiones con este equipo.': 'No sessions with this team.', 'Sin equipo': 'No team', 'Equipo nuevo': 'New team', 'Pega su Pokepaste': 'Paste its Pokepaste',
+    'Nombre del equipo': 'Team name', 'Ej.: Chari-Chomp': 'E.g.: Chari-Chomp', 'Traer': 'Fetch', 'La sesión': 'The session', 'Empezar la sesión': 'Start the session',
+    '…o pega aquí el equipo exportado de Showdown (hasta 6 Pokémon). Los puntos (EVs) los puedes cambiar luego.': '…or paste the team exported from Showdown here (up to 6 Pokémon). You can change the points (EVs) later.',
+    'Ej.: Llegar a 1500 · Aprender a jugar contra Trick Room': 'E.g.: Reach 1500 · Learn to play against Trick Room', 'No se ha encontrado ningún Pokémon en el texto.': 'No Pokémon found in the text.',
+    'Ponle un nombre a la sesión.': 'Give the session a name.', 'Pega el equipo (o el enlace de pokepast.es) para crear el equipo.': 'Paste the team (or its pokepast.es link) to create it.', 'Trayendo el equipo…': 'Fetching the team…', 'Sesión borrada.': 'Session deleted.',
+    'El equipo de tu sesión. Con él se reconocen tus Pokémon en cada partida (también por mote) y salen sus estadísticas.': 'Your session team. It is used to recognise your Pokémon in every match (nicknames too) and to build their stats.',
+    'Elegir sesión': 'Choose session', 'Editar en el Teambuilder': 'Edit in the Teambuilder', 'Copiar el equipo en formato Showdown': 'Copy the team in Showdown format', 'Crear Pokepaste': 'Create Pokepaste',
+    'Lo sube a pokepast.es (quien tenga el enlace puede verlo)': 'Uploads it to pokepast.es (anyone with the link can see it)', 'Llevar a Showdown': 'Send to Showdown', 'Lo añade a tu teambuilder de Showdown (carpeta «Macar Showdown»)': 'Adds it to your Showdown teambuilder («Macar Showdown» folder)',
+    'Abrir': 'Open', 'Subiendo…': 'Uploading…', 'Esta sesión aún no tiene equipo.': 'This session has no team yet.', 'No tienes ninguna sesión abierta.': 'You have no open session.', 'Pega su Pokepaste abajo y queda montado.': 'Paste its Pokepaste below and it is set up.', 'Empieza o carga una sesión con tu equipo.': 'Start or load a session with your team.',
+    'Jugador': 'Player', 'Sirve para saber qué jugador eres en cada partida y para leer tu ELO y tu GXE. Si tienes varias cuentas, sepáralas con comas.': 'Used to know which player you are in each match and to read your ELO and GXE. If you have several accounts, separate them with commas.',
+    'Cambiar el equipo': 'Change the team', '…o pega el equipo en formato Showdown': '…or paste the team in Showdown format', 'Sustituye los Pokémon de este equipo; sus partidas y sesiones se quedan.': 'Replaces the Pokémon of this team; its matches and sessions stay.', 'Usar este equipo': 'Use this team',
+    'Añadido a tu teambuilder de Showdown (carpeta «Macar Showdown»).': 'Added to your Showdown teambuilder («Macar Showdown» folder).', 'Equipo cambiado.': 'Team changed.', 'El equipo está vacío': 'The team is empty',
+    'Showdown está en silencio: pulsa para activar el sonido': 'Showdown is muted: click to turn the sound on', 'Silenciar Showdown': 'Mute Showdown', 'Sin sonido: pulsa para activarlo': 'Muted: click to turn the sound on', 'Silenciar': 'Mute',
+    'Pulsa una línea que empiece por [T5] para saltar a ese turno.': 'Click a line starting with [T5] to jump to that turn.', 'Pulsa «+ Nota» para apuntar con el turno de la replay…': 'Click «+ Note» to write with the replay turn…',
+    'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todo el equipo».': 'This session has no matches yet: play in Play or look at «Whole team».',
+    'Detalles': 'Details', 'Notas finales': 'Final notes', 'Para cerrar: qué funcionó, qué cambiar la próxima vez…': 'To wrap up: what worked, what to change next time…', 'Las notas que tomaste jugando o viendo la replay…': 'The notes you took while playing or watching the replay…',
+    'Replays': 'Replays', 'Cada partida se guarda con su registro completo: la ves en el visor de replays de la app sin subir nada.': 'Every match is saved with its full log: you watch it in the app’s replay viewer without uploading anything.',
+    'Subir también la replay de cada combate a Showdown': 'Also upload the replay of each battle to Showdown', 'Victoria': 'Win', 'Derrota': 'Loss',
   });
 
   /* ---------- trozos dentro de textos más largos (frases con nombres o números) ---------- */
   const PH = [
-    ['guardada al jugar', 'saved while playing'], ['perdió por tiempo', 'lost on time'], ['abandonó', 'forfeited'], [' · importada', ' · imported'],
+    ['guardada al jugar', 'saved while playing'], ['Filtrar por', 'Filter by'], ['Todas las sesiones de', 'All sessions of'], ['Objetivo:', 'Goal:'], ['Pokepaste creado y enlace copiado:', 'Pokepaste created and link copied:'], ['No se ha podido crear el Pokepaste:', 'Could not create the Pokepaste:'], ['Equipo cambiado. No reconocidos (fuera):', 'Team changed. Not recognised (left out):'], ['No se pudo:', 'Could not:'], ['perdió por tiempo', 'lost on time'], ['abandonó', 'forfeited'], [' · importada', ' · imported'],
     ['Si el rival hace:', 'If the rival does:'],
     ['Sus movimientos:', 'Moves:'], ['en el campo', 'on the field'], ['clic derecho: sacarlo al campo o retirarlo', 'right click: put it on the field or take it off'], ['de victorias', 'wins'],
     ['usa', 'uses'], ['le queda', 'left:'], ['frente a', 'vs'], ['Editar', 'Edit'], ['Añadir', 'Add'], ['ya está en tu PC', 'is already in your PC'],
@@ -289,10 +335,20 @@ const I18N = (() => {
     [/\(ganas ([\d.,]+)% en (\d+)\)/g, '(you win $1% in $2)'],
     [/(\d+) partidas\b/g, '$1 matches'], [/(\d+) partida\b/g, '$1 match'], [/\ben (\d+) (matches|match)\b/g, 'in $1 $2'], [/(\d+) turnos\b/g, '$1 turns'], [/(\d+) equipos\b/g, '$1 teams'],
     [/(\d+) jugadores\b/g, '$1 players'], [/(\d+) torneos\b/g, '$1 tournaments'], [/(\d+) días\b/g, '$1 days'], [/(\d+) golpes\b/g, '$1 hits'], [/(\d+) sesiones\b/g, '$1 sessions'],
-    [/(\d+) rivales\b/g, '$1 rivals'], [/(\d+) PS\b/g, '$1 HP'], [/(\d+) Atq\b/g, '$1 Atk'], [/(\d+) AtE\b/g, '$1 SpA'], [/(\d+) DfE\b/g, '$1 SpD'], [/(\d+) Vel\b/g, '$1 Spe'], [/(\d+) guardadas?\b/g, '$1 saved'], [/(\d+) nuevas?\b/g, '$1 new'], [/\bTurno (\d+)/g, 'Turn $1'], [/\bturno (\d+)/g, 'turn $1'], [/(\d+) t\b/g, '$1 t']
+    [/(\d+) rivales\b/g, '$1 rivals'], [/(\d+) PS\b/g, '$1 HP'], [/(\d+) Atq\b/g, '$1 Atk'], [/(\d+) AtE\b/g, '$1 SpA'], [/(\d+) DfE\b/g, '$1 SpD'], [/(\d+) Vel\b/g, '$1 Spe'], [/(\d+) guardadas?\b/g, '$1 saved'], [/(\d+) nuevas?\b/g, '$1 new'], [/\bhace 1 día\b/g, '1 day ago'], [/\bhace (\d+) (min|h|days)\b/g, '$1 $2 ago'], [/\bTurno (\d+)/g, 'Turn $1'], [/\bturno (\d+)/g, 'turn $1'], [/(\d+) t\b/g, '$1 t']
   ];
+  // Lo ya traducido se recuerda: repintar una pantalla grande no vuelve a pasar cada texto por todas las reglas.
+  const MEMO = new Map();
   function tr(text) {
     if (lang !== 'en' || !text) return text;
+    const hit = MEMO.get(text);
+    if (hit !== undefined) return hit;
+    const out = tr0(text);
+    if (MEMO.size > 30000) MEMO.clear();
+    MEMO.set(text, out);
+    return out;
+  }
+  function tr0(text) {
     const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
     const core = m[2];
     if (!core || !/[A-Za-zÁÉÍÓÚáéíóúñÑ¿¡]/.test(core)) return text;
@@ -307,7 +363,7 @@ const I18N = (() => {
     return m[1] + out + m[3];
   }
   /* títulos de página (dos colores) */
-  const H1 = { 'Partidas': ['Mat', 'ches'], 'Ajustes': ['Sett', 'ings'], 'Mi PC': ['My ', 'PC'], 'Documento de preparación': ['Prep ', 'document'], 'Optimizador SP': ['SP ', 'Optimizer'] };
+  const H1 = { 'Tu equipo': ['Your ', 'team'], 'Partidas': ['Mat', 'ches'], 'Ajustes': ['Sett', 'ings'], 'Mi PC': ['My ', 'PC'], 'Documento de preparación': ['Prep ', 'document'], 'Optimizador SP': ['SP ', 'Optimizer'] };
   const SKIP = '.dcontent, textarea, [contenteditable], webview, .dcalc, .dcalcprev, script, style, .nolang, #opTxt, .pastebox textarea';
   function trNode(n) {
     if (n.nodeType === 3) {

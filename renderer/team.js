@@ -86,7 +86,7 @@ const Team = (() => {
     const def = defense(S), off = offense(S);
     const spd = S.map(m => ({ m, v: (P.stats(m) || {}).spe || 0 })).sort((a, b) => b.v - a.v);
     el.innerHTML = `<div class="head"><div><h1>Team<span>builder</span></h1><p class="note" style="margin-top:4px">Tus equipos. El marcado como <b>mi equipo</b> es el que usan el Dashboard, la Calculadora y el Documento.</p></div>
-      <div class="row-btns"><button class="btn" id="tbTour" title="Equipos del top cut de los torneos, listos para cargar">Equipos de torneo</button><button class="btn" id="tbNew">Nuevo equipo</button><button class="btn primary" id="tbImp">Importar equipo</button></div></div>
+      <div class="row-btns"><button class="btn" id="tbNew">Nuevo equipo</button><button class="btn primary" id="tbImp">Importar equipo</button></div></div>
       <div class="card" style="margin-bottom:14px"><div class="tbuser"><label class="field" style="flex:1">Tu usuario de Showdown<input type="text" id="tbUser" value="${esc(SET.showdownName || '')}" placeholder="Para saber qué jugador eres en cada partida"></label><button class="btn" id="tbUserOk">Guardar</button><span class="note" id="tbUserMsg"></span></div></div>
       <div class="tblayout">
         <aside class="tblist">${list.length ? list.map(t => `<button class="tbitem${t.id === T.id ? ' on' : ''}" data-tsel="${esc(t.id)}"><b>${esc(t.name)}${SET.teamId === t.id ? ' <span class="pill win">mi equipo</span>' : ''}</b><span>${sets(t).map(m => spr(m.species, 'xs')).join('')}</span></button>`).join('') : '<p class="note">Aún no tienes equipos. Crea uno o impórtalo.</p>'}</aside>
@@ -155,7 +155,6 @@ const Team = (() => {
     const { team } = await current();
     const S = sets(team);
     if (t.dataset.tsel) { T.id = t.dataset.tsel; T.msg = ''; render(); }
-    else if (t.id === 'tbTour') { show('pc'); setTimeout(() => { const b = $('[data-ptab="tour"]'); if (b) b.click(); }, 80); }
     else if (t.id === 'tbNew') { const v = await P.saveTeam({ name: `Equipo ${(await myTeams()).length + 1}`, side: 'me', text: '' }); T.id = v.id; render(); }
     else if (t.id === 'tbImp') importModal();
     else if (t.id === 'tbUserOk') { const s = await api.setSettings({ showdownName: $('#tbUser').value.trim() }); Object.assign(SET, s); $('#tbUserMsg').textContent = 'Guardado.'; }
@@ -185,5 +184,7 @@ const Team = (() => {
   $('#v-equipo').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.tedit) e.target.click(); });
 
   VIEWS.equipo = render;
-  return { render, defense, offense, checks, current, sets };
+  /** Abrir un equipo concreto en el Teambuilder. */
+  function select(id) { T.id = id; T.msg = ''; }
+  return { render, defense, offense, checks, current, sets, select };
 })();

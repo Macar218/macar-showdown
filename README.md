@@ -9,28 +9,36 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.6)
+## Qué hace (versión 0.7)
 
-- **Visor de replays**: «▶ Ver replay» en cada partida (y en los Bo3) la abre dentro de la app con el reproductor de Showdown, aunque no la hayas subido. Turno a turno, velocidad, cambiar de lado y, si se grabó, el vídeo. Al lado, leads y reserva de los dos y tus notas: «+ Nota» apunta el turno (`[T5]`) o el minuto del vídeo (`[1:23]`) y al pulsar esa línea salta allí.
+- **Inicio**: al abrir la app eliges **Cargar sesión** (las sesiones de cada uno de tus equipos) o **Nueva sesión**: con un equipo que ya tienes o con uno nuevo pegando su Pokepaste. La sesión nueva sale con un nombre editable («Sesión 20 Noviembre 2026 (equipo)») y un objetivo. Un equipo tiene sus sesiones: las estadísticas se ven por sesión o de todo el equipo.
+- **Dashboard en cinco pestañas**, con los mismos filtros arriba (resultado, fechas, tu lead, tu reserva, rival con, lead rival, ELO mínimo) y la sesión, todo el equipo o todas tus partidas:
+  - **Resumen**: % de victorias, OTS/CTS, racha, ELO y GXE, últimas partidas (abren su replay), tu MVP en grande con sus movimientos, contra lo que más ganas y lo que más te cuesta, tus leads más jugados y los que mejor te funcionan, y los rivales que más te encuentras. Pulsar un Pokémon o un lead filtra todo el panel.
+  - **Partidas**: por días, cada partida o Bo3 con resultado, leads, el equipo rival y G1/G2/G3 para ver su replay; al pulsarla, sus notas y unas notas finales. Bo3: sets ganados, G1, cierres, remontadas y sets incompletos. Importar replays y exportar CSV.
+  - **Rivales**: los que más ves; de cada uno, cómo te va, con quién va, tus leads contra él, cómo abre con él, sus movimientos y las últimas partidas. Cómo te abren y cómo te va.
+  - **Tu equipo**: cada Pokémon con cuánto lo llevas, cuánto abre, cómo te va con él, con mega y sus movimientos; tus parejas de leads.
+  - **Hábitos**: lo que más te hace ganar y perder frente a tu media (hora, día, tras perder, sesiones largas, hojas abiertas, megaevolucionar, ELO del rival…); se ve claro a partir de 30 partidas.
+- **Tu equipo**: el equipo de la sesión montado (objeto, habilidad, movimientos y sprites animados), tu usuario de Showdown, copiarlo, crear su Pokepaste, llevarlo a Showdown, cambiarlo pegando otro Pokepaste y abrirlo en el Teambuilder.
+- **Sin sonido al empezar**: Showdown y las replays arrancan silenciados; el botón del altavoz lo activa.
+- **Sin vídeo**: ya no se graba nada; cada partida se ve en el visor de replays con su registro guardado.
+- **Visor de replays**: «▶» en cada partida la abre dentro de la app con el reproductor de Showdown, aunque no la hayas subido. Turno a turno, velocidad, cambiar de lado y sonido. Al lado, leads y reserva de los dos y tus notas: «+ Nota» apunta el turno (`[T5]`) y al pulsar esa línea salta allí.
 - **Inglés y español**: la app sale en inglés (como Showdown) y se puede pasar a español (Settings → Language). Lo que escribes tú (notas, documento) no se toca; el documento se monta en el idioma elegido.
 
 - **Jugar**: Pokémon Showdown dentro de la app, con tu sesión guardada. La **calculadora es un cajón** que sale y se esconde por la derecha (pestaña «Calculadora» o Ctrl+K) y abajo tienes las **notas de la partida**, que se guardan con ella.
-- **Sesiones**: cada preparación (un Regional, una subida en el ladder…) es una sesión con nombre, objetivo y equipo. Las partidas se apuntan en la sesión abierta y el Dashboard enseña por defecto las suyas, con el objetivo y el récord de la sesión. Se cambia desde arriba a la izquierda.
+- **Sesiones**: cada sesión tiene nombre, objetivo y equipo. Las partidas se apuntan en la sesión abierta y el Dashboard enseña por defecto las suyas. Se cambia desde arriba a la izquierda (vuelve a la pantalla de inicio).
 - **Buscar partida y llevar tu equipo**: en Jugar, «Llevar mi equipo a Showdown» lo deja en la carpeta «Macar Showdown» de su teambuilder y «Buscar partida (Reg M-C)» busca en el ladder con él.
 - **Extensiones de Chrome** dentro de Showdown (por ejemplo, Showdex): desde la Chrome Web Store, un .crx/.zip o una carpeta (Ajustes).
-- **Replays y vídeo**: al acabar cada combate tuyo se sube la replay a Showdown y queda enlazada en la partida; cada combate se graba en vídeo (solo Showdown, sin la calculadora) en tu carpeta de Vídeos y se ve desde la partida. Las dos cosas se apagan en Ajustes. Sigue el combate abierto: tus Pokémon con sus estadísticas exactas, lo que se ve del rival (PS, objeto, habilidad, movimientos, niveles de stats), clima, campo, pantallas y Viento Afín.
+- **Replays**: al acabar cada combate tuyo se sube también la replay a Showdown y queda enlazada en la partida (se apaga en Ajustes). La calculadora en directo sigue el combate abierto: tus Pokémon con sus estadísticas exactas, lo que se ve del rival (PS, objeto, habilidad, movimientos, niveles de stats), clima, campo, pantallas y Viento Afín.
 - **Captura automática**: al acabar cada combate guarda el registro completo. Si después llega el cambio de ELO, se actualiza.
 - **Calculadora**: motor de Smogon (`@smogon/calc`, formato Champions a nivel 50 con SP). Tus ataques contra los dos rivales del campo y los suyos contra los tuyos, KOs, velocidad. Al rival le pone su set de tu Team Box o, si no, el **set de torneo** (lo más llevado en los torneos online de Limitless de los últimos 30 días, con los puntos de Smogon) o el más usado en Smogon.
 - **Calculadora (más)**: elegir Pokémon en una rejilla (más llevados en torneos, Mi PC o todos), «Cómo sale el daño» con las 16 tiradas al pulsar una celda, y ficha de cada Pokémon / Pokédex (stats, tipos contra él, velocidades, lo que lleva en torneos y en Smogon).
 - **Elegir objeto**: en el editor, «Elegir» abre los objetos con buscador, más usados para ese Pokémon (torneos y Smogon), por grupo, bayas de resistencia y por tipo, con icono y descripción (español e inglés).
 - **Multicalc**: los cuatro del campo eligen jugada y se juega el turno (prioridad, velocidad, Espacio Raro, Viento Afín, Protección, Fake Out, ataques en área, clima por habilidad). Siguiente turno con los PS que quedan. «Todas las opciones (tabla)»: todas tus jugadas contra todas las suyas, con peor y mejor caso. «Todas las opciones, turno a turno»: árbol visual (sprites, movimientos con el color de su tipo, barras de PS con lo perdido y orden de ataque) con tus mejores jugadas, las respuestas del rival que más te duelen y «Y luego» (el turno siguiente desde lo que deja esa rama); «Usarlo este turno» lo pone en la Multicalc.
 - **Teambuilder**: tus equipos, el tuyo marcado como «mi equipo», editor de cada Pokémon (SP, naturaleza, movimientos, sets más usados), análisis de debilidades, cobertura, velocidades y revisión (control de velocidad, redirección, Fake Out, objetos repetidos). Importar desde texto o Pokepaste y enviar a tu teambuilder de Showdown.
-- **Mi PC**: tus sets por cajas, con notas, filtros y búsqueda, el Team Box con todos los equipos (tuyos y de rivales) y los **equipos de torneo** (top 8 de los torneos online recientes), listos para cargar como rival o usarlos tú.
+- **Mi PC**: tus sets por cajas, con notas, filtros y búsqueda, y el Team Box con todos los equipos (tuyos y de rivales).
 - **Optimizador SP**: el mejor reparto de puntos y naturaleza para un Pokémon de tu equipo contra los más llevados en torneos, los más usados en Smogon o tus equipos rivales (velocidad, aguante y KOs; en «Equilibrado» nunca a costa de hacer menos daño), con comparativa y detalle por rival. «Optimizar todo el equipo» da los seis repartos y el equipo listo para exportar.
-- **Dashboard**: récord, ELO y GXE del ladder, racha, MVP (con él / sin él), tu resumen en frases, abriendo o desde atrás, parejas, contra quién brilla o sufre cada uno, rivales, cómo te abren y tus leads contra eso, sus movimientos, hora y día, cortas o largas, tras ganar / tras perder, sesiones, Bo3 y últimas partidas. Filtros por resultado, fechas (también a mano), equipo, formato, lead y rival.
 - **Documento de preparación**: hojas A4 con la estructura de un prep doc de VGC: tu equipo, historia y concepto, sets y cálculos clave de cada Pokémon y guía de matchups (récord, con qué ganas, claves, replays ganadas y perdidas). Se edita escribiendo en la hoja: texto, cajas, ideas clave, listas, tablas (filas, columnas y anchos), imágenes (pegar, alinear y tamaño), sprites de Pokémon (en la línea del texto o en fila), cálculos y páginas; zoom, estilo oscuro o clásico y **PDF**.
 - **Actualización automática**: busca versiones nuevas en GitHub, las descarga sola y se instalan al cerrar la app (o al pulsar «Reiniciar ahora»).
-- **Partidas**: lista con buscador y filtro por sesión; los Bo3 se agrupan (G1, G2, G3) con sus rondas (tus leads y los suyos, reservas, megas), notas de cada ronda y conclusiones del set; hoja de equipo del rival cuando el combate la trae (y cargarla como rival); descargar la replay en .html; el equipo que usaste se detecta solo. Importar varias replays a la vez (un enlace por línea).
 - **Importar replays**: archivos `.html` descargados de Showdown o enlaces de `replay.pokemonshowdown.com`. No se duplican.
 
 ### Tus datos en todos tus ordenadores
@@ -48,7 +56,7 @@ Todo vive en una carpeta: partidas (un archivo cada una), equipos, Mi PC, docume
 ```
 npm install
 npm start      # abrir la app
-npm test       # pruebas del lector, guardado, estadísticas y motor
+npm test       # pruebas del lector, guardado, estadísticas, Dashboard y motor
 npm run dist   # crear el instalador en dist/
 ```
 

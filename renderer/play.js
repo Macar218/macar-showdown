@@ -3,13 +3,13 @@
  * Macar Showdown · Jugar.
  * - Notas de la partida: la barra de abajo se engancha al combate que tienes delante; lo que escribes pasa a
  *   la partida al guardarse (y se sigue guardando si escribes después).
- * - Grabación: graba solo el Showdown (no la calculadora) desde que empieza tu combate hasta que acaba.
+ * - Sonido: Showdown arranca silenciado; el botón del altavoz lo activa o lo vuelve a silenciar.
  * - Aviso de versión nueva (se descarga sola y se instala al reiniciar).
  */
 /* global api, DB, P, $, esc, SET */
 
 const Play = (() => {
-  const st = { cur: null, mid: null, saveT: null, open: true, rec: null, recMid: null, stopT: null, gone: 0 };
+  const st = { cur: null, mid: null, saveT: null, open: true, muted: true };
   try { st.open = localStorage.getItem('msNotes') !== '0'; } catch (e) { /* nada */ }
   const bar = $('#notesBar'), txt = $('#nbText');
 
@@ -56,28 +56,18 @@ const Play = (() => {
     stat.innerHTML = `${c.ended ? '<span class="pill">Terminado</span>' : '<span class="pill live">En combate</span>'} <b>${esc(vs)}</b> <span class="note">· ${esc(String(c.format || '').replace(/^\[Gen \d+[^\]]*\]\s*/, ''))} · turno ${c.turn}</span>`;
   }
 
-  /* ---------- grabación ---------- */
-  async function startRec(mid) {
-    if (st.rec) return;
-    let stream;
-    try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30, max: 30 } }, audio: false }); } catch (e) { console.warn('[grabación] no se pudo empezar', e && e.message); st.recFail = Date.now(); return; }
-    const r = await api.recStart(mid);
-    if (!r || !r.ok) { stream.getTracks().forEach(t => t.stop()); return; }
-    const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
-    const mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 2500000 });
-    mr.ondataavailable = async e => { if (e.data && e.data.size) api.recChunk(new Uint8Array(await e.data.arrayBuffer())); };
-    mr.start(2000);
-    st.rec = { mr, stream }; st.recMid = mid;
-    $('#recDot').classList.remove('hide');
+  /* ---------- sonido (silenciado al abrir la app) ---------- */
+  const sd = $('#sd');
+  function applyMute() {
+    try { sd.setAudioMuted(st.muted); } catch (e) { /* aún no ha cargado */ }
+    const b = $('#sdMute');
+    b.innerHTML = st.muted ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+    b.title = st.muted ? 'Showdown está en silencio: pulsa para activar el sonido' : 'Silenciar Showdown';
+    b.classList.toggle('on', !st.muted);
   }
-  function stopRec() {
-    if (!st.rec) return;
-    const { mr, stream } = st.rec;
-    st.rec = null; st.recMid = null;
-    $('#recDot').classList.add('hide');
-    mr.onstop = () => { stream.getTracks().forEach(t => t.stop()); setTimeout(() => api.recStop(), 400); };
-    try { mr.stop(); } catch (e) { api.recStop(); }
-  }
+  sd.addEventListener('dom-ready', applyMute);
+  $('#sdMute').addEventListener('click', () => { st.muted = !st.muted; applyMute(); });
+  applyMute();
 
   /* ---------- bucle ---------- */
   async function tick() {
@@ -86,14 +76,6 @@ const Play = (() => {
     if (c && c.mid !== st.mid) { st.mid = c.mid; txt.value = ''; $('#nbSaved').textContent = ''; loadNotes(c.mid); }
     st.cur = c;
     showCur(c);
-    // Grabar: tu combate, sin acabar, si está activado.
-    const want = c && c.player && !c.ended && SET.recordVideo !== false;
-    if (want && st.recMid !== c.mid) { stopRec(); if (!st.recFail || Date.now() - st.recFail > 60000) startRec(c.mid); }
-    if (st.rec) {
-      if (!c) st.gone++; else st.gone = 0;
-      const done = (c && c.ended && c.mid === st.recMid) || (c && c.mid !== st.recMid) || st.gone > 4 || SET.recordVideo === false;
-      if (done && !st.stopT) st.stopT = setTimeout(() => { st.stopT = null; stopRec(); }, c && c.ended ? 3000 : 0);
-    }
   }
   setInterval(tick, 1500);
   tick();
@@ -133,11 +115,10 @@ const Play = (() => {
       ? `<b>Versión ${esc(u.version)} lista</b><span class="note">Se instala al cerrar la app.</span><button class="btn primary sm" id="updGo">Reiniciar ahora</button>`
       : `<b>Descargando la versión ${esc(u.version || '')}</b><span class="note">${u.percent || 0}%</span>`;
     const b = $('#updGo');
-    if (b) b.onclick = () => { stopRec(); api.updateInstall(); };
+    if (b) b.onclick = () => api.updateInstall();
   }
   api.onUpdate(showUpdate);
   api.updateState().then(showUpdate).catch(() => {});
 
-  window.addEventListener('beforeunload', stopRec);
-  return { stopRec, state: st, _start: startRec };
+  return { state: st, applyMute };
 })();

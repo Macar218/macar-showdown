@@ -2,18 +2,24 @@
 /*
  * Macar Showdown · visor de replays.
  * La partida guardada se ve dentro de la app con el reproductor oficial de Showdown (msreplay://, servido desde
- * el registro guardado: no hace falta haberla subido), o su vídeo si se grabó. Al lado: leads y reserva de los
- * dos y las notas de la partida, con marcas de turno [T5] (o de minuto [1:23] en el vídeo) que saltan a ese momento.
+ * el registro guardado: no hace falta haberla subido). Al lado: leads y reserva de los dos y las notas de la
+ * partida, con marcas de turno [T5] que saltan a ese momento. Arranca en silencio (botón del altavoz).
  */
 /* global api, esc, spr, pill, fmtDate */
 
 const Viewer = (() => {
   const SPEEDS = [['hyperfast', 'Muy rápida'], ['fast', 'Rápida'], ['normal', 'Normal'], ['slow', 'Lenta']];
-  let V = null; // { id, s, mode, video, timer, ready, turn, paused, speed }
-
-  const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  let V = null; // { id, s, timer, ready, turn, speed }
+  let muted = true; // las replays empiezan sin sonido
+  const MUTE_ON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+  const MUTE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
   const web = () => document.querySelector('#rvWeb');
-  const vid = () => document.querySelector('#rvVid');
+  function applyMute() {
+    const w = web();
+    try { if (w) w.setAudioMuted(muted); } catch (e) { /* aún no ha cargado */ }
+    const b = document.querySelector('#rvMute');
+    if (b) { b.innerHTML = muted ? MUTE_ON : MUTE_OFF; b.title = muted ? 'Sin sonido: pulsa para activarlo' : 'Silenciar'; b.classList.toggle('on', !muted); }
+  }
   /** Ejecuta algo en el reproductor de Showdown (solo cuando ya ha cargado). */
   async function run(js) {
     const w = web();
@@ -30,7 +36,6 @@ const Viewer = (() => {
   }
 
   function playerHTML() {
-    if (V.mode === 'video') return `<video id="rvVid" controls autoplay src="${esc(V.video)}"></video>`;
     const turns = V.s.turns || 0;
     return `<webview id="rvWeb" partition="persist:replay" src="msreplay://r/${esc(V.id)}"></webview>
       <div class="rvbar">
@@ -38,6 +43,7 @@ const Viewer = (() => {
         <div class="rvturns">${Array.from({ length: turns + 1 }, (_, t) => `<button class="rvt" data-rvturn="${t}" title="${t ? `Turno ${t}` : 'Inicio'}">${t || '0'}</button>`).join('')}</div>
         <select id="rvSpeed" title="Velocidad">${SPEEDS.map(([k, l]) => `<option value="${k}"${k === V.speed ? ' selected' : ''}>${l}</option>`).join('')}</select>
         <button class="btn sm" data-rv="side" title="Ver la partida desde el otro lado">⇄ Lados</button>
+        <button class="btn sm ibtn mute" data-rv="mute" id="rvMute"></button>
       </div>`;
   }
 
@@ -47,7 +53,6 @@ const Viewer = (() => {
     el.innerHTML = `<div class="rv" role="dialog" aria-label="Replay de la partida">
       <header class="rvhead">${pill(s.result)}<b>${s.me ? `vs <span class="nolang">${esc(s[b].name)}</span>` : `<span class="nolang">${esc(s.p1.name)} vs ${esc(s.p2.name)}</span>`}</b>
         <span class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos</span><span style="flex:1"></span>
-        ${V.video ? `<div class="seg"><button data-rvmode="replay" aria-pressed="${V.mode === 'replay'}">Replay</button><button data-rvmode="video" aria-pressed="${V.mode === 'video'}">Vídeo</button></div>` : ''}
         ${s.replay ? '<button class="btn sm" data-rv="ext">Abrir en el navegador</button>' : ''}<button class="btn" data-rv="close" title="Cerrar (Esc)">Cerrar</button></header>
       <div class="rvbody">
         <div class="rvplayer">${playerHTML()}</div>
@@ -55,27 +60,22 @@ const Viewer = (() => {
           <div class="rvteam me"><h3>${s.me ? 'Tú' : 'Jugador 1'}</h3>${monsHTML(s[a])}</div>
           <div class="rvteam foe"><h3>${s.me ? 'Rival' : 'Jugador 2'}</h3>${monsHTML(s[b])}</div>
           <div class="rvnhead"><h3>Notas</h3><span class="note" id="rvSaved"></span></div>
-          <button class="btn sm primary" id="rvMark">${V.mode === 'video' ? `+ Nota en el minuto ${mmss(0)}` : '+ Nota en el turno 0'}</button>
-          <textarea id="rvNotes" placeholder="${V.mode === 'video' ? 'Pulsa «+ Nota» para apuntar con el minuto del vídeo…' : 'Pulsa «+ Nota» para apuntar con el turno de la replay…'}">${esc(V.notes)}</textarea>
-          <p class="note">Pulsa una línea que empiece por [T5] o [1:23] para saltar a ese momento.</p>
+          <button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button>
+          <textarea id="rvNotes" placeholder="Pulsa «+ Nota» para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
+          <p class="note">Pulsa una línea que empiece por [T5] para saltar a ese turno.</p>
         </aside>
       </div></div>`;
     hook();
   }
 
-  /** Conecta el reproductor (replay o vídeo). */
+  /** Conecta el reproductor. */
   function hook() {
     clearInterval(V.timer);
     V.ready = false;
-    if (V.mode === 'video') {
-      const v = vid();
-      V.timer = setInterval(() => { const b = document.querySelector('#rvMark'); if (b && vid()) b.textContent = `+ Nota en el minuto ${mmss(vid().currentTime)}`; }, 500);
-      v.addEventListener('error', () => { v.outerHTML = '<p class="note rvmsg">No se ha podido abrir el vídeo.</p>'; });
-      fixDuration(v);
-      return;
-    }
     const w = web();
+    applyMute();
     w.addEventListener('dom-ready', () => {
+      applyMute();
       w.insertCSS(`h1,.replay-controls,.replay-controls-2,.battle-log-inline{display:none!important}
         html,body{background:#0b1a42!important;padding:0!important;margin:0!important;overflow:hidden!important}
         .wrapper{max-width:none!important;margin:0!important}`);
@@ -119,10 +119,9 @@ const Viewer = (() => {
       return z; })()`);
   }
   async function poll() {
-    if (!V || V.mode !== 'replay') return;
+    if (!V) return;
     const st = await run('[Replays.battle.turn, Replays.battle.paused, Replays.battle.atQueueEnd]');
-    if (!st) return;
-    if (!V || V.mode !== 'replay') return;
+    if (!st || !V) return;
     const [turn, paused, end] = st;
     const prev = V.turn;
     V.turn = Math.max(0, turn || 0);
@@ -135,22 +134,14 @@ const Viewer = (() => {
     if (m) m.textContent = `+ Nota en el turno ${V.turn}`;
   }
 
-  /** Salta al momento de la línea pulsada ([T5] en la replay, [1:23] en el vídeo). */
+  /** Salta al turno de la línea pulsada ([T5]). */
   function jumpFromLine(text, pos) {
     const line = text.slice(text.lastIndexOf('\n', pos - 1) + 1).split('\n')[0];
-    const t = line.match(/^\s*\[T(\d+)\]/i), m = line.match(/^\s*\[(\d+):(\d{2})\]/);
-    if (t) {
-      if (V.mode !== 'replay') { V.mode = 'replay'; draw(); }
-      const n = +t[1];
-      const go = () => (V.ready ? run(`Replays.battle.seekTurn(${n})`) : setTimeout(go, 300));
-      go();
-    } else if (m && V.video) {
-      const secs = +m[1] * 60 + +m[2];
-      if (V.mode !== 'video') { V.mode = 'video'; draw(); }
-      const v = vid();
-      const set = () => { v.currentTime = secs; };
-      if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, { once: true });
-    }
+    const t = line.match(/^\s*\[T(\d+)\]/i);
+    if (!t) return;
+    const n = +t[1];
+    const go = () => (!V ? null : V.ready ? run(`Replays.battle.seekTurn(${n})`) : setTimeout(go, 300));
+    go();
   }
 
   let saveTimer = null;
@@ -169,7 +160,7 @@ const Viewer = (() => {
   }
   function mark() {
     const ta = document.querySelector('#rvNotes');
-    const tag = V.mode === 'video' ? `[${mmss(vid() ? vid().currentTime : 0)}] ` : `[T${V.turn || 0}] `;
+    const tag = `[T${V.turn || 0}] `;
     // En una línea nueva, debajo de donde estaba el cursor (si no se ha tocado, al final).
     const cur = V.caret != null && V.caret <= ta.value.length ? V.caret : ta.value.length;
     const nl = ta.value.indexOf('\n', cur);
@@ -179,17 +170,15 @@ const Viewer = (() => {
     V.notes = ta.value;
     const c = at + pre.length + tag.length;
     ta.focus(); ta.setSelectionRange(c, c); V.caret = c;
-    if (V.mode === 'video' && vid()) vid().pause(); else run('Replays.battle.pause()');
+    run('Replays.battle.pause()');
     save();
   }
 
   async function open(id) {
     const m = await api.get(id);
     if (!m) return;
-    let video = null;
-    try { video = await api.videoFor(id); } catch (e) { video = null; }
     if (V) close();
-    V = { id, s: m.summary, notes: m.notes || '', video, mode: 'replay', turn: 0, speed: 'fast', ready: false, timer: null };
+    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -207,6 +196,8 @@ const Viewer = (() => {
     // Si el detalle de la partida estaba abierto, que muestre las notas nuevas.
     const ta = document.querySelector('#modal:not(.hide) #mNotes');
     if (ta) ta.value = notes;
+    const tr = document.querySelector(`#modal:not(.hide) [data-rnote="${CSS.escape(id)}"]`);
+    if (tr) tr.value = notes;
   }
 
   document.addEventListener('click', e => {
@@ -223,7 +214,7 @@ const Viewer = (() => {
     else if (d.rv === 'next') run('Replays.battle.seekBy(1)').then(poll);
     else if (d.rv === 'side') run('Replays.battle.switchViewpoint()');
     else if (d.rvturn != null) run(`Replays.battle.seekTurn(${+d.rvturn})`).then(poll);
-    else if (d.rvmode && d.rvmode !== V.mode) { V.mode = d.rvmode; draw(); }
+    else if (d.rv === 'mute') { muted = !muted; applyMute(); }
     else if (b.id === 'rvMark') mark();
   });
   document.addEventListener('change', e => {

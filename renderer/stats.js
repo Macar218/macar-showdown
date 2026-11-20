@@ -21,8 +21,15 @@
       if (f.days === 1 && s.endedAt < midnight.getTime()) return false;
       if (f.days > 1 && s.endedAt < now - f.days * DAY) return false;
       if (f.format && s.formatId !== f.format) return false;
-      if (f.lead && leadKey(mine(s).leads) !== f.lead) return false;
-      if (f.rival && !theirs(s).preview.includes(f.rival)) return false;
+      if (f.ids && !f.ids.has(s.id)) return false;
+      const me = mine(s), op = theirs(s);
+      // Lead: un Pokémon («Garchomp») o una pareja («Garchomp + Kingambit»).
+      const inLead = (leads, v) => (v.includes(' + ') ? leadKey(leads) === v : leads.includes(v));
+      if (f.lead && !inLead(me.leads, f.lead)) return false;
+      if (f.back && !(me.brought.includes(f.back) && !me.leads.includes(f.back))) return false;
+      if (f.rival && !op.preview.includes(f.rival) && !op.brought.includes(f.rival)) return false;
+      if (f.oppLead && !inLead(op.leads, f.oppLead)) return false;
+      if (f.minElo && !(op.rating >= f.minElo)) return false;
       if (f.team && f.teamOf && f.teamOf(s) !== f.team) return false;
       if (f.session && f.session !== 'all' && (s.session || '-') !== f.session) return false;
       if (f.from && s.endedAt < f.from) return false;
@@ -74,14 +81,19 @@
 
   /** Opciones de los filtros, sacadas de todas las partidas identificadas. */
   function options(ms) {
-    const formats = new Map(), leads = new Map(), rivals = new Map();
+    const formats = new Map(), leads = new Map(), rivals = new Map(), leadMons = new Map(), backs = new Map(), oppLeads = new Map();
+    const inc = (m, k) => { if (k) m.set(k, (m.get(k) || 0) + 1); };
     for (const s of usable(ms)) {
       formats.set(s.formatId, s.format);
-      const k = leadKey(mine(s).leads); if (k) leads.set(k, (leads.get(k) || 0) + 1);
-      theirs(s).preview.forEach(x => rivals.set(x, (rivals.get(x) || 0) + 1));
+      const me = mine(s), op = theirs(s);
+      inc(leads, leadKey(me.leads));
+      me.leads.forEach(x => inc(leadMons, x));
+      me.brought.filter(x => !me.leads.includes(x)).forEach(x => inc(backs, x));
+      op.preview.forEach(x => inc(rivals, x));
+      op.leads.forEach(x => inc(oppLeads, x));
     }
     const byCount = m => [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(x => x[0]);
-    return { formats: [...formats.entries()], leads: byCount(leads), rivals: byCount(rivals) };
+    return { formats: [...formats.entries()], leads: byCount(leads), rivals: byCount(rivals), leadMons: byCount(leadMons), backs: byCount(backs), oppLeads: byCount(oppLeads) };
   }
 
   /* ---------- análisis más finos (Dashboard) ---------- */
@@ -164,9 +176,11 @@
       if (s.result === 'win') cs.w++; else if (s.result === 'loss') cs.l++;
     }
     const done = series.filter(x => x.w === 2 || x.l === 2);
+    const incomplete = series.filter(x => x.w < 2 && x.l < 2 && x.games.length).length;
     const g1w = done.filter(x => x.games[0].result === 'win'), g1l = done.filter(x => x.games[0].result === 'loss');
     const bo3 = {
-      n: done.length, w: done.filter(x => x.w === 2).length,
+      n: done.length, w: done.filter(x => x.w === 2).length, incomplete,
+      g1: { n: done.length, w: done.filter(x => x.games[0].result === 'win').length },
       closeAfterG1: { n: g1w.length, w: g1w.filter(x => x.w === 2).length },
       comeback: { n: g1l.length, w: g1l.filter(x => x.w === 2).length },
       g: [0, 1, 2].map(i => { const g = done.filter(x => x.games[i]).map(x => x.games[i]); return { key: `G${i + 1}`, n: g.length, w: g.filter(z => z.result === 'win').length }; }),
@@ -186,5 +200,101 @@
     return sorted(m);
   }
 
-  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr };
+  /* ---------- Dashboard nuevo ---------- */
+  const isOTS = s => !!((s.p1 && s.p1.sheet) || (s.p2 && s.p2.sheet));
+
+  /** Resumen de arriba: OTS/CTS, racha y últimas partidas. */
+  function overview(ms) {
+    const asc = ms.slice().sort((a, b) => a.endedAt - b.endedAt);
+    const ots = { n: 0, w: 0 }, cts = { n: 0, w: 0 };
+    for (const s of ms) { const x = isOTS(s) ? ots : cts; x.n++; if (s.result === 'win') x.w++; }
+    let streak = 0;
+    for (let i = asc.length - 1; i >= 0; i--) {
+      const r = asc[i].result;
+      if (r !== 'win' && r !== 'loss') break;
+      if (!streak) streak = r === 'win' ? 1 : -1;
+      else if ((streak > 0) === (r === 'win')) streak += streak > 0 ? 1 : -1;
+      else break;
+    }
+    return { ots, cts, streak, last: asc.slice(-10).map(s => s.result) };
+  }
+
+  /** Todo de un Pokémon rival: cuánto lo ves, cómo te va, con quién va y cómo te abren con él. */
+  function rival(ms, mon) {
+    const has = s => theirs(s).preview.includes(mon) || theirs(s).brought.includes(mon);
+    const games = ms.filter(has);
+    const out = { key: mon, n: games.length, w: games.filter(s => s.result === 'win').length, seen: ms.length ? games.length / ms.length : 0, leadN: 0, broughtN: 0 };
+    const mates = new Map(), myLeads = new Map(), oppLeads = new Map(), moves = new Map();
+    for (const s of games) {
+      const op = theirs(s), won = s.result === 'win';
+      if (op.leads.includes(mon)) { out.leadN++; tally(oppLeads, leadKey(op.leads), won); }
+      if (op.brought.includes(mon)) out.broughtN++;
+      op.preview.filter(x => x !== mon).forEach(x => tally(mates, x, won));
+      tally(myLeads, leadKey(mine(s).leads), won);
+      for (const mv of (op.moves && op.moves[mon]) || []) moves.set(mv, (moves.get(mv) || 0) + 1);
+    }
+    out.mates = sorted(mates).slice(0, 3);
+    out.myLeads = sorted(myLeads);
+    out.oppLeads = sorted(oppLeads);
+    out.moves = [...moves.entries()].sort((a, b) => b[1] - a[1]);
+    out.recent = games.slice().sort((a, b) => b.endedAt - a.endedAt).slice(0, 5);
+    return out;
+  }
+
+  /** Tu equipo: cada Pokémon, cuánto lo llevas, cuánto abre, cómo te va con él y qué movimientos usa. */
+  function teamCards(ms, species) {
+    const base = x => toID(String(x).split('-')[0]);
+    return species.map(sp => {
+      const id = toID(sp), b = base(sp);
+      const same = x => toID(x) === id || base(x) === b;
+      const c = { key: sp, n: 0, w: 0, lead: 0, mega: { n: 0, w: 0 }, moves: new Map() };
+      for (const s of ms) {
+        const me = mine(s), won = s.result === 'win';
+        const k = me.brought.find(same);
+        if (!k) continue;
+        c.n++; if (won) c.w++;
+        if (me.leads.some(same)) c.lead++;
+        if (me.megas.some(same)) { c.mega.n++; if (won) c.mega.w++; }
+        for (const mv of (me.moves && me.moves[k]) || []) c.moves.set(mv, (c.moves.get(mv) || 0) + 1);
+      }
+      c.broughtPct = ms.length ? c.n / ms.length : 0;
+      c.leadPct = ms.length ? c.lead / ms.length : 0;
+      c.moves = [...c.moves.entries()].sort((a, b) => b[1] - a[1]);
+      return c;
+    });
+  }
+
+  /**
+   * Hábitos: qué cosas van con ganar o perder más que tu media (hora, día, tras perder, sesiones largas,
+   * partidas largas, hojas abiertas, megaevolucionar, apuros de tiempo, ELO del rival…).
+   */
+  function habits(ms) {
+    const all = { n: ms.length, w: ms.filter(s => s.result === 'win').length };
+    const base = wr(all);
+    const a = advanced(ms);
+    const f = [];
+    const two = (yes, no) => { f.push(yes); f.push(no); };
+    const cnt = (key, test) => { const x = { key, n: 0, w: 0 }; for (const s of ms) if (test(s)) { x.n++; if (s.result === 'win') x.w++; } return x; };
+    two(a.afterWin, a.afterLoss);
+    two(a.early, a.late);
+    two(a.short, a.long);
+    a.hours.filter(h => h.n).forEach(h => f.push({ ...h, key: `Jugando de ${h.key}` }));
+    a.days.filter(h => h.n).forEach(h => { const d = h.key.toLowerCase(); f.push({ ...h, key: `Los ${d.endsWith('s') ? d : `${d}s`}` }); });
+    two(cnt('Con hojas abiertas (OTS)', isOTS), cnt('Con hojas cerradas (CTS)', s => !isOTS(s)));
+    two(cnt('Cuando megaevolucionas', s => mine(s).megas.length > 0), cnt('Sin megaevolucionar', s => !mine(s).megas.length));
+    f.push(cnt('Cuando el rival megaevoluciona', s => theirs(s).megas.length > 0));
+    f.push(cnt('Con apuros de tiempo (≤10 s)', s => mine(s).minTime != null && mine(s).minTime <= 10));
+    two(cnt('Contra rivales con más ELO', s => mine(s).rating != null && theirs(s).rating != null && theirs(s).rating > mine(s).rating),
+      cnt('Contra rivales con menos ELO', s => mine(s).rating != null && theirs(s).rating != null && theirs(s).rating <= mine(s).rating));
+    const min = ms.length >= 30 ? 5 : 3;
+    const list = f.filter(x => x && x.n >= min && x.n < ms.length).map(x => ({ key: x.key, n: x.n, w: x.w, delta: Math.round((wr(x) - base) * 100) }));
+    return {
+      n: ms.length, base,
+      win: list.filter(x => x.delta >= 5).sort((x, y) => y.delta - x.delta || y.n - x.n).slice(0, 6),
+      lose: list.filter(x => x.delta <= -5).sort((x, y) => x.delta - y.delta || y.n - x.n).slice(0, 6),
+      hours: a.hours, days: a.days
+    };
+  }
+
+  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr, isOTS, overview, rival, teamCards, habits };
 });

@@ -1,6 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, net } = require('electron');
-const { pathToFileURL } = require('url');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Store } = require('./src/store');
@@ -13,8 +12,8 @@ const { Tournaments } = require('./src/tournaments');
 const { Extensions } = require('./src/extensions');
 const { matchId } = require('./src/store');
 
-// Vídeos de las partidas: se sirven a la interfaz por msvideo:// (con saltos dentro del vídeo).
-protocol.registerSchemesAsPrivileged([{ scheme: 'msvideo', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } }, { scheme: 'msreplay', privileges: { standard: true, secure: true } }]);
+// Visor de replays: msreplay:// sirve la partida guardada al reproductor de Showdown.
+protocol.registerSchemesAsPrivileged([{ scheme: 'msreplay', privileges: { standard: true, secure: true } }]);
 
 const SHOWDOWN = /^https:\/\/([a-z0-9-]+\.)*pokemonshowdown\.com(\/|$)/i;
 const PARTITION = 'persist:showdown';
@@ -29,10 +28,11 @@ let exts = null;
 let sdContents = null; // el webview de Showdown, para leer el combate en directo
 let capStatus = { ok: false, why: 'Abre la pestaña Jugar para empezar', open: 0, finished: 0, saved: 0 };
 const replaying = new Set();
-let rec = null; // grabación en curso: { mid, file, stream }
 
 // Solo desarrollo: un perfil aparte (sin tu sesión de Showdown ni tus extensiones) para pruebas.
 if (!app.isPackaged && process.env.MACAR_PERFIL) app.setPath('userData', process.env.MACAR_PERFIL);
+// Solo desarrollo: las capturas de prueba funcionan aunque la ventana quede tapada.
+if (!app.isPackaged && process.env.MACAR_CAPTURAS) { app.commandLine.appendSwitch('disable-backgrounding-occluded-windows'); app.commandLine.appendSwitch('disable-renderer-backgrounding'); }
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
@@ -101,7 +101,7 @@ function createWindow() {
   if (!app.isPackaged && process.env.MACAR_CAPTURAS) win.webContents.once('did-finish-load', () => capturas(process.env.MACAR_CAPTURAS));
   win.on('closed', () => { win = null; });
   // Al volver a la ventana se relee la carpeta: si jugaste en otro ordenador (OneDrive), aparece aquí.
-  win.on('focus', () => { if (store) { store.cache = null; notify({ focus: true }); } });
+  win.on('focus', () => { if (store) { store.stale = true; notify({ focus: true }); } });
 }
 
 /**
@@ -111,7 +111,11 @@ function createWindow() {
  */
 async function capturas(dir) {
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  const shot = async name => fs.writeFileSync(path.join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
+  const shot = async name => {
+    const img = await Promise.race([win.webContents.capturePage(), wait(10000).then(() => null)]);
+    if (img) fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG()); else fs.appendFileSync(path.join(dir, 'consola.txt'), `[captura] ${name}: sin imagen (ventana sin pintar)
+`);
+  };
   const log = path.join(dir, 'consola.txt');
   fs.writeFileSync(log, '');
   win.webContents.on('console-message', (e) => { const lv = e.level; if (lv === 'warning' || lv === 'error' || lv === 2 || lv === 3) fs.appendFileSync(log, `[${lv}] ${e.message}
@@ -137,22 +141,6 @@ function importText(text, name, mtime) {
   const id = r.summary.id && /\d/.test(r.summary.id) ? r.summary.id : `importada-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const res = store.saveLog({ id, log: r.log, endedAt: r.summary.endedAt || mtime, source: 'importada' });
   return { ok: true, saved: res.saved };
-}
-
-/* ---------- ajustes solo de este ordenador (no se sincronizan) ---------- */
-const localFile = () => path.join(app.getPath('userData'), 'local.json');
-function readLocal() { try { return JSON.parse(fs.readFileSync(localFile(), 'utf8')) || {}; } catch (e) { return {}; } }
-function writeLocal(patch) { fs.writeFileSync(localFile(), JSON.stringify({ ...readLocal(), ...patch }, null, 2)); }
-const videosDir = () => (!app.isPackaged && process.env.MACAR_VIDEOS) || readLocal().videosDir || path.join(app.getPath('videos'), 'Macar Showdown');
-function finishRec() {
-  if (!rec) return { ok: false };
-  const r = rec;
-  rec = null;
-  return new Promise(res => r.stream.end(() => {
-    try { if (fs.statSync(r.file).size < 10000) fs.unlinkSync(r.file); } catch (e) { /* nada */ }
-    notify({ video: r.mid });
-    res({ ok: true, file: r.file, mid: r.mid });
-  }));
 }
 
 /* ---------- actualización automática (versiones de GitHub) ---------- */
@@ -211,7 +199,6 @@ function registerIpc() {
     if (patch && typeof patch.teamId === 'string') clean.teamId = patch.teamId.slice(0, 60);
     if (patch && typeof patch.autoReplay === 'boolean') clean.autoReplay = patch.autoReplay;
     if (patch && typeof patch.sessionId === 'string') clean.sessionId = patch.sessionId.slice(0, 60);
-    if (patch && typeof patch.recordVideo === 'boolean') clean.recordVideo = patch.recordVideo;
     const s = store.setSettings(clean);
     notify();
     return s;
@@ -220,7 +207,7 @@ function registerIpc() {
   ipcMain.handle('ms:openData', () => shell.openPath(store.dir));
   ipcMain.handle('ms:openExternal', (_e, url) => openExternal(url));
 
-  // Combate que tienes delante (barra de notas y grabación).
+  // Combate que tienes delante (barra de notas).
   ipcMain.handle('ms:current', async () => {
     if (!sdContents || sdContents.isDestroyed()) return null;
     try { const c = await sdContents.executeJavaScript(CURRENT, false); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
@@ -267,35 +254,6 @@ function registerIpc() {
     if (url) { store.setReplay(m.summary.id, url); notify({ replay: url }); return { ok: true, url }; }
     return { ok: false, why: 'Showdown ya no tiene la sala abierta: solo se puede subir mientras sigue abierta.' };
   });
-
-  // Vídeo de la partida: graba solo el Showdown (no la calculadora) y lo guarda en tu carpeta de Vídeos.
-  ipcMain.handle('ms:recStart', (_e, id) => {
-    if (rec) finishRec();
-    const mid = matchId(String(id));
-    const dir = videosDir();
-    fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, `${mid.replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
-    rec = { mid, file, stream: fs.createWriteStream(file) };
-    return { ok: true, file };
-  });
-  ipcMain.on('ms:recChunk', (_e, buf) => { if (rec && buf) rec.stream.write(Buffer.from(buf)); });
-  ipcMain.handle('ms:recStop', () => finishRec());
-  ipcMain.handle('ms:videoFor', (_e, id) => {
-    const f = path.join(videosDir(), `${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
-    return fs.existsSync(f) && fs.statSync(f).size > 10000 ? `msvideo://v/${encodeURIComponent(path.basename(f))}` : null;
-  });
-  ipcMain.handle('ms:deleteVideo', (_e, id) => {
-    const f = path.join(videosDir(), `${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}.webm`);
-    try { fs.unlinkSync(f); return true; } catch (e) { return false; }
-  });
-  ipcMain.handle('ms:videosDir', () => ({ dir: videosDir() }));
-  ipcMain.handle('ms:setVideosDir', async () => {
-    const r = await dialog.showOpenDialog(win, { title: 'Carpeta para los vídeos de tus partidas', properties: ['openDirectory', 'createDirectory'] });
-    if (r.canceled || !r.filePaths[0]) return { ok: false };
-    writeLocal({ videosDir: r.filePaths[0] });
-    return { ok: true, dir: r.filePaths[0] };
-  });
-  ipcMain.handle('ms:openVideos', () => { fs.mkdirSync(videosDir(), { recursive: true }); return shell.openPath(videosDir()); });
 
   // Extensiones de Chrome dentro de Showdown.
   ipcMain.handle('ms:extList', () => exts.list().map(({ id, name, version, source }) => ({ id, name, version, source })));
@@ -414,6 +372,20 @@ function registerIpc() {
     } catch (e) { return { ok: false, why: e.message }; }
   });
 
+  // Subir tu equipo a pokepast.es (solo cuando lo pides con el botón) y devolver el enlace.
+  ipcMain.handle('ms:createPaste', async (_e, title, text) => {
+    const paste = String(text || '').slice(0, 20000);
+    if (!paste.trim()) return { ok: false, why: 'El equipo está vacío' };
+    try {
+      const body = new URLSearchParams({ paste, title: String(title || '').slice(0, 100), author: '', notes: '' });
+      const r = await fetch('https://pokepast.es/create', { method: 'POST', body, redirect: 'manual', signal: AbortSignal.timeout(20000) });
+      const loc = r.headers.get('location') || '';
+      const url = loc ? new URL(loc, 'https://pokepast.es/').toString() : (r.url && r.url !== 'https://pokepast.es/create' ? r.url : '');
+      if (!/^https:\/\/pokepast\.es\/[a-z0-9]+$/i.test(url)) return { ok: false, why: `Pokepaste respondió ${r.status}` };
+      return { ok: true, url };
+    } catch (e) { return { ok: false, why: e.message }; }
+  });
+
   ipcMain.handle('ms:importFiles', async () => {
     const r = await dialog.showOpenDialog(win, {
       title: 'Importar replays',
@@ -479,12 +451,6 @@ app.whenReady().then(async () => {
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir());
   usage = new Usage(store.dir);
   tours = new Tournaments(store.dir);
-  // Vídeos servidos a la interfaz (solo archivos de la carpeta de vídeos).
-  protocol.handle('msvideo', req => {
-    const name = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''));
-    if (!/^[a-zA-Z0-9_-]+\.webm$/.test(name)) return new Response('no', { status: 404 });
-    return net.fetch(pathToFileURL(path.join(videosDir(), name)).toString(), { headers: req.headers });
-  });
   // Visor de replays: la partida guardada en el reproductor oficial de Showdown (sin tener que subirla).
   const rs = session.fromPartition(REPLAY_PARTITION);
   rs.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
@@ -494,10 +460,6 @@ app.whenReady().then(async () => {
     if (!m || !m.log) return new Response('Not found', { status: 404 });
     const s = m.summary;
     return new Response(replayHTML(m, `${s.format} ${s.p1.name} vs ${s.p2.name}`), { headers: { 'content-type': 'text/html; charset=utf-8' } });
-  });
-  // La grabación pide "compartir pantalla": se le da solo el webview de Showdown, sin preguntar.
-  session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {
-    if (sdContents && !sdContents.isDestroyed()) cb({ video: sdContents.mainFrame }); else cb({});
   });
   // Showdown no necesita permisos especiales (cámara, ubicación…): se deniegan todos.
   session.fromPartition(PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));

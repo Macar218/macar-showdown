@@ -12,8 +12,8 @@ const PC = (() => {
     const [list, teams] = await Promise.all([P.pcList(), P.teams()]);
     const boxes = [...new Set(list.map(x => x.box).filter(Boolean))].sort();
     el.innerHTML = `<div class="head"><div><h1>Mi <span>PC</span></h1><p class="note" style="margin-top:4px">Tus sets y repartos guardados, y todos tus equipos. Se guardan en tu carpeta de datos.</p></div>
-      <div class="seg">${[['sets', `Sets (${list.length})`], ['teams', `Team Box (${teams.length})`], ['tour', 'Equipos de torneo']].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${V.tab === k}">${l}</button>`).join('')}</div></div>
-      ${V.tab === 'sets' ? setsView(list, boxes) : V.tab === 'teams' ? teamsView(teams) : await tourView()}`;
+      <div class="seg">${[['sets', `Sets (${list.length})`], ['teams', `Team Box (${teams.length})`]].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${V.tab === k}">${l}</button>`).join('')}</div></div>
+      ${V.tab === 'teams' ? teamsView(teams) : setsView(list, boxes)}`;
   }
 
   function setsView(list, boxes) {
@@ -55,34 +55,6 @@ const PC = (() => {
           <button class="btn sm" data-tbside="${t.id}">${t.side === 'me' ? 'Pasar a rival' : 'Pasar a mío'}</button><button class="btn sm" data-tbcopy="${t.id}">Copiar</button><button class="btn sm danger" data-tbdel="${t.id}">Borrar</button></div>
       </div>`; }).join('')}</div>` : '<div class="card"><p class="note">Todavía no hay equipos.</p></div>'}`;
   }
-
-  /* ---------- equipos de torneo (Limitless) ---------- */
-  async function tourView() {
-    if (!V.T) { [V.T, V.U] = await Promise.all([P.tour(), P.usage('')]); }
-    const T = V.T;
-    if (!T) return '<div class="card"><p class="note">No se han podido cargar los torneos (¿sin conexión?).</p><button class="btn" id="tRetry" style="margin-top:8px">Reintentar</button></div>';
-    const { sets: mine } = await P.myTeam();
-    const myIds = mine.map(m => P.toID(P.baseSpecies(m.species)));
-    const q = V.tq.toLowerCase();
-    let L = T.teams;
-    if (q) L = L.filter(t => `${t.player} ${t.tour} ${t.team.map(d => `${d.name} ${d.item}`).join(' ')}`.toLowerCase().includes(q));
-    if (V.tmine && myIds.length) L = L.filter(t => myIds.some(id => t.team.some(d => P.toID(P.baseSpecies(P.calcSpecies(d.id) || d.name)) === id)));
-    const per = 24, pages = Math.max(1, Math.ceil(L.length / per));
-    V.tpage = Math.min(V.tpage, pages - 1);
-    const shown = L.slice(V.tpage * per, (V.tpage + 1) * per);
-    const idx = t => T.teams.indexOf(t);
-    return `<div class="pctools card"><input type="search" id="tQ" placeholder="Buscar: Pokémon, jugador o torneo…" value="${esc(V.tq)}">
-        <label class="tog${V.tmine ? ' on' : ''}" title="${myIds.length ? '' : 'Añade Pokémon a tu equipo para filtrar por ellos'}"><input type="checkbox" id="tMine"${V.tmine ? ' checked' : ''}${myIds.length ? '' : ' disabled'}>Con alguno de mis Pokémon</label>
-        <span class="note">Top ${8} de ${T.tours} torneos online de los últimos ${T.days} días (Limitless) · ${L.length} equipos</span><button class="btn sm" id="tRefresh">Actualizar</button></div>
-      ${shown.length ? `<div class="pcteams">${shown.map(t => `<div class="pcteam tourteam">
-        <div class="pchead"><div><b>${esc(t.player)} <span class="pill ${t.place === 1 ? 'win' : 'tie'}">${t.place === 1 ? '1.º' : `${t.place}.º`}</span></b><span class="note">${esc(t.tour)} · ${new Date(t.date).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))} · ${t.players} jugadores${t.record ? ` · ${t.record.wins}-${t.record.losses}` : ''}</span></div></div>
-        <div class="tourmons">${t.team.map(d => `<span title="${esc(`${d.name} @ ${d.item} · ${d.ability} · ${d.nature} · ${d.moves.join(', ')}`)}">${spr(P.calcSpecies(d.id) || d.name, 'sm')}<small>${esc(d.item)}</small></span>`).join('')}</div>
-        <div class="pcbtns"><button class="btn sm" data-trival="${idx(t)}" title="La Calculadora usará sus sets">Rival en la calculadora</button><button class="btn sm" data-tbox="${idx(t)}">Guardar en Team Box</button><button class="btn sm" data-tmineteam="${idx(t)}" title="Lo guarda como tuyo y lo abre en el Teambuilder">Usarlo yo</button><button class="btn sm" data-tcopy="${idx(t)}">Copiar</button></div>
-      </div>`).join('')}</div>
-      ${pages > 1 ? `<div class="row-btns pcpages"><button class="btn sm" id="tPrev"${V.tpage ? '' : ' disabled'}>◀ Página anterior</button><span class="note">Página ${V.tpage + 1} de ${pages}</span><button class="btn sm" id="tNext"${V.tpage < pages - 1 ? '' : ' disabled'}>Página siguiente ▶</button></div>` : ''}` : '<div class="card"><p class="note">Ningún equipo cumple estos filtros.</p></div>'}`;
-  }
-  const tourText = t => P.exportTeam(P.tourTeamSets(t.team, V.U));
-  const tourName = t => `${t.player} · ${t.place}.º ${t.tour}`.slice(0, 100);
 
   /* ---------- añadir sets ---------- */
   function addModal() {
@@ -178,18 +150,6 @@ const PC = (() => {
     const find = id => list.find(x => x.id === id);
     const d = t.dataset;
     if (d.ptab) { V.tab = d.ptab; render(); }
-    else if (t.id === 'tRetry' || t.id === 'tRefresh') { t.textContent = 'Actualizando…'; V.T = await P.tour(true); render(); }
-    else if (t.id === 'tPrev') { V.tpage--; render(); }
-    else if (t.id === 'tNext') { V.tpage++; render(); }
-    else if (d.trival || d.tbox || d.tmineteam || d.tcopy) {
-      const tt = V.T.teams[+(d.trival || d.tbox || d.tmineteam || d.tcopy)];
-      if (d.tcopy) { navigator.clipboard.writeText(tourText(tt)); t.textContent = 'Copiado'; return; }
-      const v = await P.saveTeam({ name: tourName(tt), side: d.tmineteam ? 'me' : 'foe', text: tourText(tt), notes: `${tt.tour} (${new Date(tt.date).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))}), ${tt.place}.º de ${tt.players}. Puntos (SP) estimados con Smogon.` });
-      Calc.reloadTeams();
-      if (d.trival) { Calc.setTeams(undefined, v.id); show('calc'); }
-      else if (d.tmineteam) { show('equipo'); setTimeout(() => $(`[data-tsel="${v.id}"]`) && $(`[data-tsel="${v.id}"]`).click(), 60); }
-      else t.textContent = 'Guardado';
-    }
     else if (t.id === 'pcAdd') addModal();
     else if (t.id === 'pcPrev') { V.page--; render(); }
     else if (t.id === 'pcNext') { V.page++; render(); }
