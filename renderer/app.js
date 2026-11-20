@@ -142,7 +142,7 @@ async function loadTeams() {
   try {
     TEAMS_ME = ((await DB.get('equipos')) || []).filter(t => t.side === 'me').map(t => ({ id: t.id, name: t.name, mons: P.parseTeam(t.text).sets.map(m => Stats.toID(P.baseSpecies(m.species))) }));
     MATCH_TEAM = (await DB.get('partidaTeam')) || {};
-    SESS = (await DB.get('sesiones')) || [];
+    SESS = await DB.get('sesiones'); if (!Array.isArray(SESS)) SESS = [];
   } catch (e) { TEAMS_ME = []; MATCH_TEAM = {}; }
 }
 function teamOf(s) {

@@ -269,6 +269,7 @@ const I18N = (() => {
     'Showdown está en silencio: pulsa para activar el sonido': 'Showdown is muted: click to turn the sound on', 'Silenciar Showdown': 'Mute Showdown', 'Sin sonido: pulsa para activarlo': 'Muted: click to turn the sound on', 'Silenciar': 'Mute',
     'Pulsa una línea que empiece por [T5] para saltar a ese turno.': 'Click a line starting with [T5] to jump to that turn.', 'Pulsa «+ Nota» para apuntar con el turno de la replay…': 'Click «+ Note» to write with the replay turn…',
     'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todo el equipo».': 'This session has no matches yet: play in Play or look at «Whole team».',
+    'No se ha podido cargar la pantalla de inicio.': 'The start screen could not be loaded.', 'Entrar': 'Enter',
     'Detalles': 'Details', 'Notas finales': 'Final notes', 'Para cerrar: qué funcionó, qué cambiar la próxima vez…': 'To wrap up: what worked, what to change next time…', 'Las notas que tomaste jugando o viendo la replay…': 'The notes you took while playing or watching the replay…',
     'Replays': 'Replays', 'Cada partida se guarda con su registro completo: la ves en el visor de replays de la app sin subir nada.': 'Every match is saved with its full log: you watch it in the app’s replay viewer without uploading anything.',
     'Subir también la replay de cada combate a Showdown': 'Also upload the replay of each battle to Showdown', 'Victoria': 'Win', 'Derrota': 'Loss',

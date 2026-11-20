@@ -23,7 +23,7 @@ const Start = (() => {
 
   async function data() {
     const [teams, sess] = await Promise.all([P.teams(), Sess.list()]);
-    return { teams: teams.filter(t => t.side === 'me'), sess };
+    return { teams: (Array.isArray(teams) ? teams : []).filter(t => t && t.side === 'me'), sess: Array.isArray(sess) ? sess : [] };
   }
 
   function homeHTML(d) {
@@ -80,6 +80,13 @@ const Start = (() => {
   }
 
   async function paint() {
+    try { await paint0(); } catch (e) {
+      // Si algo falla aquí, que se pueda entrar igualmente.
+      console.error('[inicio]', e);
+      wrap().innerHTML = `<div class="stbox home"><div class="stbrand"><span class="lens" aria-hidden="true"></span><h1>MACAR <span>SHOWDOWN</span></h1></div><p class="note">No se ha podido cargar la pantalla de inicio.</p><button class="btn primary" data-st="skip">Entrar</button></div>`;
+    }
+  }
+  async function paint0() {
     const d = await data();
     if (V.mode === 'load' && !d.sess.length) V.mode = 'home';
     if (V.mode === 'new' && !V.newTeam && !d.teams.some(t => t.id === V.team)) { V.team = d.teams[0] ? d.teams[0].id : ''; V.newTeam = !d.teams.length; }
@@ -160,7 +167,7 @@ const Start = (() => {
     paint();
   }
   function hide() { const el = wrap(); if (el) el.classList.add('hide'); V.first = false; }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap() && !wrap().classList.contains('hide') && !V.first) { e.stopPropagation(); hide(); } }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap() && !wrap().classList.contains('hide')) { e.stopPropagation(); hide(); } }, true);
 
   // Al abrir la app.
   display('home');

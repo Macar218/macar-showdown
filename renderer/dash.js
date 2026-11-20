@@ -117,8 +117,8 @@ const Dash = (() => {
     const diff = Math.round((today - d0) / 864e5);
     if (diff === 0) return 'Hoy';
     if (diff === 1) return 'Ayer';
-    const t = d.toLocaleDateString(EN() ? 'en-GB' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    const txt = d.toLocaleDateString(EN() ? 'en-GB' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
   }
   function partidas(ms) {
     const a = Stats.advanced(ms);

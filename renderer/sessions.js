@@ -8,7 +8,7 @@
 /* global api, DB, P, $, SET, Calc, F, load */
 
 const Sess = (() => {
-  async function list() { return (await DB.get('sesiones')) || []; }
+  async function list() { const v = await DB.get('sesiones'); return Array.isArray(v) ? v : []; }
   async function save(all) { await DB.set('sesiones', all); }
   async function current() { return SET.sessionId ? (await list()).find(s => s.id === SET.sessionId) || null : null; }
 

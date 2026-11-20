@@ -55,7 +55,7 @@ class Store {
    */
   data(key) {
     if (!Store.KEYS.includes(key)) throw new Error(`Colección desconocida: ${key}`);
-    const fallback = key === 'equipos' || key === 'pc' ? [] : {};
+    const fallback = key === 'equipos' || key === 'pc' || key === 'sesiones' ? [] : {};
     const v = this.readJSON(path.join(this.dir, `${key}.json`), fallback);
     return v == null ? fallback : v;
   }

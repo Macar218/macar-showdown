@@ -224,6 +224,17 @@ t('guardado: al volver a la ventana solo se releen las partidas cambiadas', () =
   assert.strictEqual(reads, 1);
 });
 
+t('la interfaz no tiene errores de sintaxis', () => {
+  const dir = path.join(__dirname, '..', 'renderer');
+  for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.js'))) {
+    try { new Function(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { throw new Error(`${f}: ${e.message}`); }
+  }
+});
+t('sesiones: sin archivo de sesiones se devuelve una lista vacía', () => {
+  const st = new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'ms-ses-')));
+  assert.ok(Array.isArray(st.data('sesiones')));
+});
+
 // Replays reales, si se indica una carpeta: REPLAYS=/ruta npm test
 if (process.env.REPLAYS) {
   for (const f of fs.readdirSync(process.env.REPLAYS)) {
