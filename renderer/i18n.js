@@ -270,6 +270,15 @@ const I18N = (() => {
     'Pulsa una línea que empiece por [T5] para saltar a ese turno.': 'Click a line starting with [T5] to jump to that turn.', 'Pulsa «+ Nota» para apuntar con el turno de la replay…': 'Click «+ Note» to write with the replay turn…',
     'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todo el equipo».': 'This session has no matches yet: play in Play or look at «Whole team».',
     'No se ha podido cargar la pantalla de inicio.': 'The start screen could not be loaded.', 'Entrar': 'Enter',
+    // 0.8: Dashboard, Tu equipo y Teambuilder
+    'Forma': 'Form', 'ladder de Showdown': 'Showdown ladder', 'Cuando lo llevas': 'When you bring it', 'Abre': 'Leads', '▶ abre la replay': '▶ opens the replay',
+    '% = tus victorias en las partidas donde aparece · número = partidas. Pulsa una fila para filtrar todo el panel.': '% = your wins in the matches where it appears · number = matches. Click a row to filter the whole panel.',
+    'Filtrar el panel': 'Filter the panel', '· elige uno': '· pick one', 'Ficha del rival': 'Rival profile', 'Ganas': 'You win', 'Lo ves en': 'Seen in', 'Abre en': 'Leads in', 'Lo saca en': 'Brought in',
+    'Todos los rivales: sus leads y cómo te va contra ellos.': 'All rivals: their leads and how you do against them.', 'Cómo rinde cada Pokémon': 'How each Pokémon performs', 'Lo llevas': 'Brought', 'Ganas con él': 'Win rate with it', 'Con mega': 'With mega', 'Movimientos usados': 'Moves used', 'De más a menos jugadas.': 'Most played first.',
+    'Elige un Pokémon arriba y cambia sus puntos, objeto, habilidad y movimientos. Se guarda solo.': 'Pick a Pokémon above and change its points, item, ability and moves. It saves on its own.',
+    'Puntos (SP)': 'Points (SP)', 'Quedan # de #': '# of # left', 'Estadística base': 'Base stat', 'Todo a 0': 'All to 0', 'Máximo # por estadística. Usa + y − para la naturaleza.': 'Max # per stat. Use + and − for the nature.',
+    'Objeto, habilidad y movimientos': 'Item, ability and moves', 'Movimiento #': 'Move #', 'Este equipo está vacío: pulsa «Añadir Pokémon».': 'This team is empty: click «Add Pokémon».', 'Escribe el Pokémon para añadirlo.': 'Type the Pokémon to add it.',
+    'Más opciones': 'More options', 'Sets más usados, Mi PC y pegar el set': 'Most used sets, My PC and paste the set', 'Opcional': 'Optional', 'Puntos': 'Points', 'Cerrar': 'Close',
     'Detalles': 'Details', 'Notas finales': 'Final notes', 'Para cerrar: qué funcionó, qué cambiar la próxima vez…': 'To wrap up: what worked, what to change next time…', 'Las notas que tomaste jugando o viendo la replay…': 'The notes you took while playing or watching the replay…',
     'Replays': 'Replays', 'Cada partida se guarda con su registro completo: la ves en el visor de replays de la app sin subir nada.': 'Every match is saved with its full log: you watch it in the app’s replay viewer without uploading anything.',
     'Subir también la replay de cada combate a Showdown': 'Also upload the replay of each battle to Showdown', 'Victoria': 'Win', 'Derrota': 'Loss',
@@ -277,7 +286,7 @@ const I18N = (() => {
 
   /* ---------- trozos dentro de textos más largos (frases con nombres o números) ---------- */
   const PH = [
-    ['guardada al jugar', 'saved while playing'], ['Filtrar por', 'Filter by'], ['Todas las sesiones de', 'All sessions of'], ['Objetivo:', 'Goal:'], ['Pokepaste creado y enlace copiado:', 'Pokepaste created and link copied:'], ['No se ha podido crear el Pokepaste:', 'Could not create the Pokepaste:'], ['Equipo cambiado. No reconocidos (fuera):', 'Team changed. Not recognised (left out):'], ['No se pudo:', 'Could not:'], ['perdió por tiempo', 'lost on time'], ['abandonó', 'forfeited'], [' · importada', ' · imported'],
+    ['guardada al jugar', 'saved while playing'], ['Naturaleza que sube', 'Nature that raises'], ['Naturaleza que baja', 'Nature that lowers'], ['¿Quitar', 'Remove'], ['del equipo?', 'from the team?'], ['Filtrar por', 'Filter by'], ['Todas las sesiones de', 'All sessions of'], ['Objetivo:', 'Goal:'], ['Pokepaste creado y enlace copiado:', 'Pokepaste created and link copied:'], ['No se ha podido crear el Pokepaste:', 'Could not create the Pokepaste:'], ['Equipo cambiado. No reconocidos (fuera):', 'Team changed. Not recognised (left out):'], ['No se pudo:', 'Could not:'], ['perdió por tiempo', 'lost on time'], ['abandonó', 'forfeited'], [' · importada', ' · imported'],
     ['Si el rival hace:', 'If the rival does:'],
     ['Sus movimientos:', 'Moves:'], ['en el campo', 'on the field'], ['clic derecho: sacarlo al campo o retirarlo', 'right click: put it on the field or take it off'], ['de victorias', 'wins'],
     ['usa', 'uses'], ['le queda', 'left:'], ['frente a', 'vs'], ['Editar', 'Edit'], ['Añadir', 'Add'], ['ya está en tu PC', 'is already in your PC'],

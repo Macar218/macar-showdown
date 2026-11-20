@@ -9,16 +9,18 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.7)
+## Qué hace (versión 0.8)
+
+- **Teambuilder estilo Showdown**: pestañas con tus 6 Pokémon y, debajo, el elegido: primero sus puntos (base, deslizador, número, estadística final, «Quedan X de 66» y + / − de naturaleza), luego objeto, habilidad y movimientos. Se guarda solo.
 
 - **Inicio**: al abrir la app eliges **Cargar sesión** (las sesiones de cada uno de tus equipos) o **Nueva sesión**: con un equipo que ya tienes o con uno nuevo pegando su Pokepaste. La sesión nueva sale con un nombre editable («Sesión 20 Noviembre 2026 (equipo)») y un objetivo. Un equipo tiene sus sesiones: las estadísticas se ven por sesión o de todo el equipo.
 - **Dashboard en cinco pestañas**, con los mismos filtros arriba (resultado, fechas, tu lead, tu reserva, rival con, lead rival, ELO mínimo) y la sesión, todo el equipo o todas tus partidas:
-  - **Resumen**: % de victorias, OTS/CTS, racha, ELO y GXE, últimas partidas (abren su replay), tu MVP en grande con sus movimientos, contra lo que más ganas y lo que más te cuesta, tus leads más jugados y los que mejor te funcionan, y los rivales que más te encuentras. Pulsar un Pokémon o un lead filtra todo el panel.
+  - **Resumen**: % de victorias, OTS/CTS, racha, ELO y GXE, últimas partidas (abren su replay), tu MVP con sus movimientos, contra lo que más ganas y lo que más te cuesta, tus leads más jugados y los que mejor te funcionan, y los rivales que más te encuentras. Pulsar un Pokémon o un lead filtra todo el panel.
   - **Partidas**: por días, cada partida o Bo3 con resultado, leads, el equipo rival y G1/G2/G3 para ver su replay; al pulsarla, sus notas y unas notas finales. Bo3: sets ganados, G1, cierres, remontadas y sets incompletos. Importar replays y exportar CSV.
   - **Rivales**: los que más ves; de cada uno, cómo te va, con quién va, tus leads contra él, cómo abre con él, sus movimientos y las últimas partidas. Cómo te abren y cómo te va.
   - **Tu equipo**: cada Pokémon con cuánto lo llevas, cuánto abre, cómo te va con él, con mega y sus movimientos; tus parejas de leads.
   - **Hábitos**: lo que más te hace ganar y perder frente a tu media (hora, día, tras perder, sesiones largas, hojas abiertas, megaevolucionar, ELO del rival…); se ve claro a partir de 30 partidas.
-- **Tu equipo**: el equipo de la sesión montado (objeto, habilidad, movimientos y sprites animados), tu usuario de Showdown, copiarlo, crear su Pokepaste, llevarlo a Showdown, cambiarlo pegando otro Pokepaste y abrirlo en el Teambuilder.
+- **Tu equipo**: una ficha por Pokémon (tipos, objeto, habilidad, naturaleza, puntos, estadísticas y movimientos), tu usuario de Showdown, copiarlo, crear su Pokepaste, llevarlo a Showdown, cambiarlo pegando otro Pokepaste y abrirlo en el Teambuilder.
 - **Sin sonido al empezar**: Showdown y las replays arrancan silenciados; el botón del altavoz lo activa.
 - **Sin vídeo**: ya no se graba nada; cada partida se ve en el visor de replays con su registro guardado.
 - **Visor de replays**: «▶» en cada partida la abre dentro de la app con el reproductor de Showdown, aunque no la hayas subido. Turno a turno, velocidad, cambiar de lado y sonido. Al lado, leads y reserva de los dos y tus notas: «+ Nota» apunta el turno (`[T5]`) y al pulsar esa línea salta allí.

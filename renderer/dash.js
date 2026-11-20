@@ -5,7 +5,7 @@
  * cuentan son las de la sesión abierta, las de todo su equipo o todas (arriba a la derecha). Pulsar un Pokémon,
  * un lead o un rival filtra todo el panel.
  */
-/* global $, esc, spr, ani, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH */
+/* global $, esc, spr, pill, wrRow, monLabel, pairLabel, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH, I18N */
 
 const Dash = (() => {
   const D = { tab: 'res', rv: '', cal: false };
@@ -18,7 +18,6 @@ const Dash = (() => {
     hab: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M5 8c2.5 1.5 4.5 1.5 7 0s4.5-1.5 7 0M5 16c2.5-1.5 4.5-1.5 7 0s4.5 1.5 7 0"/>'
   };
   const TABS = [['res', 'Resumen'], ['games', 'Partidas'], ['riv', 'Rivales'], ['team', 'Tu equipo'], ['hab', 'Hábitos']];
-  const TCOL = { Fire: '#ff7a3d', Water: '#4a9dff', Grass: '#5fd068', Electric: '#ffd23f', Ice: '#7fe3ff', Fighting: '#e0553d', Poison: '#b55dd6', Ground: '#d9a94a', Flying: '#9fb4ff', Psychic: '#ff5c9a', Bug: '#a8c23a', Rock: '#b8a05a', Ghost: '#7a6bd1', Dragon: '#6a5cff', Dark: '#6b5a50', Steel: '#9fb3c8', Fairy: '#ff9fe0', Normal: '#b9b39c' };
   const EN = () => typeof I18N !== 'undefined' && I18N.lang === 'en';
   const W = () => (EN() ? 'W' : 'V'), L = () => (EN() ? 'L' : 'D');
   const pc = x => (x && x.n ? `${wrp(x)}%` : '—');
@@ -33,12 +32,8 @@ const Dash = (() => {
     return d === 1 ? 'hace 1 día' : `hace ${d} días`;
   }
   const typesOf = sp => { try { return P.typesOf(sp) || []; } catch (e) { return []; } };
-  const tint = sp => TCOL[typesOf(sp)[0]] || '#38d4ff';
   const moveType = mv => { try { const d = P.moveOf(mv); return d ? { type: d.type, st: d.category === 'Status' } : { type: '', st: false }; } catch (e) { return { type: '', st: false }; } };
   const moveChip = (mv, n) => { const t = moveType(mv); return `<span class="tmv t-${esc(t.type)}${t.st ? ' st' : ''}">${esc(mv)}${n != null ? `<small>${n}</small>` : ''}</span>`; };
-  const pairSpr = (k, c = 'sm') => `<span class="lsp">${String(k).split(' + ').map(n => spr(n, c)).join('')}</span>`;
-  const pairNames = k => `<span class="pairn nolang">${String(k).split(' + ').map(esc).join('<br>')}</span>`;
-  const bar = x => `<span class="wbar ${wrp(x) >= 50 ? 'ok' : 'bad'}"><i style="width:${Math.max(4, wrp(x))}%"></i></span>`;
 
   /* ---------- filtros ---------- */
   function filtersHTML(base) {
@@ -62,52 +57,47 @@ const Dash = (() => {
     </div>`;
   }
 
+  /* ---------- piezas comunes (estilo Macar: filas con barra) ---------- */
+  const pick = (attr, key, html) => `<div class="dpick" data-${attr}="${esc(key)}" title="Filtrar el panel">${html}</div>`;
+  const rowsCard = (title, list, labelFn, empty, attr, extra = '') => `<div class="card"><h2>${title}</h2>${extra}${list.length ? `<div class="rows">${list.map(x => (attr ? pick(attr, x.key, wrRow(x, labelFn(x))) : wrRow(x, labelFn(x)))).join('')}</div>` : `<p class="note">${empty}</p>`}</div>`;
+  const kpi = (label, value, sub = '', c = '') => `<div class="kpi"><small>${label}</small><b class="${c}">${value}</b>${sub ? `<i>${sub}</i>` : ''}</div>`;
+  const form = last => `<span class="dform">${last.map(x => `<i class="${x === 'win' ? 'w' : x === 'loss' ? 'l' : 't'}">${x === 'win' ? W() : x === 'loss' ? L() : '='}</i>`).join('')}</span>`;
+  const statTile = (label, value, c = '') => `<div class="dtile"><small>${label}</small><b class="${c}">${value}</b></div>`;
+
   /* ---------- Resumen ---------- */
   function resumen(ms) {
     const r = Stats.compute(ms), a = Stats.advanced(ms), ov = Stats.overview(ms);
     const st = ov.streak;
-    const streak = st ? `<b class="${st > 0 ? 'okc' : 'badc'}">${Math.abs(st)}${st > 0 ? W() : L()}</b>` : '<b>—</b>';
-    const bo3 = a.bo3.n ? `<b>${wrp(a.bo3)}%</b> <small>${a.bo3.w}-${a.bo3.n - a.bo3.w}</small>` : '<b>—</b>';
     const gxe = LADDER && LADDER.gxe != null ? `${LADDER.gxe}%` : '—';
-    const recent = a.recent.slice(0, 3);
     const mvp = a.mvp;
     const card = mvp ? Stats.teamCards(ms, [mvp.key])[0] : null;
-    const best = r.oppPreview.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 3);
-    const worst = r.oppPreview.filter(x => x.n >= 2).sort((x, y) => wrp(x) - wrp(y) || y.n - x.n).slice(0, 3);
-    const monRow = (x, c) => `<button class="dmrow" data-frival="${esc(x.key)}" title="Filtrar por ${esc(x.key)}">${spr(x.key)}<span><b class="nolang">${esc(x.key)}</b><small>${x.w} de ${x.n} ganadas</small></span><em class="${c}">${wrp(x)}%</em></button>`;
-    const leadsBest = r.myLeads.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 4);
-    const leadRow = x => `<button class="lrow" data-flead="${esc(x.key)}" title="Filtrar por este lead">${pairSpr(x.key)}${pairNames(x.key)}${bar(x)}<em class="${cls(x)}">${wrp(x)}%</em><small>${x.w}/${x.n}</small></button>`;
-    const types = mvp ? typesOf(mvp.key) : [];
-    return `<div class="dovw">
-      <div class="dcol">
-        <div class="card dsum"><h2>Tu resumen</h2>
-          <div class="dsumg">
-            <div class="dmini"><div><small>Sets Bo3</small>${bo3}</div><div><small>Racha</small>${streak}</div>
-              <div><small>OTS · CTS</small><b>${pc(ov.ots)} · ${pc(ov.cts)}</b></div><div><small>ELO</small><b>${r.eloNow ?? '—'}</b></div>
-              <div><small>GXE</small><b title="GXE del ladder de Showdown">${gxe}</b></div></div>
-            <div class="dbig"><b class="${cls(r)}">${r.n ? Math.round((r.w / r.n) * 100) : 0}%</b><span>de victorias · ${r.w} de ${r.n}</span>
-              <div class="dchips">${ov.last.map(x => `<i class="${x === 'win' ? 'w' : x === 'loss' ? 'l' : 't'}">${x === 'win' ? W() : x === 'loss' ? L() : '='}</i>`).join('')}</div>
-              <small class="note">Últimas ${ov.last.length} partidas</small></div>
-          </div></div>
-        <div class="card"><div class="dch"><h2>Últimas partidas</h2><span class="note">Pulsa una para ver su replay</span></div>
-          <div class="drecent">${recent.map(s => { const op = Stats.theirs(s); return `<button class="drc ${s.result}" data-view="${esc(s.id)}"><span class="drcr">${s.result === 'win' ? '✓ <span>Victoria</span>' : '✕ <span>Derrota</span>'}</span><span class="drcm">${op.leads.map(n => spr(n, 'sm')).join('')}</span><b class="nolang">${esc(op.name)}</b><small>${ago(s.endedAt)}</small></button>`; }).join('') || '<p class="note">Sin partidas.</p>'}</div></div>
+    const best = r.oppPreview.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 5);
+    const worst = r.oppPreview.filter(x => x.n >= 2).sort((x, y) => wrp(x) - wrp(y) || y.n - x.n).slice(0, 5);
+    const leadsBest = r.myLeads.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 5);
+    const seen = r.oppPreview.slice(0, 6).map(x => ({ ...x }));
+    return `<div class="kpis dk">
+        ${kpi('Victorias', `${r.n ? Math.round((r.w / r.n) * 100) : 0}%`, `${r.w}–${r.l} · ${r.n} partidas`, cls(r))}
+        <div class="kpi"><small>Forma</small>${form(ov.last)}<i>Últimas ${ov.last.length} partidas</i></div>
+        ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
+        ${kpi('OTS', pc(ov.ots), `${ov.ots.n} partidas`, cls(ov.ots))}${kpi('CTS', pc(ov.cts), `${ov.cts.n} partidas`, cls(ov.cts))}
+        ${kpi('Sets Bo3', a.bo3.n ? `${wrp(a.bo3)}%` : '—', a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w}` : '')}
+        ${kpi('ELO', r.eloNow ?? '—')}${kpi('GXE', gxe, 'ladder de Showdown')}
       </div>
-      <div class="hero" style="--tc:${mvp ? tint(mvp.key) : '#38d4ff'}">${mvp && card ? `
-        <span class="herobg nolang" aria-hidden="true">${esc(mvp.key.toUpperCase())}</span>
-        <div class="heroimg">${ani(mvp.key, 'heroani')}</div>
-        <div class="herotxt"><h2 class="nolang">${esc(mvp.key)}</h2><p><i>♛</i> <span>Tu MVP</span>${types.map(t => ` · <span>${esc(P.TYPES_ES[t] || t)}</span>`).join('')}</p></div>
-        <div class="heropanel"><div class="herost"><div><b class="${cls(card)}">${pc(card)}</b><small>cuando lo llevas</small></div><div><b>${card.n}</b><small>partidas</small></div><div><b>${Math.round(card.leadPct * 100)}%</b><small>abre</small></div></div>
-          ${card.moves.length ? `<h4>Lo que más usas</h4><div class="movechips">${card.moves.slice(0, 4).map(([mv, n]) => moveChip(mv, n)).join('')}</div>` : ''}</div>` : '<p class="note heroempty">Juega unas partidas y aquí sale tu MVP.</p>'}</div>
-      <div class="dcol">
-        <div class="card"><h2 class="dh okh"><i>↗</i><span>Contra lo que más ganas</span></h2>${best.length ? best.map(x => monRow(x, 'okc')).join('') : '<p class="note">Hacen falta al menos 2 partidas contra el mismo Pokémon.</p>'}</div>
-        <div class="card"><h2 class="dh badh"><i>↘</i><span>Lo que más te cuesta</span></h2>${worst.length ? worst.map(x => monRow(x, 'badc')).join('') : '<p class="note">Hacen falta al menos 2 partidas contra el mismo Pokémon.</p>'}</div>
+      <div class="dtwo">
+        <div class="card dmvp"><h2>Tu MVP</h2>${mvp && card ? `<div class="dmvpb">${spr(mvp.key, 'big')}<div class="dmvpi"><b class="nolang">${esc(mvp.key)}</b><div class="tytags">${typesOf(mvp.key).map(P.typeBadge).join('')}</div>
+            <div class="dtiles">${statTile('Cuando lo llevas', pc(card), cls(card))}${statTile('Partidas', card.n)}${statTile('Abre', `${Math.round(card.leadPct * 100)}%`)}</div></div></div>
+            ${card.moves.length ? `<div class="dlabel">Lo que más usas</div><div class="movechips">${card.moves.slice(0, 4).map(([mv, n]) => moveChip(mv, n)).join('')}</div>` : ''}` : '<p class="note">Juega unas partidas y aquí sale tu MVP.</p>'}</div>
+        <div class="card"><div class="dch"><h2>Últimas partidas</h2><span class="note">▶ abre la replay</span></div>
+          <div class="dlast">${a.recent.slice(0, 6).map(s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<div class="dlrow">${pill(s.result)}<span class="dlm">${me.leads.map(n => spr(n, 'xs')).join('')}<i>vs</i>${op.leads.map(n => spr(n, 'xs')).join('')}</span><b class="nolang">${esc(op.name)}</b><small>${ago(s.endedAt)}</small><button class="btn sm ibtn" data-view="${esc(s.id)}" title="Ver la replay">▶</button></div>`; }).join('') || '<p class="note">Sin partidas.</p>'}</div></div>
       </div>
-    </div>
-    <div class="drow3">
-      <div class="card"><h2>Tus leads más jugados</h2>${r.myLeads.slice(0, 4).map(leadRow).join('') || '<p class="note">Sin datos.</p>'}</div>
-      <div class="card"><h2>Los leads que mejor te funcionan</h2>${leadsBest.map(leadRow).join('') || '<p class="note">Hacen falta al menos 2 partidas con el mismo lead.</p>'}</div>
-      <div class="card"><h2>Los rivales que más te encuentras</h2>${r.oppPreview.slice(0, 5).map(x => `<button class="dmrow" data-frival="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b><small>En el ${Math.round((x.n / r.n) * 100)}% de tus partidas</small></span><em class="${cls(x)}">${wrp(x)}%</em></button>`).join('') || '<p class="note">Sin datos.</p>'}</div>
-    </div>`;
+      <div class="grid dgrid">
+        ${rowsCard('Contra lo que más ganas', best, monLabel, 'Hacen falta al menos 2 partidas contra el mismo Pokémon.', 'frival')}
+        ${rowsCard('Lo que más te cuesta', worst, monLabel, 'Hacen falta al menos 2 partidas contra el mismo Pokémon.', 'frival')}
+        ${rowsCard('Los rivales que más te encuentras', seen, x => `${spr(x.key, 'sm')}<span>${esc(x.key)} <small class="note">${Math.round((x.n / r.n) * 100)}%</small></span>`, 'Sin datos.', 'frival')}
+        ${rowsCard('Tus leads más jugados', r.myLeads.slice(0, 5), pairLabel, 'Sin datos.', 'flead')}
+        ${rowsCard('Los leads que mejor te funcionan', leadsBest, pairLabel, 'Hacen falta al menos 2 partidas con el mismo lead.', 'flead')}
+      </div>
+      <p class="note dnote2">% = tus victorias en las partidas donde aparece · número = partidas. Pulsa una fila para filtrar todo el panel.</p>`;
   }
 
   /* ---------- Partidas ---------- */
@@ -130,21 +120,22 @@ const Dash = (() => {
       if (last && last.key === key) last.groups.push(g); else days.push({ key, t: g.games[0].endedAt, groups: [g] });
     }
     const res = g => { const w = g.games.filter(x => x.result === 'win').length, l = g.games.filter(x => x.result === 'loss').length; return { w, l, r: g.bo3 && g.games.length > 1 ? (w > l ? 'win' : l > w ? 'loss' : 'tie') : g.games[0].result || 'tie' }; };
-    const kp = (label, x) => `<div><small>${label}</small><b>${x && x.n ? `${wrp(x)}%` : '—'}</b></div>`;
+    const kp = (label, x) => kpi(label, x && x.n ? `${wrp(x)}%` : '—', x && x.n ? `${x.w} de ${x.n}` : '');
     const row = g => {
       const f = g.games[0], me = Stats.mine(f), op = Stats.theirs(f), x = res(g);
       const bo3 = /bo3/.test(f.formatId || '');
-      const slots = bo3 ? [0, 1, 2] : [0];
-      return `<div class="grow ${x.r}" data-set="${esc(g.games.map(y => y.id).join(','))}" tabindex="0">
-        <div class="gres"><b>${x.r === 'win' ? W() : x.r === 'loss' ? L() : '='}</b><small>${bo3 ? `${x.w}-${x.l}` : 'Bo1'}</small></div>
-        <div class="gleads">${me.leads.map(n => spr(n)).join('')}<i>vs</i>${op.leads.map(n => spr(n)).join('')}</div>
-        <div class="ginfo"><b class="nolang">${esc(op.name)}</b><span>${esc(shortFormat(f.format))} · ${bo3 ? 'Bo3' : 'Bo1'} · ${hhmm(f.endedAt)}${op.rating ? ` · ${op.rating} ELO` : ''}${g.games.some(y => y.notes) ? ' · ✎' : ''}</span><span class="gprev">${op.preview.map(n => spr(n, `xs${op.brought.includes(n) ? '' : ' dim'}`)).join('')}</span></div>
-        <div class="ggames">${slots.map(i => { const y = g.games[i]; return y ? `<button class="gplay ${y.result || ''}" data-view="${esc(y.id)}" title="Ver la replay de G${i + 1}"><small>G${i + 1}</small>▶</button>` : `<span class="gplay none"><small>G${i + 1}</small>—</span>`; }).join('')}</div>
+      return `<div class="match dmatch" data-set="${esc(g.games.map(y => y.id).join(','))}" tabindex="0">
+        <span class="d">${hhmm(f.endedAt)}</span>
+        <span class="pill ${x.r}">${bo3 ? `Bo3 ${x.w}–${x.l}` : (x.r === 'win' ? 'Victoria' : x.r === 'loss' ? 'Derrota' : 'Empate')}</span>
+        <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}${g.games.some(y => y.notes) ? ' · ✎' : ''}</small></span>
+        <span class="mons" title="Tu lead">${me.leads.map(n => spr(n, 'sm')).join('')}</span>
+        <span class="mons" title="Equipo rival (en gris, los que no salieron)">${op.preview.map(n => spr(n, `sm${op.brought.includes(n) ? '' : ' dim'}`)).join('')}</span>
+        <span class="bo3g">${g.games.map((y, i) => `<button class="gbtn ${y.result || ''}" data-view="${esc(y.id)}" title="Ver la replay de G${i + 1}">▶ G${i + 1}</button>`).join('')}</span>
       </div>`;
     };
-    return `<div class="row-btns dgbtns"><span class="note">Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.</span><span style="flex:1"></span><button class="btn" id="dImport">Importar replays</button><button class="btn" id="dCsv">Exportar CSV</button></div>
-      <div class="dkpis">${kp('Sets ganados (Bo3)', a.bo3)}${kp('Ganas el G1', a.bo3.g1)}${kp('Cierras tras ganar el G1', a.bo3.closeAfterG1)}${kp('Remontas tras perder el G1', a.bo3.comeback)}<div><small>Sets incompletos</small><b>${a.bo3.incomplete || 0}</b></div></div>
-      ${days.map(d => { const w = d.groups.filter(g => res(g).r === 'win').length, l = d.groups.filter(g => res(g).r === 'loss').length; return `<div class="gday"><b>${esc(dayLabel(d.t))}</b><span class="note">${d.groups.length} ${d.groups.length === 1 ? 'set' : 'sets'} · ${w}-${l}</span></div>${d.groups.map(row).join('')}`; }).join('') || '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>'}`;
+    return `<div class="kpis dk">${kp('Sets ganados (Bo3)', a.bo3)}${kp('Ganas el G1', a.bo3.g1)}${kp('Cierras tras ganar el G1', a.bo3.closeAfterG1)}${kp('Remontas tras perder el G1', a.bo3.comeback)}${kpi('Sets incompletos', a.bo3.incomplete || 0)}</div>
+      <div class="row-btns dgbtns"><span class="note">Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.</span><span style="flex:1"></span><button class="btn" id="dImport">Importar replays</button><button class="btn" id="dCsv">Exportar CSV</button></div>
+      ${days.map(d => { const w = d.groups.filter(g => res(g).r === 'win').length, l = d.groups.filter(g => res(g).r === 'loss').length; return `<h3 class="dsec dday">${esc(dayLabel(d.t))} <span class="note">${w}–${l}</span></h3><div class="mlist">${d.groups.map(row).join('')}</div>`; }).join('') || '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>'}`;
   }
   function csv(ms) {
     const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
@@ -164,22 +155,21 @@ const Dash = (() => {
     if (!r.oppPreview.length) return '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>';
     const sel = D.rv && r.oppPreview.some(x => x.key === D.rv) ? D.rv : r.oppPreview[0].key;
     const R = Stats.rival(ms, sel);
-    return `<div class="driv">
-      <div class="card dlist"><h2>Los que más ves</h2><div class="dscroll">${r.oppPreview.slice(0, 30).map(x => `<button class="dmrow${x.key === sel ? ' on' : ''}" data-rv="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b><small>En el ${Math.round((x.n / r.n) * 100)}% de tus partidas</small></span><em class="${cls(x)}">${wrp(x)}%</em></button>`).join('')}</div></div>
-      <div class="rvhero" style="--tc:${tint(sel)}">
-        <div class="rvtop">${ani(sel, 'rvani')}<div><h2 class="nolang">${esc(sel.toUpperCase())}</h2><p class="rvwr"><b class="${cls(R)}">${pc(R)}</b><span>${R.w} de ${R.n} ganadas</span></p>
-          <div class="rvchips"><span>Lo ves en el ${Math.round(R.seen * 100)}%</span><span>Abre en el ${R.n ? Math.round((R.leadN / R.n) * 100) : 0}%</span><span>Lo saca en el ${R.n ? Math.round((R.broughtN / R.n) * 100) : 0}%</span></div>
-          <button class="btn sm" data-rvonly="${esc(sel)}"><span>Ver solo las partidas contra</span> <span class="nolang">${esc(sel)}</span></button></div></div>
-        <div class="rvgrid">
-          <div><h4>Suele ir con</h4><div class="rvmates">${R.mates.map(x => `<button class="mate" data-rv="${esc(x.key)}" title="${esc(x.key)}">${spr(x.key)}</button>`).join('') || '<p class="note">Sin datos.</p>'}</div></div>
-          <div><h4>Tus leads contra él</h4>${R.myLeads.slice(0, 4).map(x => `<div class="lrow">${pairSpr(x.key)}${pairNames(x.key)}${bar(x)}<em class="${cls(x)}">${wrp(x)}%</em><small>${x.w}/${x.n}</small></div>`).join('') || '<p class="note">Sin datos.</p>'}</div>
-          <div><h4>Cómo abre con él</h4>${R.oppLeads.slice(0, 4).map(x => `<div class="lrow">${pairSpr(x.key)}${pairNames(x.key)}${bar(x)}<em class="${cls(x)}">${wrp(x)}%</em><small>${x.w}/${x.n}</small></div>`).join('') || '<p class="note">Nunca te ha abierto con él.</p>'}</div>
-          <div><h4>Últimas partidas contra él</h4>${R.recent.map(s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<div class="rvg"><i class="dres1 ${s.result}">${s.result === 'win' ? W() : L()}</i>${me.leads.map(n => spr(n, 'xs')).join('')}<span><b class="nolang">${esc(op.name)}</b><small>${new Date(s.endedAt).toLocaleDateString(EN() ? 'en-GB' : 'es-ES', { day: 'numeric', month: 'short' })}</small></span><button class="btn sm ibtn" data-view="${esc(s.id)}" title="Ver la replay">▶</button></div>`; }).join('')}</div>
-          ${R.moves.length ? `<div class="rvwide"><h4>Sus movimientos</h4><div class="movechips">${R.moves.slice(0, 8).map(([mv, n]) => moveChip(mv, n)).join('')}</div></div>` : ''}
-        </div>
-      </div>
-      <div class="card"><div class="dch"><h2>Cómo te abren</h2><span class="note">y cómo te va</span></div>${r.oppLeads.slice(0, 8).map(x => `<button class="lrow" data-foplead="${esc(x.key)}" title="Filtrar por este lead rival">${pairSpr(x.key)}${pairNames(x.key)}${bar(x)}<em class="${cls(x)}">${wrp(x)}%</em><small>${x.w}/${x.n}</small></button>`).join('')}</div>
-    </div>`;
+    return `<div class="card"><h2>Los que más ves <span class="note">· elige uno</span></h2>
+        <div class="rvstrip">${r.oppPreview.slice(0, 24).map(x => `<button class="rvchip${x.key === sel ? ' on' : ''}" data-rv="${esc(x.key)}" title="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b><small>${Math.round((x.n / r.n) * 100)}% · <em class="${cls(x)}">${wrp(x)}%</em></small></span></button>`).join('')}</div></div>
+      <div class="drvgrid">
+        <div class="card drvfile"><h2>Ficha del rival</h2>
+          <div class="dmvpb">${spr(sel, 'big')}<div class="dmvpi"><b class="nolang">${esc(sel)}</b><div class="tytags">${typesOf(sel).map(P.typeBadge).join('')}</div></div></div>
+          <div class="dtiles four">${statTile('Ganas', pc(R), cls(R))}${statTile('Lo ves en', `${Math.round(R.seen * 100)}%`)}${statTile('Abre en', `${R.n ? Math.round((R.leadN / R.n) * 100) : 0}%`)}${statTile('Lo saca en', `${R.n ? Math.round((R.broughtN / R.n) * 100) : 0}%`)}</div>
+          <p class="note">${R.w} de ${R.n} ganadas</p>
+          <div class="row-btns"><button class="btn sm primary" data-rvonly="${esc(sel)}"><span>Ver solo las partidas contra</span> <span class="nolang">${esc(sel)}</span></button></div>
+          ${R.moves.length ? `<div class="dlabel">Sus movimientos</div><div class="movechips">${R.moves.slice(0, 8).map(([mv, n]) => moveChip(mv, n)).join('')}</div>` : ''}</div>
+        ${rowsCard('Suele ir con', R.mates, monLabel, 'Sin datos.', 'rv')}
+        ${rowsCard('Tus leads contra él', R.myLeads.slice(0, 5), pairLabel, 'Sin datos.', 'flead')}
+        ${rowsCard('Cómo abre con él', R.oppLeads.slice(0, 5), pairLabel, 'Nunca te ha abierto con él.', 'foplead')}
+        <div class="card"><h2>Últimas partidas contra él</h2><div class="dlast">${R.recent.map(s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<div class="dlrow">${pill(s.result)}<span class="dlm">${me.leads.map(n => spr(n, 'xs')).join('')}</span><b class="nolang">${esc(op.name)}</b><small>${new Date(s.endedAt).toLocaleDateString(EN() ? 'en-GB' : 'es-ES', { day: 'numeric', month: 'short' })}</small><button class="btn sm ibtn" data-view="${esc(s.id)}" title="Ver la replay">▶</button></div>`; }).join('')}</div></div>
+        ${rowsCard('Cómo te abren', r.oppLeads.slice(0, 8), pairLabel, 'Sin datos.', 'foplead', '<p class="note" style="margin:-4px 0 8px">Todos los rivales: sus leads y cómo te va contra ellos.</p>')}
+      </div>`;
   }
 
   /* ---------- Tu equipo ---------- */
@@ -189,20 +179,21 @@ const Dash = (() => {
     const species = sets.length ? sets.map(m => m.species) : r.myMons.slice(0, 6).map(x => x.key);
     if (!species.length) return '<div class="card"><p class="note">Elige tu equipo al empezar la sesión y aquí verás cómo rinde cada Pokémon.</p></div>';
     const cards = Stats.teamCards(ms, species);
-    return `<div class="dtm"><div class="dtcards">${cards.map((c, i) => {
-      const set = sets[i];
-      const moves = set ? set.moves.filter(Boolean).map(mv => [mv, (c.moves.find(([k]) => k === mv) || [0, 0])[1]]) : c.moves.slice(0, 4);
-      const extra = c.moves.filter(([k]) => set && !set.moves.includes(k));
-      const all = [...moves, ...extra].sort((x, y) => y[1] - x[1]).slice(0, 4);
-      const mx = Math.max(1, ...all.map(x => x[1]));
-      const mega = set && /ite( [XY])?$/.test(set.item || '') && set.item !== 'Eviolite';
-      return `<div class="dtc" style="--tc:${tint(c.key)}"><span class="dtcbg nolang" aria-hidden="true">${esc(c.key.toUpperCase())}</span>${ani(c.key, 'dtani')}
-        <div class="dtcbody"><h3 class="nolang">${esc(c.key)}</h3><p class="note">Lo llevas ${Math.round(c.broughtPct * 100)}% · Abre ${Math.round(c.leadPct * 100)}%</p>
-          <p class="dtcwr"><b class="${cls(c)}">${pc(c)}</b><span>cuando lo llevas</span></p>
-          ${mega ? `<p class="dtmega">Con mega: ${c.mega.n ? `${wrp(c.mega)}% en ${c.mega.n} partidas` : 'aún no ha megaevolucionado'}</p>` : ''}
-          <div class="dtmoves">${all.map(([mv, n]) => `<div><span class="nolang">${esc(mv)}</span><i><b style="width:${(n / mx) * 100}%"></b></i><em>${n}</em></div>`).join('')}</div></div></div>`;
-    }).join('')}</div>
-      <div class="card"><div class="dch"><h2>Tus parejas de leads</h2><span class="note">de más a menos jugadas</span></div>${r.myLeads.slice(0, 10).map(x => `<button class="lrow" data-flead="${esc(x.key)}">${pairSpr(x.key)}${pairNames(x.key)}${bar(x)}<em class="${cls(x)}">${wrp(x)}%</em><small>${x.w}/${x.n}</small></button>`).join('') || '<p class="note">Sin datos.</p>'}</div></div>`;
+    const pctBar = (v, c = '') => `<span class="dpb ${c}"><i style="width:${Math.round(v * 100)}%"></i><em>${Math.round(v * 100)}%</em></span>`;
+    return `<div class="card"><h2>Cómo rinde cada Pokémon</h2><div class="dperf"><table>
+        <thead><tr><th>Pokémon</th><th>Lo llevas</th><th>Abre</th><th>Ganas con él</th><th>Con mega</th><th>Movimientos usados</th></tr></thead>
+        <tbody>${cards.map((c, i) => {
+          const set = sets[i];
+          const used = new Map(c.moves);
+          const list = set ? set.moves.filter(Boolean).map(mv => [mv, used.get(mv) || 0]) : c.moves.slice(0, 4);
+          const mega = set && /ite( [XY])?$/.test(set.item || '') && set.item !== 'Eviolite';
+          return `<tr><td class="dtmon">${spr(c.key)}<b class="nolang">${esc(c.key)}</b></td><td>${pctBar(c.broughtPct)}</td><td>${pctBar(c.leadPct)}</td>
+            <td><b class="${cls(c)}">${pc(c)}</b> <small class="note">${c.n}</small></td>
+            <td>${mega ? (c.mega.n ? `<b class="${cls(c.mega)}">${wrp(c.mega)}%</b> <small class="note">${c.mega.n}</small>` : '<span class="note">—</span>') : ''}</td>
+            <td><div class="movechips sm">${list.map(([mv, n]) => moveChip(mv, n)).join('')}</div></td></tr>`;
+        }).join('')}</tbody></table></div></div>
+      <div class="grid dgrid">${rowsCard('Tus parejas de leads', r.myLeads.slice(0, 10), pairLabel, 'Sin datos.', 'flead', '<p class="note" style="margin:-4px 0 8px">De más a menos jugadas.</p>')}
+        <div class="card"><h2>¿Abriendo o desde atrás?</h2>${(() => { const a = Stats.advanced(ms); return a.mons.length ? `<table class="lb"><thead><tr><th></th><th>De lead</th><th>De reserva</th></tr></thead><tbody>${a.mons.slice(0, 8).map(m => `<tr><td>${spr(m.key, 'sm')}${esc(m.key)}</td><td>${m.lead.n ? `<b>${wrp(m.lead)}%</b> <small>${m.lead.n}</small>` : '—'}</td><td>${m.back.n ? `<b>${wrp(m.back)}%</b> <small>${m.back.n}</small>` : '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="note">Sin datos.</p>'; })()}</div></div>`;
   }
 
   /* ---------- Hábitos ---------- */
@@ -210,19 +201,19 @@ const Dash = (() => {
     const H = Stats.habits(ms), r = Stats.compute(ms), a = Stats.advanced(ms);
     const ins = ms.length ? insights(r, a) : [];
     const row = x => `<div class="hrow"><span>${esc(x.key)}</span><em class="${x.delta > 0 ? 'okc' : 'badc'}">${x.delta > 0 ? '+' : ''}${x.delta} pts</em><b>${Math.round((x.w / x.n) * 100)}%</b><small>${x.n} partidas</small></div>`;
-    const bars = list => list.filter(h => h.n).map(h => `<div class="lrow"><span class="hk">${esc(h.key)}</span>${bar(h)}<em class="${cls(h)}">${wrp(h)}%</em><small>${h.n}</small></div>`).join('') || '<p class="note">Sin datos.</p>';
-    return `${H.n < 30 ? `<div class="card hprog"><div><b>Con 30 partidas se ve claro qué te hace ganar o perder.</b><span class="note">Llevas ${H.n}: de momento son pistas, no conclusiones.</span></div><i><b style="width:${Math.min(100, (H.n / 30) * 100)}%"></b></i></div>` : ''}
+    const bars = list => { const l = list.filter(h => h.n); return l.length ? `<div class="rows">${l.map(h => wrRow(h, esc(h.key))).join('')}</div>` : '<p class="note">Sin datos.</p>'; };
+    return `${H.n < 30 ? `<div class="warnbox hprog"><span><b>Con 30 partidas se ve claro qué te hace ganar o perder.</b> <span>Llevas ${H.n}: de momento son pistas, no conclusiones.</span></span><i><b style="width:${Math.min(100, (H.n / 30) * 100)}%"></b></i></div>` : ''}
       <p class="note hbase">Tu media: ${Math.round(H.base * 100)}% de victorias. Al lado, cuánto más o menos ganas en cada caso.</p>
       <div class="dgrid2">
-        <div class="card"><h2 class="dh okh"><i>↗</i><span>Lo que más te hace ganar</span></h2>${H.win.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
-        <div class="card"><h2 class="dh badh"><i>↘</i><span>Lo que más te hace perder</span></h2>${H.lose.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
+        <div class="card"><h2 class="okh2">Lo que más te hace ganar</h2>${H.win.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
+        <div class="card"><h2 class="badh2">Lo que más te hace perder</h2>${H.lose.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
       </div>
-      <div class="dgrid3">
+      <div class="grid dgrid">
         <div class="card"><h2>Por hora</h2>${bars(H.hours)}</div>
         <div class="card"><h2>Por día de la semana</h2>${bars(H.days)}</div>
         <div class="card"><h2>Partidas seguidas</h2>${bars([a.afterWin, a.afterLoss, a.early, a.late, a.short, a.long])}</div>
         <div class="card"><h2>Lo que dice tu juego</h2>${ins.length ? `<ul class="ins">${ins.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="note">Aún hay pocas partidas para saberlo.</p>'}</div>
-        <div class="card elo wide2"><h2>ELO</h2>${eloChart(r.elo)}</div>
+        <div class="card elo wide"><h2>ELO</h2>${eloChart(r.elo)}</div>
       </div>`;
   }
 
@@ -232,15 +223,15 @@ const Dash = (() => {
     const top = el.scrollTop;
     const info = scopeInfo();
     const seg = `<div class="seg dscope" role="group" title="Qué partidas cuentan">${info.session ? `<button data-f="scope" data-val="session" aria-pressed="${F.scope === 'session'}">Esta sesión</button>` : ''}${info.team ? `<button data-f="scope" data-val="team" aria-pressed="${F.scope === 'team'}">Todo el equipo</button>` : ''}<button data-f="scope" data-val="all" aria-pressed="${F.scope === 'all' || (!info.session && !info.team)}">Todas</button></div>`;
-    const sub = info.session ? `<span class="note">${F.scope === 'all' ? 'Todas tus partidas' : F.scope === 'team' ? `Todas las sesiones de <span class="nolang">${esc(info.team)}</span>` : `<span class="nolang">${esc(info.session.name)}</span>${info.session.goal ? ` · Objetivo: <span class="nolang">${esc(info.session.goal)}</span>` : ''}`}</span>` : '<span class="note">Todas tus partidas</span>';
+    const sub = info.session ? `<span>${F.scope === 'all' ? 'Todas tus partidas' : F.scope === 'team' ? `Todas las sesiones de <span class="nolang">${esc(info.team)}</span>` : `<span class="nolang">${esc(info.session.name)}</span>${info.session.goal ? ` · Objetivo: <span class="nolang">${esc(info.session.goal)}</span>` : ''}`}</span>` : '<span>Todas tus partidas</span>';
     if (!M.length) { el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1></div></div>${emptyState()}`; return; }
     const ids = scopeIds();
     const base = Stats.usable(M).filter(s => !ids || ids.has(s.id));
     const ms = Stats.filter(M, { ...F, ids });
     const unknown = M.length - Stats.usable(M).length;
     const body = D.tab === 'games' ? partidas(ms) : D.tab === 'riv' ? rivales(ms) : D.tab === 'team' ? equipo(ms) : D.tab === 'hab' ? habitos(ms) : resumen(ms);
-    el.innerHTML = `<div class="dhead"><nav class="dtabs">${TABS.map(([k, l]) => `<button data-dtab="${k}" aria-current="${D.tab === k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>${l}</button>`).join('')}</nav>
-        <div class="dscopebox">${sub}${seg}<button class="btn sm" data-go="doc" title="Documento de preparación">PDF</button></div></div>
+    el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1><p class="note" style="margin-top:4px">${sub}</p></div><div class="row-btns" style="margin:0">${seg}<button class="btn sm" data-go="doc" title="Documento de preparación">PDF</button></div></div>
+      <div class="seg dtabs">${TABS.map(([k, l]) => `<button data-dtab="${k}" aria-pressed="${D.tab === k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>${l}</button>`).join('')}</div>
       ${unknown ? `<div class="warnbox"><span>${unknown} partida${unknown === 1 ? '' : 's'} sin identificar: no sé qué jugador eras. Pon tu usuario de Showdown en Tu equipo.</span><button class="btn" data-go="miequipo">Ir a Tu equipo</button></div>` : ''}
       ${filtersHTML(base)}
       ${!ms.length && D.tab !== 'games' ? `<div class="card"><p class="note">${!base.length && info.session && F.scope === 'session' ? 'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todo el equipo».' : 'Aún no hay partidas con estos filtros.'}</p></div>` : body}`;
@@ -253,7 +244,7 @@ const Dash = (() => {
   function renderSoon() { if (soon) return; soon = setTimeout(() => { soon = 0; paint(); }, 0); }
 
   $('#v-dash').addEventListener('click', e => {
-    const t = e.target.closest('button,[data-set]');
+    const t = e.target.closest('button,[data-set],[data-frival],[data-flead],[data-foplead],[data-rv]');
     if (!t) return;
     const d = t.dataset;
     if (d.view) { e.stopPropagation(); Viewer.open(d.view); return; }

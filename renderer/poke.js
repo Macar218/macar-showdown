@@ -643,6 +643,6 @@ const P = (() => {
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, spLine,
     usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
-    openEditor, datalists
+    openEditor, datalists, itemPanel
   };
 })();

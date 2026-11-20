@@ -26,13 +26,6 @@ function spr(name, cls = '') {
   const base = name.includes('-') && !NOHYPHEN.has(toID(name)) ? toID(name.split('-')[0]) : '';
   return `<img class="spr ${cls}" src="${SPR}${spriteId(name)}.png" ${base ? `data-fb="${SPR}${base}.png"` : ''} alt="" title="${esc(name)}" loading="lazy">`;
 }
-/** Sprite grande y animado (modelos 3D de Showdown); si no lo hay, el de la Pokédex y, si no, el normal. */
-const SD = 'https://play.pokemonshowdown.com/sprites/';
-function ani(name, cls = '') {
-  const id = spriteId(name), base = name.includes('-') && !NOHYPHEN.has(toID(name)) ? toID(name.split('-')[0]) : '';
-  const fb = [`${SD}dex/${id}.png`, `${SD}gen5/${id}.png`, base ? `${SD}gen5/${base}.png` : ''].filter(Boolean).join('|');
-  return `<img class="ani ${cls}" src="${SD}ani/${id}.gif" data-fb="${fb}" alt="" title="${esc(name)}">`;
-}
 document.addEventListener('error', e => {
   const t = e.target;
   if (t.tagName !== 'IMG') return;

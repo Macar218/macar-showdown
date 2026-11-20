@@ -23,11 +23,12 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/app.js` | Navegación, filtros (`F`) y qué partidas cuentan (sesión, equipo o todas), panel de partida (notas y notas finales), importar, Ajustes |
 | `renderer/dash.js` | Dashboard: Resumen, Partidas, Rivales, Tu equipo y Hábitos con los mismos filtros |
 | `renderer/start.js` | Pantalla de inicio: cargar una sesión de un equipo o crear una nueva (equipo existente o Pokepaste) |
-| `renderer/myteam.js` | Tu equipo: el equipo de la sesión montado, usuario de Showdown, Pokepaste, cambiarlo |
+| `renderer/myteam.js` | Tu equipo: ficha de cada Pokémon del equipo de la sesión, usuario de Showdown, Pokepaste, cambiarlo |
 | `renderer/stats.js` | Estadísticas (también en Node para los tests) |
 | `renderer/poke.js` | Piezas comunes: datos del motor, sets Showdown, daño/velocidad, editor de Pokémon, datos de uso y de torneo, Team Box, Mi PC |
 | `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia) y Multicalc |
-| `renderer/team.js`, `pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Teambuilder, Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
+| `renderer/team.js` | Teambuilder: pestañas de los 6 y editor en la página (puntos estilo Showdown primero; el editor completo en «Más opciones») |
+| `pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Teambuilder, Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
 | `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla), con sonido apagado al empezar, leads/reserva y notas con marcas `[T5]` que saltan a ese turno |
 | `renderer/i18n.js` | Idiomas: la interfaz se escribe en español; en inglés se traduce lo que se ve (diccionario de frases, frases con números `#` y trozos seguros). Textos nuevos: añadir su traducción aquí |
 | `renderer/items-data.js` | Objetos de Champions (nombre EN/ES, descripción EN/ES, grupo, icono), sacados de la Macar Dex |
@@ -41,6 +42,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 - Datos del usuario en la carpeta de datos (por defecto `%APPDATA%\Macar Showdown\datos`, o la de OneDrive que elija): formatos compatibles siempre.
 - Los webviews solo pueden ser Showdown (`persist:showdown`) o el visor de replays (`msreplay://` en `persist:replay`, que carga el reproductor de play.pokemonshowdown.com); la página de la app no navega a ningún sitio; CSP sin scripts externos.
 - Replays: solo de combates del usuario y si `autoReplay` está activado. No se graba vídeo (se quitó en la 0.7 a petición del usuario). Showdown y las replays arrancan silenciados.
+- Aspecto: estilo propio de la Macar Dex (tiras de datos, tablas y barras). Nada de copiar el aspecto de Flinched (tarjetas grandes con el nombre de fondo, escenarios…). Sprites fijos de Showdown (`gen5`), nunca animados.
 - Estilos nuevos: comprobar que el nombre de clase no existe ya en `style.css` (en la 0.7 chocaron `.dres`, `.mrow`, `.dbar` y `.dteam`).
 - Nada de `prompt()` (Electron no lo tiene): formularios propios. `confirm()` sí funciona (y se traduce).
 - Idioma: cada texto nuevo de la interfaz necesita su traducción en `renderer/i18n.js`. No traducir trozos de una sola palabra corriente (cambiarían nombres puestos por el usuario).
