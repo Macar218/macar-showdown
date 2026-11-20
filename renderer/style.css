@@ -901,22 +901,22 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 
 /* ---------- Menú lateral con aspecto de Pokédex ---------- */
 .side{counter-reset:dex;position:relative;gap:12px;padding:14px 12px 12px;border-right:0;
-  background:linear-gradient(180deg,#e0313a 0,#b8141f 55%,#8e0d16 100%);
-  box-shadow:inset -6px 0 0 #6d0910,inset -8px 0 0 rgba(0,0,0,.25),inset 2px 0 0 rgba(255,255,255,.18)}
-.side::after{content:'';position:absolute;top:0;bottom:0;right:-1px;width:3px;background:linear-gradient(180deg,#3a0408,#120102)}
+  background:linear-gradient(180deg,#2f7bff 0,#1747c4 55%,#0c2a86 100%);
+  box-shadow:inset -6px 0 0 #0a2266,inset -8px 0 0 rgba(0,0,0,.25),inset 2px 0 0 rgba(255,255,255,.18)}
+.side::after{content:'';position:absolute;top:0;bottom:0;right:-1px;width:3px;background:linear-gradient(180deg,#061846,#020a24)}
 .side .brand{flex-direction:column;align-items:flex-start;gap:10px;border-bottom:0;padding:2px 4px 12px;position:relative}
 .side .brand::after{content:'';position:absolute;left:-12px;right:-6px;bottom:0;height:10px;
   background:linear-gradient(180deg,rgba(0,0,0,.28),transparent);clip-path:polygon(0 0,62% 0,72% 100%,100% 100%,100% 0,100% 0,72% 0,62% 100%,0 100%)}
 .dexlights{display:flex;align-items:flex-start;gap:7px}
-.side .lens{width:52px;height:52px;border:4px solid #f4f6fb;box-shadow:0 0 0 2px #5a070c,0 0 18px rgba(140,240,255,.75),inset 0 -6px 10px rgba(0,40,120,.45)}
-.dexlights i{width:12px;height:12px;border-radius:50%;margin-top:2px;box-shadow:0 0 0 2px #5a070c,inset 0 -2px 3px rgba(0,0,0,.35)}
+.side .lens{width:52px;height:52px;border:4px solid #f4f6fb;box-shadow:0 0 0 2px #0a1f5c,0 0 18px rgba(140,240,255,.75),inset 0 -6px 10px rgba(0,40,120,.45)}
+.dexlights i{width:12px;height:12px;border-radius:50%;margin-top:2px;box-shadow:0 0 0 2px #0a1f5c,inset 0 -2px 3px rgba(0,0,0,.35)}
 .dexlights i.r{background:radial-gradient(circle at 35% 35%,#ffb3b3,#ff2a2a 60%)}
 .dexlights i.y{background:radial-gradient(circle at 35% 35%,#fff3b0,#ffd21f 60%)}
 .dexlights i.g{background:radial-gradient(circle at 35% 35%,#c8ffcf,#2fd65a 60%)}
 .side .brand b{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.35);font-size:18px}
 .side .brand b span{color:var(--gold)}
-.side .sessbtn{border:3px solid #5a070c;background:#0b1a42;box-shadow:inset 0 0 0 1px rgba(56,212,255,.35),inset 0 0 14px rgba(56,212,255,.12)}
-.dexscreen{background:#071431;border:3px solid #5a070c;border-radius:10px 10px 10px 26px;padding:8px 6px;gap:2px;
+.side .sessbtn{border:3px solid #0a1f5c;background:#0b1a42;box-shadow:inset 0 0 0 1px rgba(56,212,255,.35),inset 0 0 14px rgba(56,212,255,.12)}
+.dexscreen{background:#071431;border:3px solid #0a1f5c;border-radius:10px 10px 10px 26px;padding:8px 6px;gap:2px;
   box-shadow:inset 0 0 0 1px rgba(56,212,255,.25),inset 0 0 22px rgba(0,0,0,.6);
   background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
 .dexscreen button{counter-increment:dex;border-radius:6px;padding:7px 8px;font-size:13px;white-space:nowrap;gap:8px;color:#cfe3ff;border:1px solid transparent}
@@ -926,8 +926,8 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .dexscreen button[aria-current=page]::before{color:var(--accent)}
 .dexscreen svg{width:17px;height:17px}
 .dexscreen .navsep{color:#5f86c9;padding:8px 8px 2px;font-size:9.5px}
-.side .cap{background:#0b1a42;border:3px solid #5a070c;border-radius:10px;color:#9fc0f0}
-.side .updbox{border:3px solid #5a070c}
+.side .cap{background:#0b1a42;border:3px solid #0a1f5c;border-radius:10px;color:#9fc0f0}
+.side .updbox{border:3px solid #0a1f5c}
 
 /* ---------- Calculadora estilo Showdown ---------- */
 #calcBody{container-type:inline-size}

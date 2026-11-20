@@ -11,7 +11,7 @@ Cada cambio en `main` también genera el instalador en **Actions** (artefacto `m
 
 ## Qué hace (versión 0.8)
 
-- **Menú con aspecto de Pokédex**: carcasa roja, lente y luces, y las secciones en una pantalla numerada.
+- **Menú con aspecto de Pokédex**: carcasa azul, lente y luces, y las secciones en una pantalla numerada.
 - **Calculadora estilo Showdown**: los 4 movimientos de cada lado con su %, el cálculo completo del elegido (texto de Showdown, KO y tiradas), los dos Pokémon editables ahí mismo (objeto, habilidad, naturaleza, estado, SP, niveles, PS y movimientos) y el campo con botones. Pestañas **Daño**, **Multicalc** y **Árbol** (tus mejores jugadas, sus respuestas y el turno siguiente).
 
 - **Teambuilder estilo Showdown**: pestañas con tus 6 Pokémon y, debajo, el elegido: primero sus puntos (base, deslizador, número, estadística final, «Quedan X de 66» y + / − de naturaleza), luego objeto, habilidad y movimientos. Se guarda solo.
