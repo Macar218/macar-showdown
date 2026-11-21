@@ -85,7 +85,7 @@ const Dash = (() => {
     const seen = r.oppPreview.slice(0, 6).map(x => ({ ...x }));
     const winP = r.n ? Math.round((r.w / r.n) * 100) : 0;
     return `<div class="dkpis2">
-        <div class="kpi dkw">${donut(winP, cls(r))}<div><small>Victorias</small><b class="${cls(r)}">${r.w}–${r.l}</b><i>${r.n} partidas</i></div></div>
+        <div class="kpi dkw">${donut(winP, cls(r))}<div><small>Victorias</small><b class="${cls(r)}">${r.w}–${r.l}</b><i>${r.n} partida${r.n === 1 ? '' : 's'}</i></div></div>
         <div class="kpi"><small>Forma</small>${form(ov.last)}<i>Últimas ${ov.last.length} partidas</i></div>
         ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
         <div class="kpi"><small>Hojas de equipo</small>${minibar(ov.ots, 'OTS')}${minibar(ov.cts, 'CTS')}</div>
@@ -220,8 +220,8 @@ const Dash = (() => {
     const d = (x, y) => (x.n >= 3 && y.n >= 3 ? wrp(x) - wrp(y) : null);
     const verdict = (t, c = '') => `<p class="hverd ${c}">${t}</p>`;
     const few = verdict('Aún hay pocas partidas para saberlo.', 'mut');
-    const row = x => `<div class="hrow"><span>${esc(x.key)}</span><em class="${x.delta > 0 ? 'okc' : 'badc'}">${x.delta > 0 ? '+' : ''}${x.delta} pts</em><b>${Math.round((x.w / x.n) * 100)}%</b><small>${x.n} partidas</small></div>`;
-    const two = (x, y) => `<div class="htwo"><div><small>${esc(x.key)}</small><b class="${cls(x)}">${pc(x)}</b><i>${x.n} partidas</i></div><div><small>${esc(y.key)}</small><b class="${cls(y)}">${pc(y)}</b><i>${y.n} partidas</i></div></div>`;
+    const row = x => `<div class="hrow"><span>${esc(x.key)}</span><em class="${x.delta > 0 ? 'okc' : 'badc'}">${x.delta > 0 ? '+' : ''}${x.delta} pts</em><b>${Math.round((x.w / x.n) * 100)}%</b><small>${x.n} partida${x.n === 1 ? '' : 's'}</small></div>`;
+    const two = (x, y) => `<div class="htwo"><div><small>${esc(x.key)}</small><b class="${cls(x)}">${pc(x)}</b><i>${x.n} partida${x.n === 1 ? '' : 's'}</i></div><div><small>${esc(y.key)}</small><b class="${cls(y)}">${pc(y)}</b><i>${y.n} partida${y.n === 1 ? '' : 's'}</i></div></div>`;
     // Hora y día
     const bh = a.hours.filter(h => h.n >= 3).sort((x, y) => wrp(y) - wrp(x))[0];
     const days = a.days, dd = days.filter(h => h.n >= 3).sort((x, y) => wrp(y) - wrp(x));

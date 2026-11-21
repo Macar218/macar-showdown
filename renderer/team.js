@@ -121,7 +121,8 @@ const Team = (() => {
     const el = $('#v-equipo');
     const { list, team } = await current();
     const S = sets(team);
-    if (!T.U) { [T.U, T.TT] = await Promise.all([P.usage(), P.tour()]); }
+    // Los datos de uso y de torneos se cargan por detrás (pueden tardar o no llegar sin conexión).
+    if (!T.uLoad) { T.uLoad = Promise.all([P.usage(), P.tour()]).then(([u, t]) => { T.U = u; T.TT = t; if ($('#v-equipo').classList.contains('on') && (T.mvOpen != null || T.itOpen)) render(); }).catch(() => {}); }
     P.datalists();
     if (T.slot >= S.length) T.slot = Math.max(0, S.length - 1);
     const isMine = team && SET.teamId === team.id;
@@ -276,6 +277,9 @@ const Team = (() => {
     else if (d.tmvpick != null) { readEditor(m); T.mvOpen = T.mvOpen === +d.tmvpick ? null : +d.tmvpick; T.mvQ = ''; T.itOpen = false; render(); setTimeout(() => { const q = $('#v-equipo #mvQ'); if (q) q.focus(); }, 30); }
     else if (d.mvclose) { T.mvOpen = null; render(); }
     else if (d.pickmove != null && T.mvOpen != null) {
+      // Como en Showdown: si ya lo tenía en otro hueco, se intercambian (nunca dos iguales).
+      const dup = d.pickmove ? m.moves.findIndex((x, k) => x === d.pickmove && k !== T.mvOpen) : -1;
+      if (dup >= 0) m.moves[dup] = m.moves[T.mvOpen] || '';
       m.moves[T.mvOpen] = d.pickmove;
       const next = m.moves.findIndex((x, k) => !x && k !== T.mvOpen);
       T.mvOpen = d.pickmove && next >= 0 ? next : null; T.mvQ = '';

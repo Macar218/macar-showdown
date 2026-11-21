@@ -432,6 +432,8 @@ const Calc = (() => {
       if (t.dataset.mvclose) { S.mvPick = null; render(); return; }
       if (t.dataset.pickmove != null && S.mvPick) {
         const [side, i] = S.mvPick;
+        const before = cur(side), dup = before && t.dataset.pickmove ? before.moves.findIndex((x, k) => x === t.dataset.pickmove && k !== i) : -1;
+        if (dup >= 0) applyEdit(side, 'move', before.moves[i] || '', dup);
         applyEdit(side, 'move', t.dataset.pickmove, i);
         const mm = cur(side), next = mm ? mm.moves.findIndex((x, k) => !x && k !== i) : -1;
         S.mvPick = t.dataset.pickmove && next >= 0 ? [side, next] : null; S.mvQ = '';
