@@ -9,7 +9,12 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.8)
+## Qué hace (versión 0.9)
+
+- **Dashboard más visual**: filtros en una sola línea, tira de datos con anillo de victorias, OTS/CTS en barras y la línea del ELO. **Hábitos** en tarjetas con gráfico y una frase que lo explica: mejor hora, día de la semana, después de perder, sesiones largas, cortas o largas (7 turnos), Bo3, con él o sin él y movimientos que nunca usas. En Tu equipo, con quién funciona y contra quién brilla o sufre cada uno.
+- **Teambuilder**: botones − y + en cada estadística (con Mayús, de 4 en 4), + / − de naturaleza y elegir movimiento como en Showdown (los más llevados por ese Pokémon y buscador con tipo, categoría y potencia). El análisis del equipo, plegado y más pequeño.
+- **Calculadora**: los movimientos se cambian con el mismo selector.
+- **Tu equipo**: puntos en barras y movimientos grandes con el color de su tipo.
 
 - **Menú con aspecto de Pokédex**: carcasa azul, lente y luces, y las secciones en una pantalla numerada.
 - **Calculadora estilo Showdown**: los 4 movimientos de cada lado con su %, el cálculo completo del elegido (texto de Showdown, KO y tiradas), los dos Pokémon editables ahí mismo (objeto, habilidad, naturaleza, estado, SP, niveles, PS y movimientos) y el campo con botones. Pestañas **Daño**, **Multicalc** y **Árbol** (tus mejores jugadas, sus respuestas y el turno siguiente).

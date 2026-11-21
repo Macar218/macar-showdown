@@ -422,6 +422,33 @@ const P = (() => {
       <div class="itlist">${body}</div></div>`;
   }
 
+  /**
+   * Elegir movimiento, como en el teambuilder de Showdown: sin buscar, los más llevados por ese Pokémon (torneos y
+   * Smogon); buscando, todos. Cada fila: tipo, nombre, categoría, potencia, prioridad y % de uso. Filas con data-pickmove.
+   */
+  const CAT = { Physical: 'Físico', Special: 'Especial', Status: 'Estado' };
+  function movePanel(species, U, T, q, current = []) {
+    const ql = (q || '').trim().toLowerCase();
+    const row = (name, pc) => {
+      const d = moveOf(name) || {};
+      return `<button class="mvrow${current.includes(name) ? ' has' : ''}" data-pickmove="${esc(name)}">${d.type ? typeBadge(d.type) : '<span></span>'}<b>${esc(name)}</b><span class="mvcat ${toID(d.category || '')}">${esc(CAT[d.category] || '')}</span><span class="mvbp">${d.basePower || '—'}</span><span class="mvpr">${d.priority ? `${d.priority > 0 ? '+' : ''}${d.priority}` : ''}</span><em>${pc != null ? `${String(pc).replace('.', DEC())}%` : ''}</em></button>`;
+    };
+    let body;
+    if (ql) {
+      const hits = MOVES.filter(n => n.toLowerCase().includes(ql) || toID(n).includes(toID(ql)));
+      body = hits.slice(0, 80).map(n => row(n)).join('') || '<p class="note">Sin resultados.</p>';
+    } else {
+      const seen = new Set(), rows = [];
+      const t = species ? tourOf(T, species) : null, u = species ? usageOf(U, species) : null;
+      for (const [k, pc] of (t ? t.moves : [])) { const n = nameOf('moves', k); if (n && !seen.has(n)) { seen.add(n); rows.push(row(n, pc)); } }
+      for (const [k, pc] of (u ? u.moves : [])) { const n = nameOf('moves', k); if (n && !seen.has(n)) { seen.add(n); rows.push(row(n, pc)); } }
+      body = rows.length ? `<div class="itsec">Los que más lleva ${esc(species)}</div>${rows.join('')}<p class="note">Escribe arriba para buscar entre todos los movimientos.</p>` : '<p class="note">Escribe arriba para buscar el movimiento.</p>';
+    }
+    return `<div class="mvpanel"><div class="row-btns" style="margin-top:0"><input type="search" id="mvQ" placeholder="Buscar movimiento…" value="${esc(q || '')}" style="flex:1" autocomplete="off"><button class="btn sm" data-pickmove="">Sin movimiento</button><button class="btn sm" data-mvclose="1">Cerrar</button></div>
+      <div class="mvhead"><span>Tipo</span><span>Movimiento</span><span>Cat.</span><span>Pot.</span><span>Prio.</span><span>Uso</span></div>
+      <div class="mvplist">${body}</div></div>`;
+  }
+
   /* ---------- editor de un Pokémon ---------- */
   function datalists() {
     if ($('#dlSpecies')) return;
@@ -643,6 +670,6 @@ const P = (() => {
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, spLine,
     usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
-    openEditor, datalists, itemPanel
+    openEditor, datalists, itemPanel, movePanel
   };
 })();

@@ -68,7 +68,7 @@ const Team = (() => {
 
   /* ---------- pintar ---------- */
   // El Pokémon que estás editando (pestaña) y lo que tarda en guardarse.
-  Object.assign(T, { slot: 0, draft: null, itOpen: false, itTab: 'top', itQ: '', U: null, TT: null, saveT: null });
+  Object.assign(T, { slot: 0, draft: null, itOpen: false, itTab: 'top', itQ: '', mvOpen: null, mvQ: '', U: null, TT: null, saveT: null });
   const natOf = n => P.NAT[n] || P.NAT.Hardy;
   const spTotal = m => m.sp.reduce((a, b) => a + (+b || 0), 0);
   /** Pestañas de los 6 Pokémon. */
@@ -81,13 +81,14 @@ const Team = (() => {
     const sp = P.spOf(m.species), st = P.stats(m) || {};
     const nat = natOf(m.nature), left = P.SP_TOTAL - spTotal(m);
     return `<div class="tbsp"><div class="tbsph"><h3>Puntos (SP)</h3><span class="tbleft ${left < 0 ? 'over' : left === 0 ? 'full' : ''}" id="tbLeft">Quedan ${left} de ${P.SP_TOTAL}</span></div>
+      <div class="srow shead"><span></span><span>Base</span><span>Puntos</span><span></span><span>Total</span><span>Naturaleza</span></div>
       <div class="srows">${P.STATS.map((k, i) => {
         const base = sp ? sp.baseStats[k] : 0;
         const cls = P.natMult(m.nature, k) > 1 ? 'up' : P.natMult(m.nature, k) < 1 ? 'dn' : '';
         return `<div class="srow ${cls}" data-srow="${i}"><b>${P.SL[k]}</b>
           <span class="sbase" title="Estadística base"><em>${base}</em><i style="width:${Math.min(100, (base / 180) * 100)}%"></i></span>
           <input type="range" min="0" max="${P.SP_MAX}" value="${m.sp[i]}" data-sprange="${i}" aria-label="${P.SL[k]}">
-          <input type="number" min="0" max="${P.SP_MAX}" value="${m.sp[i]}" data-spnum="${i}" aria-label="${P.SL[k]}">
+          <span class="spstep"><button data-spdec="${i}" title="−1 (con Mayús, −4)">−</button><input type="number" min="0" max="${P.SP_MAX}" value="${m.sp[i]}" data-spnum="${i}" aria-label="${P.SL[k]}"><button data-spinc="${i}" title="+1 (con Mayús, +4)">+</button></span>
           <strong class="sfinal" data-sfinal="${i}">${st[k] ?? ''}</strong>
           ${i ? `<span class="snat"><button class="${nat.plus === k && nat.plus !== nat.minus ? 'on' : ''}" data-natp="${k}" title="Naturaleza que sube ${P.SL[k]}">+</button><button class="${nat.minus === k && nat.plus !== nat.minus ? 'on' : ''}" data-natm="${k}" title="Naturaleza que baja ${P.SL[k]}">−</button></span>` : '<span class="snat"></span>'}
         </div>`;
@@ -100,7 +101,7 @@ const Team = (() => {
     return `<div class="tbinfo"><h3>Objeto, habilidad y movimientos</h3>
       <label class="field">Objeto<span class="itfield">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<input list="dlItems" id="tbIt" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"><button class="btn sm" id="tbItPick">${T.itOpen ? 'Cerrar' : 'Elegir'}</button></span></label>
       <label class="field">Habilidad<select id="tbAb">${[...new Set([m.ability, ...P.abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
-      <div class="field">Movimientos<div class="tbmoves">${m.moves.map((x, i) => { const d = x && P.moveOf(x); return `<label>${P.typeDot(d ? d.type : '')}<input list="dlMoves" data-tmv="${i}" value="${esc(x)}" autocomplete="off" placeholder="Movimiento ${i + 1}"></label>`; }).join('')}</div></div></div>`;
+      <div class="field">Movimientos <span class="note">· pulsa uno para cambiarlo</span><div class="tbmoves">${m.moves.map((x, i) => { const d = x && P.moveOf(x); return `<button class="tbmv${T.mvOpen === i ? ' on' : ''}${d ? ` t-${esc(d.type)}` : ''}" data-tmvpick="${i}">${x ? `<b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}</small>` : `<span>Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div></div></div>`;
   }
   function editor(S) {
     const m = T.draft || S[T.slot];
@@ -113,7 +114,7 @@ const Team = (() => {
           <div class="tytags">${m.species ? P.typesOf(m.species).map(P.typeBadge).join('') : ''}</div></div>
         <span style="flex:1"></span>
         ${draft ? '<span class="note">Escribe el Pokémon para añadirlo.</span>' : `<div class="row-btns" style="margin:0"><button class="btn sm" data-tleft="${T.slot}" title="Mover a la izquierda">◀</button><button class="btn sm" data-tright="${T.slot}" title="Mover a la derecha">▶</button><button class="btn sm" id="tbMore" title="Sets más usados, Mi PC y pegar el set">Más opciones</button><button class="btn sm danger" id="tbRm">Quitar</button></div>`}</div>
-      ${m.species ? `<div class="tbedgrid">${statsTable(m)}${infoBox(m)}</div>${T.itOpen ? P.itemPanel(m.species, T.U, T.TT, T.itTab, T.itQ) : ''}` : ''}
+      ${m.species ? `<div class="tbedgrid">${statsTable(m)}${infoBox(m)}</div>${T.mvOpen != null ? `<div class="tbmvhead">Movimiento ${T.mvOpen + 1}</div>${P.movePanel(m.species, T.U, T.TT, T.mvQ, m.moves)}` : ''}${T.itOpen ? P.itemPanel(m.species, T.U, T.TT, T.itTab, T.itQ) : ''}` : ''}
     </div>`;
   }
   async function render() {
@@ -138,14 +139,15 @@ const Team = (() => {
           <p class="note" id="tbMsg">${esc(T.msg)}</p>
           ${tabs(S)}
           ${editor(S)}
-          ${S.length ? `<div class="grid tbana">
-            <div class="card"><h2>Defensa: qué te hace daño</h2><div class="tdef">${def.map(d => `<div class="tdrow${d.weak >= 3 && !d.res && !d.imm ? ' bad' : ''}" title="${esc(d.who.join(', '))}">${P.typeBadge(d.at)}<span class="w">${d.weak ? `${d.weak} débil${d.weak > 1 ? 'es' : ''}` : ''}</span><span class="r">${d.res ? `${d.res} resiste${d.res > 1 ? 'n' : ''}` : ''}</span><span class="i">${d.imm ? `${d.imm} inmune${d.imm > 1 ? 's' : ''}` : ''}</span></div>`).join('')}</div></div>
-            <div class="card"><h2>Cobertura de tus ataques</h2><p class="note" style="margin-bottom:8px">Tipos a los que pegas supereficaz con algún movimiento.</p><div class="tcov">${off.map(o => `<span class="${o.hit ? 'on' : 'off'}">${P.typeBadge(o.def)}</span>`).join('')}</div>
-              <p class="note" style="margin-top:8px">${off.filter(o => !o.hit).length ? `Sin supereficaz contra: ${off.filter(o => !o.hit).map(o => P.TYPES_ES[o.def]).join(', ')}` : 'Cubres todos los tipos.'}</p></div>
-            <div class="card"><h2>Velocidades</h2><div class="tspd">${spd.map(x => `<div>${spr(x.m.species, 'xs')}<b>${x.v}</b><span class="note">${Math.floor(x.v * 1.5)} con Pañuelo · ${x.v * 2} con Viento Afín</span></div>`).join('')}</div></div>
-            <div class="card"><h2>Revisión</h2><ul class="tchk">${checks(S).map(([k, t]) => `<li class="${k}">${esc(t)}</li>`).join('')}</ul></div>
-            <div class="card wide"><h2>Notas del equipo</h2><textarea id="tbNotes" rows="4" placeholder="Idea del equipo, leads, planes…">${esc(team.notes || '')}</textarea></div>
-          </div>` : ''}` : '<div class="card"><p class="note">Elige un equipo o crea uno nuevo.</p></div>'}
+          ${S.length ? `<div class="card tbnotes"><h2>Notas del equipo</h2><textarea id="tbNotes" rows="3" placeholder="Idea del equipo, leads, planes…">${esc(team.notes || '')}</textarea></div>
+          <details class="tbanal"${T.anOpen ? ' open' : ''}><summary>Análisis del equipo <span class="note">· revisión, debilidades, cobertura y velocidades</span></summary>
+            <ul class="tchk sm">${checks(S).map(([k, t]) => `<li class="${k}">${esc(t)}</li>`).join('')}</ul>
+            <div class="tbanagrid">
+              <div><h4>Debilidades</h4><div class="tdef sm">${def.filter(d => d.weak).map(d => `<div class="tdrow${d.weak >= 3 && !d.res && !d.imm ? ' bad' : ''}" title="${esc(d.who.join(', '))}">${P.typeBadge(d.at)}<span class="w">${d.weak}</span><span class="r">${d.res ? `${d.res} res.` : ''}</span><span class="i">${d.imm ? `${d.imm} inm.` : ''}</span></div>`).join('')}</div></div>
+              <div><h4>Sin supereficaz contra</h4><p class="note">${off.filter(o => !o.hit).length ? off.filter(o => !o.hit).map(o => P.typeBadge(o.def)).join(' ') : 'Cubres todos los tipos.'}</p>
+                <h4 style="margin-top:8px">Velocidades</h4><div class="tspd sm">${spd.map(x => `<div>${spr(x.m.species, 'xs')}<b>${x.v}</b><span class="note">${Math.floor(x.v * 1.5)} Pañuelo · ${x.v * 2} Viento Afín</span></div>`).join('')}</div></div>
+            </div></details>
+          ` : ''}` : '<div class="card"><p class="note">Elige un equipo o crea uno nuevo.</p></div>'}
         </div></div>`;
     el.scrollTop = scroll;
     T.live = null; // tras repintar, el siguiente arrastre relee el equipo guardado
@@ -245,11 +247,11 @@ const Team = (() => {
     const d = t.dataset;
     const m = T.draft || S[T.slot];
     T.live = null;
-    if (d.tsel) { T.id = d.tsel; T.msg = ''; T.slot = 0; T.draft = null; T.itOpen = false; render(); }
+    if (d.tsel) { T.id = d.tsel; T.msg = ''; T.slot = 0; T.draft = null; T.itOpen = false; T.mvOpen = null; render(); }
     else if (t.id === 'tbNew') { const v = await P.saveTeam({ name: `Equipo ${(await myTeams()).length + 1}`, side: 'me', text: '' }); T.id = v.id; T.slot = 0; T.draft = P.blankMon(''); render(); }
     else if (t.id === 'tbImp') importModal();
     else if (!team) return;
-    else if (d.tslot != null) { T.slot = +d.tslot; T.draft = null; T.itOpen = false; render(); }
+    else if (d.tslot != null) { T.slot = +d.tslot; T.draft = null; T.itOpen = false; T.mvOpen = null; render(); }
     else if (d.tadd) { T.draft = P.blankMon(''); T.itOpen = false; render(); setTimeout(() => $('#tbSpc') && $('#tbSpc').focus(), 30); }
     else if (t.id === 'tbMine') { await setMine(team.id); render(); }
     else if (t.id === 'tbCopy') { navigator.clipboard.writeText(team.text); T.msg = 'Equipo copiado (formato Showdown).'; render(); }
@@ -266,20 +268,33 @@ const Team = (() => {
     else if (!m || !m.species) return;
     else if (t.id === 'tbSp0') { m.sp = [0, 0, 0, 0, 0, 0]; await saveSets(team, S); render(); }
     else if (d.natp || d.natm) { readEditor(m); setNature(m, d.natp, d.natm); await saveSets(team, S); render(); }
-    else if (t.id === 'tbItPick') { readEditor(m); T.itOpen = !T.itOpen; T.itQ = ''; render(); }
+    else if (t.id === 'tbItPick') { readEditor(m); T.itOpen = !T.itOpen; T.itQ = ''; T.mvOpen = null; render(); }
+    else if (d.spdec != null || d.spinc != null) {
+      const i = +(d.spdec ?? d.spinc), step = (e.shiftKey ? 4 : 1) * (d.spdec != null ? -1 : 1);
+      setSP(m, i, (+m.sp[i] || 0) + step); await saveSets(team, S); render();
+    }
+    else if (d.tmvpick != null) { readEditor(m); T.mvOpen = T.mvOpen === +d.tmvpick ? null : +d.tmvpick; T.mvQ = ''; T.itOpen = false; render(); setTimeout(() => { const q = $('#v-equipo #mvQ'); if (q) q.focus(); }, 30); }
+    else if (d.mvclose) { T.mvOpen = null; render(); }
+    else if (d.pickmove != null && T.mvOpen != null) {
+      m.moves[T.mvOpen] = d.pickmove;
+      const next = m.moves.findIndex((x, k) => !x && k !== T.mvOpen);
+      T.mvOpen = d.pickmove && next >= 0 ? next : null; T.mvQ = '';
+      await saveSets(team, S); render();
+    }
     else if (d.ittab) { T.itTab = d.ittab; T.itQ = ''; render(); }
     else if (d.pickitem != null) { m.item = d.pickitem; T.itOpen = false; await saveSets(team, S); render(); }
   });
   // Deslizadores y números de puntos: se ven al momento y se guardan al soltar.
   view.addEventListener('input', async e => {
     const x = e.target;
-    if (x.dataset.sprange == null && x.dataset.spnum == null && x.id !== 'itQ') return;
-    if (T.live && x.id !== 'itQ') { const mm = T.draft || T.live.S[T.slot]; setSP(mm, +(x.dataset.sprange ?? x.dataset.spnum), x.value); saveSoon(T.live.team, T.live.S, 350); return; }
+    if (x.dataset.sprange == null && x.dataset.spnum == null && x.id !== 'itQ' && x.id !== 'mvQ') return;
+    if (T.live && x.id !== 'itQ' && x.id !== 'mvQ') { const mm = T.draft || T.live.S[T.slot]; setSP(mm, +(x.dataset.sprange ?? x.dataset.spnum), x.value); saveSoon(T.live.team, T.live.S, 350); return; }
     const { team } = await current();
     const S = sets(team);
     const m = T.draft || S[T.slot];
     if (!team || !m) return;
     if (x.id === 'itQ') { T.itQ = x.value; const pos = x.selectionStart; render().then(() => { const q = $('#itQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }); return; }
+    if (x.id === 'mvQ') { T.mvQ = x.value; const pos = x.selectionStart; clearTimeout(T.mvT); T.mvT = setTimeout(() => render().then(() => { const q = $('#v-equipo #mvQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }), 120); return; }
     // Mientras se arrastra, el equipo en memoria se guarda en T.live para no releerlo a cada paso.
     if (!T.live || T.live.team.id !== team.id) T.live = { team, S };
     const L = T.live, mm = T.draft || L.S[T.slot];
@@ -293,7 +308,7 @@ const Team = (() => {
     if (x.id === 'tbName') { team.name = x.value.trim() || team.name; await P.saveTeam(team); Calc.reloadTeams(); render(); return; }
     if (x.id === 'tbNotes') { team.notes = x.value; await P.saveTeam(team); return; }
     if (x.dataset.sprange != null || x.dataset.spnum != null) { clearTimeout(T.saveT); if (T.live) await saveSets(T.live.team, T.live.S); T.live = null; render(); return; }
-    if (x.id === 'itQ') return;
+    if (x.id === 'itQ' || x.id === 'mvQ') return;
     const S = sets(team);
     const m = T.draft || S[T.slot];
     if (!m) return;
@@ -305,6 +320,7 @@ const Team = (() => {
     await saveSets(team, S);
     render();
   });
+  view.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('tbanal')) T.anOpen = e.target.open; }, true);
   view.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.tedit) e.target.click(); });
 
   VIEWS.equipo = render;

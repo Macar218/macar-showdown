@@ -27,9 +27,10 @@ const MyTeam = (() => {
       ${sets.length ? `<div class="mtgrid">${sets.map(m => {
           const st = P.stats(m) || {}, it = m.item && P.itemInfo(m.item);
           return `<div class="mtc"><div class="mthead">${spr(m.species, 'big')}<div><b class="nolang">${esc(name(m))}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div></div>
-            <dl class="mtkv"><dt>Objeto</dt><dd class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(m.item || '—')}</dd><dt>Habilidad</dt><dd class="nolang">${esc(m.ability || '—')}</dd><dt>Naturaleza</dt><dd>${esc(P.natLabel(m.nature))}</dd><dt>Puntos</dt><dd>${esc(P.spLine(m))}</dd></dl>
-            <div class="tsstats">${P.STATS.map((k, j) => `<span class="${P.natMult(m.nature, k) > 1 ? 'up' : P.natMult(m.nature, k) < 1 ? 'dn' : ''}"><small>${P.SL[k]}</small><b>${st[k] ?? ''}</b><em>${m.sp[j] || ''}</em></span>`).join('')}</div>
-            <ul class="tsmoves">${m.moves.map(x => { const d = x && P.moveOf(x); return `<li>${x ? `${P.typeDot(d ? d.type : '')}<span class="nolang">${esc(x)}</span>` : '<span class="note">—</span>'}</li>`; }).join('')}</ul></div>`;
+            <dl class="mtkv"><dt>Objeto</dt><dd class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(m.item || '—')}</dd><dt>Habilidad</dt><dd class="nolang">${esc(m.ability || '—')}</dd><dt>Naturaleza</dt><dd>${esc(P.natLabel(m.nature))}</dd></dl>
+            <div class="mtsp"><div class="mtsph"><span>Puntos</span><b>${m.sp.reduce((x, y) => x + (+y || 0), 0)}/${P.SP_TOTAL}</b></div>${P.STATS.map((k, j) => { const nm = P.natMult(m.nature, k), v = st[k] || 0, sp = m.sp[j] || 0;
+              return `<div class="mtspr ${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><span>${P.SL[k]}</span><i><b style="width:${Math.min(100, (v / 230) * 100)}%"></b></i><strong>${v}</strong><em class="${sp ? 'on' : ''}">${sp ? `+${sp}` : '0'}</em></div>`; }).join('')}</div>
+            <div class="mtmoves">${m.moves.map(x => { const d = x && P.moveOf(x); return x ? `<span class="tbmv${d ? ` t-${esc(d.type)}` : ''}"><b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}</small></span>` : '<span class="tbmv"><span>—</span></span>'; }).join('')}</div></div>`;
         }).join('')}</div>`
         : `<div class="card mtempty"><b>${s ? 'Esta sesión aún no tiene equipo.' : 'No tienes ninguna sesión abierta.'}</b><span class="note">${s ? 'Pega su Pokepaste abajo y queda montado.' : 'Empieza o carga una sesión con tu equipo.'}</span></div>`}
       <div class="mtbottom">

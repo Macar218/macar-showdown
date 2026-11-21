@@ -5,7 +5,7 @@
  * cuentan son las de la sesión abierta, las de todo su equipo o todas (arriba a la derecha). Pulsar un Pokémon,
  * un lead o un rival filtra todo el panel.
  */
-/* global $, esc, spr, pill, wrRow, monLabel, pairLabel, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH, I18N */
+/* global $, esc, spr, pill, wrRow, monLabel, pairLabel, unusedMoves, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH, I18N */
 
 const Dash = (() => {
   const D = { tab: 'res', rv: '', cal: false };
@@ -53,7 +53,7 @@ const Dash = (() => {
       ${sel('rival', 'Rival con', [['', o.rivals]])}
       ${sel('oppLead', 'Lead rival', [[EN() ? 'One Pokémon' : 'Un Pokémon', o.oppLeads], [EN() ? 'Pair' : 'Pareja', r.oppLeads.map(x => x.key)]])}
       <label class="field">ELO mín.<input type="number" class="delo" data-fn="minElo" min="0" max="3000" step="50" placeholder="—" value="${F.minElo || ''}" title="Solo partidas contra rivales con este ELO o más"></label>
-      ${any ? '<button class="btn sm" data-fclear="1">Quitar filtros</button>' : ''}
+      ${any ? '<button class="btn sm ibtn dfx" data-fclear="1" title="Quitar filtros">✕</button>' : ''}
     </div>`;
   }
 
@@ -63,6 +63,14 @@ const Dash = (() => {
   const kpi = (label, value, sub = '', c = '') => `<div class="kpi"><small>${label}</small><b class="${c}">${value}</b>${sub ? `<i>${sub}</i>` : ''}</div>`;
   const form = last => `<span class="dform">${last.map(x => `<i class="${x === 'win' ? 'w' : x === 'loss' ? 'l' : 't'}">${x === 'win' ? W() : x === 'loss' ? L() : '='}</i>`).join('')}</span>`;
   const statTile = (label, value, c = '') => `<div class="dtile"><small>${label}</small><b class="${c}">${value}</b></div>`;
+  /** Anillo con el % de victorias. */
+  const donut = (p, c) => { const r = 22, L = 2 * Math.PI * r; return `<svg class="ddonut ${c}" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="${r}" class="bg"/><circle cx="28" cy="28" r="${r}" class="fg" stroke-dasharray="${(p / 100) * L} ${L}" transform="rotate(-90 28 28)"/><text x="28" y="32" text-anchor="middle">${p}%</text></svg>`; };
+  /** Línea pequeña con la evolución del ELO. */
+  const spark = pts => { if (pts.length < 2) return ''; const rs = pts.map(x => x.r), lo = Math.min(...rs), hi = Math.max(...rs), sp = Math.max(1, hi - lo); return `<svg class="dspark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts.map((x, i) => `${(i / (pts.length - 1)) * 100},${26 - ((x.r - lo) / sp) * 24}`).join(' ')}"/></svg>`; };
+  /** Barra horizontal pequeña con un %. */
+  const minibar = (x, label) => `<div class="dminib"><span>${label}</span><i><b class="${cls(x)}" style="width:${x && x.n ? wrp(x) : 0}%"></b></i><em>${pc(x)}</em></div>`;
+  /** Columnas verticales (hora, día…): alto = % de victorias; encima, las partidas. */
+  const vbars = (list, lab) => `<div class="dvbars">${list.map((h, i) => `<div class="dvb${h.n ? '' : ' none'}" title="${esc(h.key)}: ${h.n ? `${wrp(h)}% · ${h.n}` : '—'}"><small>${h.n || ''}</small><i><b class="${cls(h) || 'mid'}" style="height:${h.n ? Math.max(4, wrp(h)) : 0}%"></b></i><span>${esc(lab ? lab(h, i) : h.key)}</span></div>`).join('')}</div>`;
 
   /* ---------- Resumen ---------- */
   function resumen(ms) {
@@ -75,13 +83,15 @@ const Dash = (() => {
     const worst = r.oppPreview.filter(x => x.n >= 2).sort((x, y) => wrp(x) - wrp(y) || y.n - x.n).slice(0, 5);
     const leadsBest = r.myLeads.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 5);
     const seen = r.oppPreview.slice(0, 6).map(x => ({ ...x }));
-    return `<div class="kpis dk">
-        ${kpi('Victorias', `${r.n ? Math.round((r.w / r.n) * 100) : 0}%`, `${r.w}–${r.l} · ${r.n} partidas`, cls(r))}
+    const winP = r.n ? Math.round((r.w / r.n) * 100) : 0;
+    return `<div class="dkpis2">
+        <div class="kpi dkw">${donut(winP, cls(r))}<div><small>Victorias</small><b class="${cls(r)}">${r.w}–${r.l}</b><i>${r.n} partidas</i></div></div>
         <div class="kpi"><small>Forma</small>${form(ov.last)}<i>Últimas ${ov.last.length} partidas</i></div>
         ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
-        ${kpi('OTS', pc(ov.ots), `${ov.ots.n} partidas`, cls(ov.ots))}${kpi('CTS', pc(ov.cts), `${ov.cts.n} partidas`, cls(ov.cts))}
-        ${kpi('Sets Bo3', a.bo3.n ? `${wrp(a.bo3)}%` : '—', a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w}` : '')}
-        ${kpi('ELO', r.eloNow ?? '—')}${kpi('GXE', gxe, 'ladder de Showdown')}
+        <div class="kpi"><small>Hojas de equipo</small>${minibar(ov.ots, 'OTS')}${minibar(ov.cts, 'CTS')}</div>
+        <div class="kpi"><small>Sets Bo3</small><b>${a.bo3.n ? `${wrp(a.bo3)}%` : '—'}</b><i>${a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w}` : 'sin sets'}</i></div>
+        <div class="kpi"><small>ELO</small><b>${r.eloNow ?? '—'}</b>${spark(r.elo)}</div>
+        <div class="kpi"><small>GXE</small><b>${gxe}</b><i>ladder de Showdown</i></div>
       </div>
       <div class="dtwo">
         <div class="card dmvp"><h2>Tu MVP</h2>${mvp && card ? `<div class="dmvpb">${spr(mvp.key, 'big')}<div class="dmvpi"><b class="nolang">${esc(mvp.key)}</b><div class="tytags">${typesOf(mvp.key).map(P.typeBadge).join('')}</div>
@@ -189,31 +199,62 @@ const Dash = (() => {
           const mega = set && /ite( [XY])?$/.test(set.item || '') && set.item !== 'Eviolite';
           return `<tr><td class="dtmon">${spr(c.key)}<b class="nolang">${esc(c.key)}</b></td><td>${pctBar(c.broughtPct)}</td><td>${pctBar(c.leadPct)}</td>
             <td><b class="${cls(c)}">${pc(c)}</b> <small class="note">${c.n}</small></td>
-            <td>${mega ? (c.mega.n ? `<b class="${cls(c.mega)}">${wrp(c.mega)}%</b> <small class="note">${c.mega.n}</small>` : '<span class="note">—</span>') : ''}</td>
+            <td>${mega ? (c.mega.n ? `<b class="${cls(c.mega)}">${wrp(c.mega)}%</b> <small class="note">${c.mega.n} ${c.mega.n === 1 ? 'vez' : 'veces'}</small>` : '<span class="note">nunca</span>') : ''}</td>
             <td><div class="movechips sm">${list.map(([mv, n]) => moveChip(mv, n)).join('')}</div></td></tr>`;
         }).join('')}</tbody></table></div></div>
+      ${(() => {
+        const a = Stats.advanced(ms);
+        const sel = D.mon && a.mons.some(x => x.key === D.mon) ? D.mon : (a.mons[0] || {}).key;
+        const mon = a.mons.find(x => x.key === sel);
+        return `<div class="grid dgrid">${rowsCard('Con quién funciona', a.pairs.slice(0, 8), pairLabel, 'Hacen falta al menos 2 partidas con la misma pareja.', '', '<p class="note" style="margin:-4px 0 8px">Cuando van juntos en la partida.</p>')}
+          <div class="card dwide2"><h2>Contra quién brilla y contra quién sufre</h2><div class="rvstrip">${a.mons.map(x => `<button class="rvchip${x.key === sel ? ' on' : ''}" data-dmon="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b></span></button>`).join('')}</div>
+            ${mon ? `<div class="dbs"><div><h4 class="okc">Brilla contra</h4>${mon.best.length ? `<div class="rows">${mon.best.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div><div><h4 class="badc">Sufre contra</h4>${mon.worst.length ? `<div class="rows">${mon.worst.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div></div>` : '<p class="note">Sin datos.</p>'}</div></div>`;
+      })()}
       <div class="grid dgrid">${rowsCard('Tus parejas de leads', r.myLeads.slice(0, 10), pairLabel, 'Sin datos.', 'flead', '<p class="note" style="margin:-4px 0 8px">De más a menos jugadas.</p>')}
         <div class="card"><h2>¿Abriendo o desde atrás?</h2>${(() => { const a = Stats.advanced(ms); return a.mons.length ? `<table class="lb"><thead><tr><th></th><th>De lead</th><th>De reserva</th></tr></thead><tbody>${a.mons.slice(0, 8).map(m => `<tr><td>${spr(m.key, 'sm')}${esc(m.key)}</td><td>${m.lead.n ? `<b>${wrp(m.lead)}%</b> <small>${m.lead.n}</small>` : '—'}</td><td>${m.back.n ? `<b>${wrp(m.back)}%</b> <small>${m.back.n}</small>` : '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="note">Sin datos.</p>'; })()}</div></div>`;
   }
 
-  /* ---------- Hábitos ---------- */
+  /* ---------- Hábitos: cada tarjeta, un dato y lo que significa ---------- */
   function habitos(ms) {
     const H = Stats.habits(ms), r = Stats.compute(ms), a = Stats.advanced(ms);
-    const ins = ms.length ? insights(r, a) : [];
+    const d = (x, y) => (x.n >= 3 && y.n >= 3 ? wrp(x) - wrp(y) : null);
+    const verdict = (t, c = '') => `<p class="hverd ${c}">${t}</p>`;
+    const few = verdict('Aún hay pocas partidas para saberlo.', 'mut');
     const row = x => `<div class="hrow"><span>${esc(x.key)}</span><em class="${x.delta > 0 ? 'okc' : 'badc'}">${x.delta > 0 ? '+' : ''}${x.delta} pts</em><b>${Math.round((x.w / x.n) * 100)}%</b><small>${x.n} partidas</small></div>`;
-    const bars = list => { const l = list.filter(h => h.n); return l.length ? `<div class="rows">${l.map(h => wrRow(h, esc(h.key))).join('')}</div>` : '<p class="note">Sin datos.</p>'; };
+    const two = (x, y) => `<div class="htwo"><div><small>${esc(x.key)}</small><b class="${cls(x)}">${pc(x)}</b><i>${x.n} partidas</i></div><div><small>${esc(y.key)}</small><b class="${cls(y)}">${pc(y)}</b><i>${y.n} partidas</i></div></div>`;
+    // Hora y día
+    const bh = a.hours.filter(h => h.n >= 3).sort((x, y) => wrp(y) - wrp(x))[0];
+    const days = a.days, dd = days.filter(h => h.n >= 3).sort((x, y) => wrp(y) - wrp(x));
+    const DL = EN() ? ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] : ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    // Tras perder
+    const dl = d(a.afterLoss, a.afterWin);
+    // Sesiones largas
+    const ds = d(a.late, a.early);
+    // Cortas o largas (7 turnos o menos)
+    const sh = { key: '7 turnos o menos', n: 0, w: 0 }, lg = { key: 'Más de 7 turnos', n: 0, w: 0 };
+    for (const s of ms) { const x = (s.turns || 0) <= 7 ? sh : lg; x.n++; if (s.result === 'win') x.w++; }
+    const dsl = d(lg, sh);
+    // Con él / sin él
+    const keyMons = a.mons.filter(m => m.n >= 3 && m.without.n >= 3).map(m => ({ key: m.key, w: m, wo: m.without, delta: wrp(m) - wrp(m.without) })).sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+    const un = unusedMoves(a);
     return `${H.n < 30 ? `<div class="warnbox hprog"><span><b>Con 30 partidas se ve claro qué te hace ganar o perder.</b> <span>Llevas ${H.n}: de momento son pistas, no conclusiones.</span></span><i><b style="width:${Math.min(100, (H.n / 30) * 100)}%"></b></i></div>` : ''}
       <p class="note hbase">Tu media: ${Math.round(H.base * 100)}% de victorias. Al lado, cuánto más o menos ganas en cada caso.</p>
       <div class="dgrid2">
         <div class="card"><h2 class="okh2">Lo que más te hace ganar</h2>${H.win.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
         <div class="card"><h2 class="badh2">Lo que más te hace perder</h2>${H.lose.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
       </div>
-      <div class="grid dgrid">
-        <div class="card"><h2>Por hora</h2>${bars(H.hours)}</div>
-        <div class="card"><h2>Por día de la semana</h2>${bars(H.days)}</div>
-        <div class="card"><h2>Partidas seguidas</h2>${bars([a.afterWin, a.afterLoss, a.early, a.late, a.short, a.long])}</div>
-        <div class="card"><h2>Lo que dice tu juego</h2>${ins.length ? `<ul class="ins">${ins.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="note">Aún hay pocas partidas para saberlo.</p>'}</div>
-        <div class="card elo wide"><h2>ELO</h2>${eloChart(r.elo)}</div>
+      <div class="hgrid">
+        <div class="card"><h2>Tu mejor hora</h2>${vbars(a.hours, h => h.key.replace(' h', '').split('–')[0])}${bh ? verdict(`Rindes mejor de ${esc(bh.key)}: ${wrp(bh)}% en ${bh.n} partidas.`, 'ok') : few}</div>
+        <div class="card"><h2>Por día de la semana</h2>${vbars(days, (h, i) => DL[i])}${dd.length >= 2 ? verdict(`Tu mejor día: <b>${esc(dd[0].key)}</b> (${wrp(dd[0])}%). El peor: <b>${esc(dd[dd.length - 1].key)}</b> (${wrp(dd[dd.length - 1])}%).`) : few}</div>
+        <div class="card"><h2>Después de perder</h2>${two(a.afterWin, a.afterLoss)}${dl == null ? few : dl <= -8 ? verdict(`Tras una derrota ganas ${-dl} puntos menos. Respira un momento antes de buscar la siguiente.`, 'bad') : verdict('Las derrotas no te arrastran: en la siguiente rindes igual.', 'ok')}</div>
+        <div class="card"><h2>Sesiones largas</h2>${two(a.early, a.late)}${ds == null ? few : ds <= -8 ? verdict(`Desde la 6.ª partida de la sesión bajas ${-ds} puntos: el cansancio cuenta.`, 'bad') : verdict('Aguantas bien las sesiones largas.', 'ok')}</div>
+        <div class="card"><h2>Cortas o largas</h2>${two(sh, lg)}${dsl == null ? few : dsl >= 10 ? verdict('Ganas más cuando la partida se alarga: tu fuerte es el final.', 'ok') : dsl <= -10 ? verdict('Ganas más cuando la partida es rápida: tu fuerte es el principio.', 'ok') : verdict('Rindes igual en partidas cortas y largas.')}</div>
+        <div class="card"><h2>En el Bo3</h2>${a.bo3.n ? `<div class="htwo three"><div><small>Ganas la G1</small><b class="${cls(a.bo3.g1)}">${pc(a.bo3.g1)}</b></div><div><small>Cierras tras ganar la G1</small><b class="${cls(a.bo3.closeAfterG1)}">${pc(a.bo3.closeAfterG1)}</b></div><div><small>Remontas tras perder la G1</small><b class="${cls(a.bo3.comeback)}">${pc(a.bo3.comeback)}</b></div></div>
+          ${verdict(`De ${a.bo3.n} sets terminados ganas ${a.bo3.w} (${wrp(a.bo3)}%).`)}` : '<p class="note">Sin series Bo3 todavía.</p>'}</div>
+        <div class="card"><h2>Con él o sin él</h2>${keyMons.length ? `<div class="hcon"><div class="hconh"><span></span><span>Con él</span><span>Sin él</span><span></span></div>${keyMons.slice(0, 6).map(k => `<div class="hconr"><span>${spr(k.key, 'xs')}<b class="nolang">${esc(k.key)}</b></span><b class="${cls(k.w)}">${pc(k.w)}</b><b class="${cls(k.wo)}">${pc(k.wo)}</b><em class="${k.delta > 0 ? 'okc' : 'badc'}">${k.delta > 0 ? '+' : ''}${k.delta}</em></div>`).join('')}</div>
+          ${keyMons[0].delta >= 10 ? verdict(`<b class="nolang">${esc(keyMons[0].key)}</b>: <span>${keyMons[0].delta} puntos más cuando lo llevas. Es una pieza clave.</span>`, 'ok') : keyMons[0].delta <= -10 ? verdict(`<b class="nolang">${esc(keyMons[0].key)}</b>: <span>${-keyMons[0].delta} puntos más cuando no lo llevas. Plantéate si te compensa sacarlo.</span>`, 'bad') : verdict('Ninguno cambia mucho tu resultado por sí solo.')}` : few}</div>
+        <div class="card"><h2>Movimientos que nunca usas</h2>${un.length ? `<ul class="ins">${un.map(t => `<li class="nolang">${esc(t)}</li>`).join('')}</ul>${verdict('Quizá te sirva más otro movimiento en su lugar.')}` : verdict(ms.length >= 5 ? 'Usas todos los movimientos de tu equipo.' : 'Aún hay pocas partidas para saberlo.', ms.length >= 5 ? 'ok' : 'mut')}</div>
+        <div class="card elo hwide"><h2>ELO</h2>${eloChart(r.elo)}</div>
       </div>`;
   }
 
@@ -254,6 +295,7 @@ const Dash = (() => {
     if (d.flead) { F.lead = d.flead; paint(); return; }
     if (d.foplead) { F.oppLead = d.foplead; paint(); return; }
     if (d.rv) { D.rv = d.rv; paint(); return; }
+    if (d.dmon) { D.mon = d.dmon; paint(); return; }
     if (d.rvonly) { F.rival = d.rvonly; D.tab = 'games'; $('#v-dash').scrollTop = 0; paint(); return; }
     if (d.set) openSet(d.set.split(','));
   });

@@ -284,7 +284,8 @@ const Calc = (() => {
           <td>${i ? `<select data-ce="${side}:boost:${k}" class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${[6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6].map(v => `<option value="${v}"${v === b ? ' selected' : ''}>${v > 0 ? `+${v}` : v}</option>`).join('')}</select>` : ''}</td></tr>`; }).join('')}
       </tbody></table>
       <div class="sdhp"><span>PS</span><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div><label><input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label></div>
-      <div class="sdmoves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || '', d = x && P.moveOf(x); return `<label>${P.typeDot(d ? d.type : '')}<input list="dlMoves" data-ce="${side}:move:${i}" value="${esc(x)}" autocomplete="off" placeholder="Movimiento ${i + 1}"></label>`; }).join('')}</div>
+      <div class="sdmoves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || '', d = x && P.moveOf(x); const on = S.mvPick && S.mvPick[0] === side && S.mvPick[1] === i; return `<button class="tbmv${on ? ' on' : ''}${d ? ` t-${esc(d.type)}` : ''}" data-cmv="${side}:${i}" title="Cambiar el movimiento">${x ? `<b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}</small>` : `<span>Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div>
+      ${S.mvPick && S.mvPick[0] === side ? P.movePanel(m.species, U, TT, S.mvQ || '', m.moves) : ''}
     </div>`;
   }
   /** Cambiar algo del Pokémon desde la calculadora (se recuerda como cambio a mano). */
@@ -427,6 +428,16 @@ const Calc = (() => {
       if (t.dataset.info) { P.openInfo(t.dataset.info); return; }
       if (t.dataset.dex) { P.openInfo((S.foe[S.selFoe] || S.me[S.selMe] || {}).species || 'Garchomp'); return; }
       if (t.dataset.detx) { S.showRolls = false; render(); return; }
+      if (t.dataset.cmv) { const [side, i] = t.dataset.cmv.split(':'); S.mvPick = S.mvPick && S.mvPick[0] === side && S.mvPick[1] === +i ? null : [side, +i]; S.mvQ = ''; render(); setTimeout(() => { const q = $('#calcBody #mvQ'); if (q) q.focus(); }, 30); return; }
+      if (t.dataset.mvclose) { S.mvPick = null; render(); return; }
+      if (t.dataset.pickmove != null && S.mvPick) {
+        const [side, i] = S.mvPick;
+        applyEdit(side, 'move', t.dataset.pickmove, i);
+        const mm = cur(side), next = mm ? mm.moves.findIndex((x, k) => !x && k !== i) : -1;
+        S.mvPick = t.dataset.pickmove && next >= 0 ? [side, next] : null; S.mvQ = '';
+        S.selMove = t.dataset.pickmove ? [side, t.dataset.pickmove] : S.selMove;
+        lastHash = ''; render(); return;
+      }
       if (t.dataset.smv) { S.selMove = t.dataset.smv.split('|'); render(); return; }
       if (t.dataset.sdroll) { S.showRolls = !S.showRolls; render(); return; }
       if (t.dataset.cfw != null) { S.field.weather = t.dataset.cfw; S.field.userWT = true; persist(); render(); return; }
@@ -450,6 +461,13 @@ const Calc = (() => {
       else if (Multi.click(t, api_state())) render();
     });
     el.addEventListener('click', e => { const c = e.target.closest('[data-det]'); if (c) { S.det = c.dataset.det.split('|'); render(); setTimeout(() => { const d = $('.ddet'); if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 30); } });
+    el.addEventListener('input', e => {
+      if (e.target.id !== 'mvQ') return;
+      S.mvQ = e.target.value;
+      const pos = e.target.selectionStart;
+      clearTimeout(S.mvT);
+      S.mvT = setTimeout(() => { render(); const q = $('#calcBody #mvQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }, 120);
+    });
     el.addEventListener('contextmenu', e => {
       const t = e.target.closest('[data-pick]');
       if (!t || S.battleId) return;
