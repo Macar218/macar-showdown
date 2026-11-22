@@ -93,6 +93,7 @@ const Multi = (() => {
   /** plays: { a: {mv, tgt}, … }. Devuelve PS finales (%) y lo que pasa, en orden. */
   function simulate(st, plays, mode, dmgOf, turnN) {
     const hp = {}, maxhp = {}, ev = [], protectedS = new Set(), flinched = new Set(), moved = new Set(), fx = {};
+    const sitrusUsed = new Set();
     for (const [s] of SLOTS) {
       const m = monOf(st, s);
       if (!m) continue;
@@ -147,8 +148,11 @@ const Multi = (() => {
         const dmg = Math.min(hp[t], pick(r, mode, mine));
         if (dmg <= 0) { parts.push(`${tm.species}: no le afecta`); continue; }
         hp[t] -= dmg;
+        // Sitrus Berry: si sigue en pie y baja al 50 % o menos, cura 1/4 (una vez; se da por gastada si ya empezó el turno por debajo de la mitad).
+        let berry = '';
+        if (hp[t] > 0 && tm.item === 'Sitrus Berry' && !sitrusUsed.has(t) && startHP(st, t) > 50 && hp[t] <= maxhp[t] / 2) { hp[t] = Math.min(maxhp[t], hp[t] + Math.floor(maxhp[t] / 4)); sitrusUsed.add(t); berry = ' · se cura con la Sitrus Berry'; }
         const left = Math.max(0, (hp[t] / maxhp[t]) * 100);
-        parts.push(`${tm.species} −${P.pct((dmg / maxhp[t]) * 100)}%${hp[t] <= 0 ? ' · CAE' : ` (le queda ${P.pct(left)}%)`}`);
+        parts.push(`${tm.species} −${P.pct((dmg / maxhp[t]) * 100)}%${hp[t] <= 0 ? ' · CAE' : ` (le queda ${P.pct(left)}%)`}${berry}`);
         if (id === 'fakeout' && hp[t] > 0 && !moved.has(t)) flinched.add(t);
       }
       ev.push({ s: a.s, t: `${mon.species} usa ${a.name} → ${parts.join(' · ')}`, ko: targets.some(t => hp[t] <= 0) });
@@ -339,7 +343,10 @@ const Multi = (() => {
         <td class="${row.worst.kos > row.worst.lost ? 'good' : row.worst.lost > row.worst.kos ? 'bad' : ''}">${outcome(row.worst)}<small>Si el rival hace: ${esc(label(st, 'c', row.worst.reply.c))} / ${esc(label(st, 'd', row.worst.reply.d))}</small></td>
         <td class="${row.best.kos > row.best.lost ? 'good' : row.best.lost > row.best.kos ? 'bad' : ''}">${outcome(row.best)}</td>
         <td><button class="btn sm" data-muse="${i}">Usarla</button></td></tr>`).join('')}</tbody></table></div>` : '';
+    const ar = s0 => { const m = monOf(st, s0); return m ? { m, i: M.slots[s0] ? M.slots[s0].idx : -1, hp: r.hp[s0] != null ? r.hp[s0] : startHP(st, s0) } : null; };
+    const arenaH = typeof Calc !== 'undefined' && Calc.arena ? Calc.arena({ me: [ar('a'), ar('b')], foe: [ar('c'), ar('d')], field: fieldFor(st) }) : '';
     return `<div class="multi">
+      ${arenaH}<p class="note mtarnote">Así queda el campo después de este turno (turno ${M.turn}).</p>
       <div class="mrow">${slotBox(st, 'a')}${slotBox(st, 'b')}</div>
       <div class="mvs">VS</div>
       <div class="mrow">${slotBox(st, 'c')}${slotBox(st, 'd')}</div>

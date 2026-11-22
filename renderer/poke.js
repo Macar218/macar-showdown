@@ -209,6 +209,39 @@ const P = (() => {
       attackerSide: sideObj(f[attSide] || {}), defenderSide: sideObj(f[attSide === 'me' ? 'foe' : 'me'] || {})
     });
   }
+  /**
+   * El motor (0.12.0) no cuenta la Sitrus Berry en los KO. Con sus 16 tiradas se calcula golpe a golpe:
+   * si tras un golpe le quedan PS y está al 50 % o menos, se cura 1/4 una vez. Devuelve { n, chance, text } o null.
+   */
+  function sitrusKO(rolls, cur, max) {
+    const heal = Math.floor(max / 4), p = 1 / rolls.length;
+    let states = new Map([[`${cur}|0`, 1]]);
+    let koSoFar = 0;
+    for (let n = 1; n <= 8; n++) {
+      const next = new Map();
+      let ko = 0;
+      for (const [k, pr] of states) {
+        const [hp, used] = k.split('|').map(Number);
+        for (const d of rolls) {
+          let h = hp - d;
+          if (h <= 0) { ko += pr * p; continue; }
+          let u = used;
+          if (!u && h <= max / 2) { h = Math.min(max, h + heal); u = 1; }
+          const key = `${h}|${u}`;
+          next.set(key, (next.get(key) || 0) + pr * p);
+        }
+      }
+      koSoFar += ko;
+      if (koSoFar > 0.0001) {
+        const pct = Math.round(koSoFar * 1000) / 10;
+        const nh = n === 1 ? 'OHKO' : `${n}HKO`;
+        return { n, chance: koSoFar, text: `${koSoFar >= 0.9999 ? `guaranteed ${nh}` : `${pct}% chance to ${nh}`}${n > 1 ? ' after Sitrus Berry recovery' : ''}` };
+      }
+      states = next;
+    }
+    return null;
+  }
+
   /** Daño de un movimiento. f = estado del campo; attSide = 'me' o 'foe' (lado del atacante). */
   function damage(att, def, moveName, f, attSide = 'me', opts = {}) {
     if (!moveName) return null;
@@ -226,6 +259,11 @@ const P = (() => {
       try { if (hi > 0) { const k = r.kochance(); ko = k.text || ''; kon = k.n || 0; koc = k.chance || 0; } } catch (e) { ko = ''; }
       let desc = '';
       try { desc = r.desc(); } catch (e) { desc = ''; }
+      // Sitrus Berry: el motor no la cuenta; se rehace el KO con sus tiradas.
+      if (def.item === 'Sitrus Berry' && hi > 0 && def.ability !== 'Klutz' && !(att.ability === 'Unnerve' || att.ability === 'As One (Glastrier)' || att.ability === 'As One (Spectrier)')) {
+        const sk = sitrusKO(flat, cur, max);
+        if (sk) { ko = sk.text; kon = sk.n; koc = sk.chance; desc = desc.replace(/ -- .*$/, ` -- ${sk.text}`); } else { ko = ''; kon = 0; koc = 0; desc = desc.replace(/ -- .*$/, ''); }
+      }
       return { lo, hi, max, cur, pLo: (lo / max) * 100, pHi: (hi / max) * 100, ko, kon, koc, desc, cat: mv.category, type: mv.type, rolls: flat, priority: mv.priority || 0, target: mv.target };
     } catch (e) { return { err: e.message }; }
   }
@@ -262,6 +300,7 @@ const P = (() => {
   function koEs(ko) {
     if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') return String(ko || '');
     return String(ko || '')
+.replace(/ after Sitrus Berry recovery/i, ' (contando la Sitrus Berry)')
       .replace(/guaranteed OHKO/i, 'KO seguro').replace(/guaranteed (\d)HKO/i, 'KO seguro en $1')
       .replace(/([\d.]+)% chance to OHKO/i, (_, p) => `${p.replace('.', DEC())}% de KO`)
       .replace(/([\d.]+)% chance to (\d)HKO/i, (_, p, n) => `${p.replace('.', DEC())}% de KO en ${n}`)
@@ -426,26 +465,66 @@ const P = (() => {
    * Elegir movimiento, como en el teambuilder de Showdown: sin buscar, los más llevados por ese Pokémon (torneos y
    * Smogon); buscando, todos. Cada fila: tipo, nombre, categoría, potencia, prioridad y % de uso. Filas con data-pickmove.
    */
+  /* ---------- Macar Dex (se renueva cada día; la Dex se actualiza los lunes) ---------- */
+  let dexP = null, DEXD = null;
+  function dex(force) {
+    if (!dexP || force) dexP = api.dex(!!force).then(r => { DEXD = r && r.ok ? r : null; return DEXD; }).catch(() => null);
+    return dexP;
+  }
+  dex();
+  const dexKeys = species => { const k = toID(species); return [k, k.replace(/mega[xyz]?$/, ''), toID(baseSpecies(species))]; };
+  const dexOf = (table, species) => { if (!DEXD || !DEXD[table]) return null; for (const k of dexKeys(species)) if (DEXD[table][k]) return DEXD[table][k]; return null; };
+  /** Movimientos que puede aprender (de la Macar Dex), o null si no se sabe. */
+  const learnOf = species => dexOf('learn', species);
+  /** Datos de un movimiento en la Macar Dex: tipo, categoría, potencia, precisión, PP y qué hace (en el idioma de la app). */
+  function moveInfo(name) {
+    const d = DEXD && DEXD.moves ? DEXD.moves[toID(name)] : null;
+    if (!d) return null;
+    const es = lang() === 'es' && DEXD.es && DEXD.es.md ? DEXD.es.md[d.n] : null;
+    return { ...d, desc: es || d.d };
+  }
+  /** Set de la Macar Dex: habilidad y movimientos de Smogon del mes, objeto y reparto más usados. */
+  function dexSet(species) {
+    const st = dexOf('sets', species), cs = dexOf('csets', species);
+    if (!st && !cs) return null;
+    const m = blankMon(species);
+    if (st && st.a && st.a[0]) m.ability = nameOf('abilities', st.a[0][0]);
+    if (st && st.m) m.moves = [...st.m.slice(0, 4).map(x => nameOf('moves', x[0])), '', '', '', ''].slice(0, 4);
+    if (cs && cs.i && cs.i[0]) m.item = nameOf('items', cs.i[0][0]);
+    if (cs && cs.s && cs.s[0]) { m.nature = NAT[cs.s[0][0]] ? cs.s[0][0] : m.nature; m.sp = cs.s[0][1].map(x => Math.min(SP_MAX, +x || 0)); }
+    m.src = 'dex';
+    return m;
+  }
+
   const CAT = { Physical: 'Físico', Special: 'Especial', Status: 'Estado' };
   function movePanel(species, U, T, q, current = []) {
     const ql = (q || '').trim().toLowerCase();
+    const learn = species ? learnOf(species) : null;
+    const pool = learn ? learn.map(k => (DEXD.moves[k] ? DEXD.moves[k].n : null)).filter(Boolean) : MOVES;
     const row = (name, pc) => {
-      const d = moveOf(name) || {};
-      return `<button class="mvrow${current.includes(name) ? ' has' : ''}" data-pickmove="${esc(name)}">${d.type ? typeBadge(d.type) : '<span></span>'}<b>${esc(name)}</b><span class="mvcat ${toID(d.category || '')}">${esc(CAT[d.category] || '')}</span><span class="mvbp">${d.basePower || '—'}</span><span class="mvpr">${d.priority ? `${d.priority > 0 ? '+' : ''}${d.priority}` : ''}</span><em>${pc != null ? `${String(pc).replace('.', DEC())}%` : ''}</em></button>`;
+      const d = moveOf(name) || {}, x = moveInfo(name);
+      const acc = x ? (x.a ? `${x.a}%` : '—') : '';
+      return `<button class="mvrow${current.includes(name) ? ' has' : ''}" data-pickmove="${esc(name)}" title="${esc(x ? x.desc : '')}">${d.type ? typeBadge(d.type) : '<span></span>'}<b>${esc(name)}</b><span class="mvcat ${toID(d.category || '')}">${esc(CAT[d.category] || '')}</span><span class="mvbp">${d.basePower || '—'}</span><span class="mvbp">${acc}</span><span class="mvpr">${d.priority ? `${d.priority > 0 ? '+' : ''}${d.priority}` : ''}</span><em>${pc != null ? `${String(pc).replace('.', DEC())}%` : ''}</em><small class="mvdesc nolang">${esc(x ? x.desc : '')}</small></button>`;
     };
+    const seen = new Set(), top = [];
+    const add = (k, pc) => { const n = nameOf('moves', k); if (n && !seen.has(n)) { seen.add(n); top.push([n, pc]); } };
+    if (species) {
+      const ds = dexOf('sets', species), t = tourOf(T, species), u = usageOf(U, species);
+      for (const [k, pc] of (ds && ds.m) || []) add(k, pc);
+      for (const [k, pc] of (t ? t.moves : [])) add(k, pc);
+      for (const [k, pc] of (u ? u.moves : [])) add(k, pc);
+    }
     let body;
     if (ql) {
-      const hits = MOVES.filter(n => n.toLowerCase().includes(ql) || toID(n).includes(toID(ql)));
-      body = hits.slice(0, 80).map(n => row(n)).join('') || '<p class="note">Sin resultados.</p>';
+      const hits = pool.filter(n => n.toLowerCase().includes(ql) || toID(n).includes(toID(ql)));
+      body = hits.slice(0, 120).map(n => row(n, (top.find(x => x[0] === n) || [])[1])).join('') || `<p class="note">Sin resultados${learn ? ' entre los movimientos que aprende' : ''}.</p>`;
     } else {
-      const seen = new Set(), rows = [];
-      const t = species ? tourOf(T, species) : null, u = species ? usageOf(U, species) : null;
-      for (const [k, pc] of (t ? t.moves : [])) { const n = nameOf('moves', k); if (n && !seen.has(n)) { seen.add(n); rows.push(row(n, pc)); } }
-      for (const [k, pc] of (u ? u.moves : [])) { const n = nameOf('moves', k); if (n && !seen.has(n)) { seen.add(n); rows.push(row(n, pc)); } }
-      body = rows.length ? `<div class="itsec">Los que más lleva ${esc(species)}</div>${rows.join('')}<p class="note">Escribe arriba para buscar entre todos los movimientos.</p>` : '<p class="note">Escribe arriba para buscar el movimiento.</p>';
+      const rest = pool.filter(n => !seen.has(n)).sort();
+      body = `${top.length ? `<div class="itsec">Los que más lleva ${esc(species)}</div>${top.map(([n, pc]) => row(n, pc)).join('')}` : ''}
+        ${learn ? `<div class="itsec">Todos los que aprende (${rest.length})</div>${rest.map(n => row(n)).join('')}` : '<p class="note">Escribe arriba para buscar entre todos los movimientos.</p>'}`;
     }
     return `<div class="mvpanel"><div class="row-btns" style="margin-top:0"><input type="search" id="mvQ" placeholder="Buscar movimiento…" value="${esc(q || '')}" style="flex:1" autocomplete="off"><button class="btn sm" data-pickmove="">Sin movimiento</button><button class="btn sm" data-mvclose="1">Cerrar</button></div>
-      <div class="mvhead"><span>Tipo</span><span>Movimiento</span><span>Cat.</span><span>Pot.</span><span>Prio.</span><span>Uso</span></div>
+      <div class="mvhead"><span>Tipo</span><span>Movimiento</span><span>Cat.</span><span>Pot.</span><span>Prec.</span><span>Prio.</span><span>Uso</span></div>
       <div class="mvplist">${body}</div></div>`;
   }
 
@@ -670,6 +749,6 @@ const P = (() => {
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, spLine,
     usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
-    openEditor, datalists, itemPanel, movePanel
+    openEditor, datalists, itemPanel, movePanel, dex, dexSet, moveInfo, learnOf
   };
 })();

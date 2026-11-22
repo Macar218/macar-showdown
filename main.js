@@ -10,6 +10,7 @@ const { Usage } = require('./src/usage');
 const { CURRENT, uploadReplay } = require('./src/media');
 const { Tournaments } = require('./src/tournaments');
 const { Extensions } = require('./src/extensions');
+const { MacarDex } = require('./src/macardex');
 const { matchId } = require('./src/store');
 
 // Visor de replays: msreplay:// sirve la partida guardada al reproductor de Showdown.
@@ -19,12 +20,15 @@ const SHOWDOWN = /^https:\/\/([a-z0-9-]+\.)*pokemonshowdown\.com(\/|$)/i;
 const PARTITION = 'persist:showdown';
 const REPLAY_PARTITION = 'persist:replay'; // visor de replays: el reproductor oficial de Showdown con el registro guardado
 const REPLAY_URL = /^msreplay:\/\/r\/[A-Za-z0-9_-]+$/;
+const DEX_PARTITION = 'persist:dex'; // la Macar Dex (web del usuario) dentro de la app
+const DEX_URL = /^https:\/\/macar218\.github\.io\/macar-dex(\/|$)/;
 
 let win = null;
 let store = null;
 let usage = null;
 let tours = null;
 let exts = null;
+let dex = null;
 let sdContents = null; // el webview de Showdown, para leer el combate en directo
 let capStatus = { ok: false, why: 'Abre la pestaña Jugar para empezar', open: 0, finished: 0, saved: 0 };
 const replaying = new Set();
@@ -64,9 +68,15 @@ function createWindow() {
     prefs.sandbox = true;
     const sd = params.partition === PARTITION && SHOWDOWN.test(params.src);
     const rp = params.partition === REPLAY_PARTITION && REPLAY_URL.test(params.src);
-    if (!sd && !rp) event.preventDefault();
+    const dx = params.partition === DEX_PARTITION && DEX_URL.test(params.src);
+    if (!sd && !rp && !dx) event.preventDefault();
   });
   win.webContents.on('did-attach-webview', (_e, contents) => {
+    if (contents.session === session.fromPartition(DEX_PARTITION)) {
+      contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
+      contents.on('will-navigate', (event, url) => { if (!DEX_URL.test(url)) { event.preventDefault(); openExternal(url); } });
+      return;
+    }
     if (contents.session === session.fromPartition(REPLAY_PARTITION)) {
       contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
       contents.on('will-navigate', (event, url) => { if (!REPLAY_URL.test(url)) { event.preventDefault(); openExternal(url); } });
@@ -286,6 +296,11 @@ function registerIpc() {
     } catch (e) { return { ok: false, why: e.message }; }
   });
 
+  // Datos de la Macar Dex (se renuevan cada día; la Dex se actualiza los lunes).
+  ipcMain.handle('ms:dex', async (_e, force) => {
+    try { const d = await dex.get(!!force); return d ? { ok: true, ...d } : { ok: false, why: 'Sin datos de la Macar Dex (¿sin conexión?)' }; } catch (e) { return { ok: false, why: e.message }; }
+  });
+
   // Equipos y sets de torneo (Limitless).
   ipcMain.handle('ms:tournaments', async (_e, force) => {
     try { return { ok: true, ...(await tours.get(!!force)) }; } catch (e) { return { ok: false, why: e.message }; }
@@ -451,6 +466,7 @@ app.whenReady().then(async () => {
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir());
   usage = new Usage(store.dir);
   tours = new Tournaments(store.dir);
+  dex = new MacarDex(store.dir);
   // Visor de replays: la partida guardada en el reproductor oficial de Showdown (sin tener que subirla).
   const rs = session.fromPartition(REPLAY_PARTITION);
   rs.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
@@ -463,6 +479,7 @@ app.whenReady().then(async () => {
   });
   // Showdown no necesita permisos especiales (cámara, ubicación…): se deniegan todos.
   session.fromPartition(PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  session.fromPartition(DEX_PARTITION).setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
   registerIpc();
   exts = new Extensions(app.getPath('userData'), session.fromPartition(PARTITION));
   try { await exts.loadAll(); } catch (e) { console.error('[extensiones]', e); }

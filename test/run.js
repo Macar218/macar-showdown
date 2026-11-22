@@ -224,6 +224,18 @@ t('guardado: al volver a la ventana solo se releen las partidas cambiadas', () =
   assert.strictEqual(reads, 1);
 });
 
+t('transcripción de la partida (turnos, movimientos, daño, KO, subidas)', () => {
+  const Transcript = require('../renderer/transcript');
+  const log = ['|player|p1|Yo|', '|player|p2|Rival|', '|switch|p1a: Gambit|Kingambit, L50|100/100', '|switch|p2a: Corviknight|Corviknight, L50|100/100', '|turn|1',
+    '|move|p1a: Gambit|Kowtow Cleave|p2a: Corviknight', '|-damage|p2a: Corviknight|57/100', '|-boost|p1a: Gambit|atk|1', '|move|p2a: Corviknight|Protect|p2a: Corviknight',
+    '|turn|2', '|move|p1a: Gambit|Sucker Punch|p2a: Corviknight', '|-crit|p2a: Corviknight', '|-damage|p2a: Corviknight|0 fnt', '|faint|p2a: Corviknight', '|win|Yo'].join('\n');
+  const t = Transcript.parse(log);
+  assert.deepStrictEqual(t.map(x => x.turn), [0, 1, 2]);
+  const mv = t[1].ev[0];
+  assert.deepStrictEqual([mv.who.sp, mv.move, mv.tgt.sp, mv.fx[0].t, mv.fx[0].d, mv.fx[1].stat, mv.fx[1].n], ['Kingambit', 'Kowtow Cleave', 'Corviknight', 'dmg', -43, 'Atq', 1]);
+  assert.deepStrictEqual(t[2].ev[0].fx.map(f => f.t), ['crit', 'dmg', 'faint']);
+});
+
 t('la interfaz no tiene errores de sintaxis', () => {
   const dir = path.join(__dirname, '..', 'renderer');
   for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.js'))) {

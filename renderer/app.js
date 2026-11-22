@@ -26,6 +26,12 @@ function spr(name, cls = '') {
   const base = name.includes('-') && !NOHYPHEN.has(toID(name)) ? toID(name.split('-')[0]) : '';
   return `<img class="spr ${cls}" src="${SPR}${spriteId(name)}.png" ${base ? `data-fb="${SPR}${base}.png"` : ''} alt="" title="${esc(name)}" loading="lazy">`;
 }
+/** Sprite de espaldas (tu lado en la arena); si no lo hay, el normal. */
+function sprBack(name, cls = '') {
+  const id = spriteId(name), base = name.includes('-') && !NOHYPHEN.has(toID(name)) ? toID(name.split('-')[0]) : '';
+  const fb = [`${SPR}${id}.png`, base ? `${SPR}${base}.png` : ''].filter(Boolean).join('|');
+  return `<img class="spr ${cls}" src="https://play.pokemonshowdown.com/sprites/gen5-back/${id}.png" data-fb="${fb}" alt="" title="${esc(name)}">`;
+}
 document.addEventListener('error', e => {
   const t = e.target;
   if (t.tagName !== 'IMG') return;
@@ -42,7 +48,7 @@ const head = (title, sub, right = '') => `<div class="head"><div><h1>${title}</h
 
 function wrRow(x, label) {
   const p = pct(x.w, x.n), cls = x.n >= 3 ? (p >= 55 ? 'hi' : p <= 45 ? 'lo' : '') : '';
-  return `<div class="row"><div class="who">${label}</div><div class="bar" title="${p}% de victorias"><i class="${cls}" style="width:${Math.max(2, p)}%"></i></div><div class="num"><b>${p}%</b> · ${x.n}</div></div>`;
+  return `<div class="row" title="Ganas el ${p}% de ${x.n} partida${x.n === 1 ? '' : 's'}"><div class="who">${label}</div><div class="bar"><i class="${cls}" style="width:${Math.max(2, p)}%"></i></div><div class="num"><b>${p}%</b> <small>de ${x.n}</small></div></div>`;
 }
 function wrCard(title, list, labelFn, empty, limit = 8) {
   if (!list.length) return `<div class="card"><h2>${title}</h2><p class="note">${empty}</p></div>`;
@@ -63,7 +69,7 @@ function show(v) {
 }
 $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.v); });
 document.addEventListener('keydown', e => {
-  const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'pc', 'calc', 'opt', 'doc', 'ajustes'];
+  const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
   if (e.key === 'Escape') closeModal();
 });
@@ -357,6 +363,16 @@ async function openDetail(id) {
 }
 function closeModal() { $('#modal').classList.add('hide'); $('#modalBox').onclick = $('#modalBox').onchange = null; if (VIEW === 'dash') Dash.render(); }
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+/* ---------- Macar Dex dentro de la app (se carga la primera vez que se abre) ---------- */
+VIEWS.dex = () => {
+  const el = $('#v-dex');
+  if (el.querySelector('webview')) return;
+  el.innerHTML = `<div class="dexbar"><span class="note">Tu Macar Dex. Sus datos (sets, uso y movimientos) también los usan la Calculadora y el Teambuilder, y se renuevan cada día.</span><span style="flex:1"></span><button class="btn sm" id="dexReload">⟳ <span>Recargar</span></button><button class="btn sm" id="dexData" title="Volver a bajar ahora los datos de la Macar Dex">Actualizar datos</button></div>
+    <webview id="dexWeb" src="https://macar218.github.io/macar-dex/" partition="persist:dex"></webview>`;
+  $('#dexReload').onclick = () => { const w = $('#dexWeb'); if (w && w.reload) w.reload(); };
+  $('#dexData').onclick = async e => { e.target.textContent = 'Actualizando…'; await P.dex(true); e.target.textContent = 'Datos al día'; };
+};
 
 /* ---------- Ajustes ---------- */
 async function renderSettings() {

@@ -9,7 +9,14 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.9)
+## Qué hace (versión 0.10)
+
+- **Macar Dex dentro**: sección «Macar Dex» con tu web, y sus datos (sets de Smogon del mes, objeto y reparto más usados, movimientos con descripción y lo que aprende cada Pokémon) se bajan solos cada día. La Calculadora usa sus sets para el rival (por defecto) y el Teambuilder sus movimientos con descripción.
+- **Sitrus Berry**: el motor no la cuenta en los KO; ahora sí (golpe a golpe con sus 16 tiradas), también en la Multicalc.
+- **Transcripción de la replay**: debajo de la partida, turno a turno con sprites, movimiento, objetivo y qué pasa (daño en %, KO, subidas, crítico, eficacia, protección…). Pulsar un turno o una línea apunta una nota enlazada a ese momento.
+- **Calculadora**: resultado siempre a la vista, página en tres columnas (tú · ataques y resultado · rival) y **arena** con los que están en el campo, también en la Multicalc.
+- **Mi PC como caja de los juegos**, con los sets de tus sesiones guardados solos y añadir a un equipo o crear uno nuevo.
+- **Dashboard**: porcentajes explicados («% de victorias · de cuántas partidas»), MVP más grande, buscar cualquier rival, y Tu equipo en fichas de 3 en 3.
 
 - **Dashboard más visual**: filtros en una sola línea, tira de datos con anillo de victorias, OTS/CTS en barras y la línea del ELO. **Hábitos** en tarjetas con gráfico y una frase que lo explica: mejor hora, día de la semana, después de perder, sesiones largas, cortas o largas (7 turnos), Bo3, con él o sin él y movimientos que nunca usas. En Tu equipo, con quién funciona y contra quién brilla o sufre cada uno.
 - **Teambuilder**: botones − y + en cada estadística (con Mayús, de 4 en 4), + / − de naturaleza y elegir movimiento como en Showdown (los más llevados por ese Pokémon y buscador con tipo, categoría y potencia). El análisis del equipo, plegado y más pequeño.

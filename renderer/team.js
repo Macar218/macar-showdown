@@ -101,7 +101,7 @@ const Team = (() => {
     return `<div class="tbinfo"><h3>Objeto, habilidad y movimientos</h3>
       <label class="field">Objeto<span class="itfield">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<input list="dlItems" id="tbIt" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"><button class="btn sm" id="tbItPick">${T.itOpen ? 'Cerrar' : 'Elegir'}</button></span></label>
       <label class="field">Habilidad<select id="tbAb">${[...new Set([m.ability, ...P.abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
-      <div class="field">Movimientos <span class="note">· pulsa uno para cambiarlo</span><div class="tbmoves">${m.moves.map((x, i) => { const d = x && P.moveOf(x); return `<button class="tbmv${T.mvOpen === i ? ' on' : ''}${d ? ` t-${esc(d.type)}` : ''}" data-tmvpick="${i}">${x ? `<b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}</small>` : `<span>Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div></div></div>`;
+      <div class="field">Movimientos <span class="note">· pulsa uno para cambiarlo</span><div class="tbmoves">${m.moves.map((x, i) => { const d = x && P.moveOf(x); const info = x && P.moveInfo(x); return `<button class="tbmv tbmvd${T.mvOpen === i ? ' on' : ''}${d ? ` t-${esc(d.type)}` : ''}" data-tmvpick="${i}">${x ? `<span class="tbmvt"><b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}${info && info.a ? ` · ${info.a}%` : ''}</small></span>${info ? `<span class="tbmvx nolang">${esc(info.desc)}</span>` : ''}` : `<span>Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div></div></div>`;
   }
   function editor(S) {
     const m = T.draft || S[T.slot];
@@ -121,6 +121,7 @@ const Team = (() => {
     const el = $('#v-equipo');
     const { list, team } = await current();
     const S = sets(team);
+    if (!T.dexLoad) T.dexLoad = P.dex().then(() => { if ($('#v-equipo').classList.contains('on')) refresh(); });
     // Los datos de uso y de torneos se cargan por detrás (pueden tardar o no llegar sin conexión).
     if (!T.uLoad) { T.uLoad = Promise.all([P.usage(), P.tour()]).then(([u, t]) => { T.U = u; T.TT = t; if ($('#v-equipo').classList.contains('on') && (T.mvOpen != null || T.itOpen)) render(); }).catch(() => {}); }
     P.datalists();
@@ -152,6 +153,30 @@ const Team = (() => {
         </div></div>`;
     el.scrollTop = scroll;
     T.live = null; // tras repintar, el siguiente arrastre relee el equipo guardado
+  }
+
+  /** Repinta solo las pestañas y el editor del Pokémon (sin parpadeo de toda la página). */
+  async function refresh() {
+    const ed = $('#v-equipo .tbed'), tb = $('#v-equipo .tbtabs');
+    if (!ed || !tb) return render();
+    const { team } = await current();
+    const S = sets(team);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = tabs(S) + editor(S);
+    tb.replaceWith(tmp.children[0]);
+    $('#v-equipo .tbed').replaceWith(tmp.children[0]);
+    T.live = null;
+  }
+  /** Solo la lista del buscador de movimientos (el cuadro de texto no pierde el foco). */
+  async function refreshMoves() {
+    const pnl = $('#v-equipo .mvpanel');
+    if (!pnl) return;
+    const { team } = await current();
+    const S = sets(team), m = T.draft || S[T.slot];
+    if (!m) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = P.movePanel(m.species, T.U, T.TT, T.mvQ, m.moves);
+    pnl.querySelector('.mvplist').replaceWith(tmp.querySelector('.mvplist'));
   }
 
   /** Lo que hay en el editor, al Pokémon. */
@@ -267,15 +292,15 @@ const Team = (() => {
     } else if (t.id === 'tbRm') { if (!confirm(`¿Quitar ${S[T.slot].species} del equipo?`)) return; S.splice(T.slot, 1); await saveSets(team, S); render(); }
     else if (t.id === 'tbMore') P.openEditor({ set: S[T.slot], side: 'me', onSave: async x => { S[T.slot] = P.cleanSet(x); await saveSets(team, S); render(); }, onDelete: async () => { S.splice(T.slot, 1); await saveSets(team, S); render(); }, deleteLabel: 'Quitar del equipo' });
     else if (!m || !m.species) return;
-    else if (t.id === 'tbSp0') { m.sp = [0, 0, 0, 0, 0, 0]; await saveSets(team, S); render(); }
-    else if (d.natp || d.natm) { readEditor(m); setNature(m, d.natp, d.natm); await saveSets(team, S); render(); }
-    else if (t.id === 'tbItPick') { readEditor(m); T.itOpen = !T.itOpen; T.itQ = ''; T.mvOpen = null; render(); }
+    else if (t.id === 'tbSp0') { m.sp = [0, 0, 0, 0, 0, 0]; await saveSets(team, S); refresh(); }
+    else if (d.natp || d.natm) { readEditor(m); setNature(m, d.natp, d.natm); await saveSets(team, S); refresh(); }
+    else if (t.id === 'tbItPick') { readEditor(m); T.itOpen = !T.itOpen; T.itQ = ''; T.mvOpen = null; refresh(); }
     else if (d.spdec != null || d.spinc != null) {
       const i = +(d.spdec ?? d.spinc), step = (e.shiftKey ? 4 : 1) * (d.spdec != null ? -1 : 1);
-      setSP(m, i, (+m.sp[i] || 0) + step); await saveSets(team, S); render();
+      setSP(m, i, (+m.sp[i] || 0) + step); await saveSets(team, S); refresh();
     }
-    else if (d.tmvpick != null) { readEditor(m); T.mvOpen = T.mvOpen === +d.tmvpick ? null : +d.tmvpick; T.mvQ = ''; T.itOpen = false; render(); setTimeout(() => { const q = $('#v-equipo #mvQ'); if (q) q.focus(); }, 30); }
-    else if (d.mvclose) { T.mvOpen = null; render(); }
+    else if (d.tmvpick != null) { readEditor(m); T.mvOpen = T.mvOpen === +d.tmvpick ? null : +d.tmvpick; T.mvQ = ''; T.itOpen = false; await refresh(); setTimeout(() => { const q = $('#v-equipo #mvQ'); if (q) q.focus(); }, 30); }
+    else if (d.mvclose) { T.mvOpen = null; refresh(); }
     else if (d.pickmove != null && T.mvOpen != null) {
       // Como en Showdown: si ya lo tenía en otro hueco, se intercambian (nunca dos iguales).
       const dup = d.pickmove ? m.moves.findIndex((x, k) => x === d.pickmove && k !== T.mvOpen) : -1;
@@ -283,10 +308,10 @@ const Team = (() => {
       m.moves[T.mvOpen] = d.pickmove;
       const next = m.moves.findIndex((x, k) => !x && k !== T.mvOpen);
       T.mvOpen = d.pickmove && next >= 0 ? next : null; T.mvQ = '';
-      await saveSets(team, S); render();
+      await saveSets(team, S); refresh();
     }
-    else if (d.ittab) { T.itTab = d.ittab; T.itQ = ''; render(); }
-    else if (d.pickitem != null) { m.item = d.pickitem; T.itOpen = false; await saveSets(team, S); render(); }
+    else if (d.ittab) { T.itTab = d.ittab; T.itQ = ''; refresh(); }
+    else if (d.pickitem != null) { m.item = d.pickitem; T.itOpen = false; await saveSets(team, S); refresh(); }
   });
   // Deslizadores y números de puntos: se ven al momento y se guardan al soltar.
   view.addEventListener('input', async e => {
@@ -298,7 +323,7 @@ const Team = (() => {
     const m = T.draft || S[T.slot];
     if (!team || !m) return;
     if (x.id === 'itQ') { T.itQ = x.value; const pos = x.selectionStart; render().then(() => { const q = $('#itQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }); return; }
-    if (x.id === 'mvQ') { T.mvQ = x.value; const pos = x.selectionStart; clearTimeout(T.mvT); T.mvT = setTimeout(() => render().then(() => { const q = $('#v-equipo #mvQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }), 120); return; }
+    if (x.id === 'mvQ') { T.mvQ = x.value; clearTimeout(T.mvT); T.mvT = setTimeout(refreshMoves, 100); return; }
     // Mientras se arrastra, el equipo en memoria se guarda en T.live para no releerlo a cada paso.
     if (!T.live || T.live.team.id !== team.id) T.live = { team, S };
     const L = T.live, mm = T.draft || L.S[T.slot];
@@ -311,7 +336,7 @@ const Team = (() => {
     if (!team) return;
     if (x.id === 'tbName') { team.name = x.value.trim() || team.name; await P.saveTeam(team); Calc.reloadTeams(); render(); return; }
     if (x.id === 'tbNotes') { team.notes = x.value; await P.saveTeam(team); return; }
-    if (x.dataset.sprange != null || x.dataset.spnum != null) { clearTimeout(T.saveT); if (T.live) await saveSets(T.live.team, T.live.S); T.live = null; render(); return; }
+    if (x.dataset.sprange != null || x.dataset.spnum != null) { clearTimeout(T.saveT); if (T.live) await saveSets(T.live.team, T.live.S); T.live = null; refresh(); return; }
     if (x.id === 'itQ' || x.id === 'mvQ') return;
     const S = sets(team);
     const m = T.draft || S[T.slot];
@@ -322,7 +347,7 @@ const Team = (() => {
       S.push(P.cleanSet(m)); T.slot = S.length - 1; T.draft = null;
     }
     await saveSets(team, S);
-    render();
+    if (x.id === 'tbSpc' || x.id === 'tbNick') render(); else refresh();
   });
   view.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('tbanal')) T.anOpen = e.target.open; }, true);
   view.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.tedit) e.target.click(); });

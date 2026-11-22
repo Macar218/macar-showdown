@@ -3,46 +3,94 @@
 /* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId */
 
 const PC = (() => {
-  const V = { tab: 'sets', q: '', side: '', box: '', sort: 'new', page: 0, tq: '', tmine: false, tpage: 0, T: null, U: null };
+  const V = { tab: 'sets', q: '', side: '', box: '', sort: 'new', page: 0, tq: '', tmine: false, tpage: 0, T: null, U: null, sel: null, msg: '' };
   const PAGE = 30;
+  /** Los sets de los equipos de tus sesiones se guardan solos en Mi PC (una caja por equipo) y se ponen al día. */
+  async function syncSessions() {
+    const sess = (typeof Sess !== 'undefined' ? await Sess.list() : []);
+    const ids = new Set(sess.map(x => x.teamId).filter(Boolean));
+    if (!ids.size) return false;
+    const teams = (await P.teams()).filter(t => ids.has(t.id));
+    const list = (await P.pcList()).slice();
+    let changed = false;
+    for (const t of teams) {
+      for (const m of P.parseTeam(t.text).sets) {
+        const key = `${t.id}|${P.toID(m.species)}`, text = P.exportSet(P.cleanSet(m));
+        const old = list.find(x => x.auto === key);
+        if (old) { if (old.text !== text) { old.text = text; changed = true; } }
+        else { list.unshift({ id: newId('s'), name: '', notes: '', side: 'me', box: t.name, text, up: Date.now(), auto: key }); changed = true; }
+      }
+    }
+    if (changed) await DB.set('pc', list);
+    return changed;
+  }
   const parse = x => { const s = P.parseSet(x.text); return s && !s.bad ? s : null; };
 
   async function render() {
     const el = $('#v-pc');
+    if (!V.synced) { V.synced = true; try { await syncSessions(); } catch (e) { /* nada */ } }
     const [list, teams] = await Promise.all([P.pcList(), P.teams()]);
     const boxes = [...new Set(list.map(x => x.box).filter(Boolean))].sort();
     el.innerHTML = `<div class="head"><div><h1>Mi <span>PC</span></h1><p class="note" style="margin-top:4px">Tus sets y repartos guardados, y todos tus equipos. Se guardan en tu carpeta de datos.</p></div>
       <div class="seg">${[['sets', `Sets (${list.length})`], ['teams', `Team Box (${teams.length})`]].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${V.tab === k}">${l}</button>`).join('')}</div></div>
-      ${V.tab === 'teams' ? teamsView(teams) : setsView(list, boxes)}`;
+      ${V.tab === 'teams' ? teamsView(teams) : setsView(list, boxes)}
+      <datalist id="dlBoxes">${boxes.map(b => `<option value="${esc(b)}">`).join('')}</datalist>`;
+    paintTeamSel();
   }
 
+  /** Caja como en los juegos: 30 huecos con el sprite; al pulsar uno, su ficha a la derecha. */
   function setsView(list, boxes) {
     const q = V.q.toLowerCase();
     let L = list.map(x => ({ x, s: parse(x) })).filter(o => o.s);
     if (q) L = L.filter(o => `${o.x.name} ${o.s.species} ${o.x.notes} ${o.s.item} ${o.s.moves.join(' ')}`.toLowerCase().includes(q));
     if (V.side) L = L.filter(o => o.x.side === V.side);
+    const names = ['', ...boxes];
+    if (!names.includes(V.box)) V.box = '';
     if (V.box) L = L.filter(o => o.x.box === V.box);
-    const cmp = { new: (a, b) => b.x.up - a.x.up, old: (a, b) => a.x.up - b.x.up, az: (a, b) => (a.x.name || a.s.species).localeCompare(b.x.name || b.s.species), za: (a, b) => (b.x.name || b.s.species).localeCompare(a.x.name || a.s.species) }[V.sort];
-    L.sort(cmp);
+    L.sort((a, b) => b.x.up - a.x.up);
     const pages = Math.max(1, Math.ceil(L.length / PAGE));
     V.page = Math.min(V.page, pages - 1);
     const shown = L.slice(V.page * PAGE, (V.page + 1) * PAGE);
+    const sel = L.find(o => o.x.id === V.sel) || null;
+    const bi = names.indexOf(V.box);
+    const slots = Array.from({ length: PAGE }, (_, i) => shown[i]);
     return `<div class="pctools card">
         <input type="search" id="pcQ" placeholder="Buscar: nombre, Pokémon, objeto, movimiento, notas…" value="${esc(V.q)}">
         <select id="pcSide"><option value="">Tuyos y de rivales</option><option value="me"${V.side === 'me' ? ' selected' : ''}>Tuyos</option><option value="foe"${V.side === 'foe' ? ' selected' : ''}>De rivales</option></select>
-        <select id="pcBox"><option value="">Todas las cajas</option>${boxes.map(b => `<option${b === V.box ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
-        <select id="pcSort">${[['new', 'Más nuevos'], ['old', 'Más antiguos'], ['az', 'A → Z'], ['za', 'Z → A']].map(([k, l]) => `<option value="${k}"${V.sort === k ? ' selected' : ''}>${l}</option>`).join('')}</select>
         <button class="btn primary" id="pcAdd">Añadir sets</button></div>
-      ${!list.length ? '<div class="card"><p class="note">Tu PC está vacío. Añade sets con «Añadir sets», o guárdalos desde el Teambuilder y la Calculadora (botón «Guardar en Mi PC» del editor).</p></div>' : !L.length ? '<div class="card"><p class="note">Ningún set coincide con estos filtros.</p></div>' : `
-      <div class="pcbox">${shown.map(({ x, s }) => `<div class="pcset ${x.side}">
-        <div class="pchead">${spr(s.species)}<div><b>${esc(x.name || s.species)}</b><span class="note">${esc(s.species)}${x.box ? ` · caja ${esc(x.box)}` : ''}</span></div><span class="pill ${x.side === 'me' ? 'win' : 'loss'}">${x.side === 'me' ? 'Tuyo' : 'Rival'}</span></div>
-        <div class="mline"><span>${esc(s.item || 'Sin objeto')}</span><span>${esc(s.ability || '')}</span></div>
-        <div class="mline small"><span>${esc(P.natLabel(s.nature))}</span><span>${esc(P.spLine(s))}</span></div>
-        <div class="pcmoves">${s.moves.filter(Boolean).map(m => `<span>${P.typeDot((P.moveOf(m) || {}).type)}${esc(m)}</span>`).join('')}</div>
-        ${x.notes ? `<p class="pcnotes">${esc(x.notes)}</p>` : ''}
-        <div class="pcbtns"><button class="btn sm" data-pedit="${x.id}">Editar</button><button class="btn sm" data-pcalc="${x.id}" title="Abrirlo en la Calculadora">Calculadora</button><button class="btn sm" data-pteam="${x.id}" title="Ponerlo en un equipo">A un equipo</button><button class="btn sm" data-pdup="${x.id}" title="Hace una copia para probar variantes">Duplicar</button><button class="btn sm" data-pcopy="${x.id}">Copiar</button><button class="btn sm danger" data-pdel="${x.id}">Borrar</button></div>
-      </div>`).join('')}</div>
-      ${pages > 1 ? `<div class="row-btns pcpages"><button class="btn sm" id="pcPrev"${V.page ? '' : ' disabled'}>◀ Caja anterior</button><span class="note">Caja ${V.page + 1} de ${pages}</span><button class="btn sm" id="pcNext"${V.page < pages - 1 ? '' : ' disabled'}>Caja siguiente ▶</button></div>` : ''}`}`;
+      <p class="note" style="margin:-6px 0 10px">Los sets de los equipos de tus sesiones se guardan solos aquí, en una caja por equipo.</p>
+      <div class="pcwrap">
+        <div class="pcbox2">
+          <div class="pcboxhead"><button class="btn sm" data-pcbox="${bi - 1}"${bi > 0 ? '' : ' disabled'} title="Caja anterior">◀</button>
+            <select id="pcBox"><option value="">Todas las cajas (${list.length})</option>${boxes.map(b => `<option${b === V.box ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
+            <button class="btn sm" data-pcbox="${bi + 1}"${bi < names.length - 1 ? '' : ' disabled'} title="Caja siguiente">▶</button>
+            ${pages > 1 ? `<span class="note">${V.page + 1}/${pages}</span><button class="btn sm" id="pcPrev"${V.page ? '' : ' disabled'}>‹</button><button class="btn sm" id="pcNext"${V.page < pages - 1 ? '' : ' disabled'}>›</button>` : ''}</div>
+          <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species)}<small class="nolang">${esc(o.x.name || o.s.species)}</small></button>` : '<span class="pcslot empty"></span>')).join('')}</div>
+          ${!list.length ? '<p class="note" style="margin-top:8px">Tu PC está vacío. Añade sets con «Añadir sets» o empieza una sesión con tu equipo.</p>' : !L.length ? '<p class="note" style="margin-top:8px">Ningún set coincide.</p>' : ''}
+        </div>
+        <aside class="pcdetail">${sel ? detailHTML(sel.x, sel.s) : '<div class="pcempty"><b>Pulsa un Pokémon</b><span class="note">Verás su set entero y podrás ponerle nombre o añadirlo a un equipo.</span></div>'}</aside>
+      </div>`;
+  }
+  function detailHTML(x, s) {
+    const st = P.stats(s) || {}, it = s.item && P.itemInfo(s.item);
+    return `<div class="mthead">${spr(s.species, 'big')}<div><b class="nolang">${esc(x.name || s.species)}</b><div class="tytags">${P.typesOf(s.species).map(P.typeBadge).join('')}</div><span class="pill ${x.side === 'me' ? 'win' : 'loss'}">${x.side === 'me' ? 'Tuyo' : 'Rival'}</span></div></div>
+      <div class="ed pcmeta"><label class="field">Nombre<input id="pdName" value="${esc(x.name || '')}" placeholder="${esc(s.species)}"></label><label class="field">Caja<input id="pdBox" value="${esc(x.box || '')}" list="dlBoxes"></label></div>
+      <dl class="mtkv"><dt>Objeto</dt><dd class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(s.item || '—')}</dd><dt>Habilidad</dt><dd class="nolang">${esc(s.ability || '—')}</dd><dt>Naturaleza</dt><dd>${esc(P.natLabel(s.nature))}</dd></dl>
+      <div class="mtsp"><div class="mtsph"><span>Puntos</span><b>${s.sp.reduce((a, b) => a + (+b || 0), 0)}/${P.SP_TOTAL}</b></div>${P.STATS.map((k, j) => { const nm = P.natMult(s.nature, k), v = st[k] || 0, sp = s.sp[j] || 0; return `<div class="mtspr ${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><span>${P.SL[k]}</span><i><b style="width:${Math.min(100, (v / 230) * 100)}%"></b></i><strong>${v}</strong><em class="${sp ? 'on' : ''}">${sp ? `+${sp}` : '0'}</em></div>`; }).join('')}</div>
+      <div class="mtmoves">${s.moves.map(m => { const d = m && P.moveOf(m); return m ? `<span class="tbmv${d ? ` t-${esc(d.type)}` : ''}"><b class="nolang">${esc(m)}</b><small>${d && d.basePower ? d.basePower : ''}</small></span>` : '<span class="tbmv"><span>—</span></span>'; }).join('')}</div>
+      <label class="field">Notas<textarea id="pdNotes" rows="2" placeholder="Contra qué va bien, de dónde lo sacaste…">${esc(x.notes || '')}</textarea></label>
+      <div class="row-btns"><button class="btn sm primary" data-pdsave="${x.id}">Guardar nombre y notas</button><span class="note" id="pdMsg">${esc(V.msg)}</span></div>
+      <h4 class="pch4">Añadir a un equipo</h4>
+      <div class="pcteamsel" id="pcTeamSel"></div>
+      <div class="row-btns"><input id="pdNewTeam" placeholder="Nombre del equipo nuevo" style="flex:1"><button class="btn sm" data-pdnew="${x.id}">Crear equipo con él</button></div>
+      <div class="row-btns"><button class="btn sm" data-pedit="${x.id}">Cambiar el set…</button><button class="btn sm" data-pcalc="${x.id}">Calculadora</button><button class="btn sm" data-pcopy="${x.id}">Copiar</button><button class="btn sm" data-pdup="${x.id}">Duplicar</button><button class="btn sm danger" data-pdel="${x.id}">Borrar</button></div>`;
+  }
+  /** Tus equipos para meter el set (como el equipo del juego: hasta 6). */
+  async function paintTeamSel() {
+    const el = $('#pcTeamSel');
+    if (!el) return;
+    const teams = (await P.teams()).filter(t => t.side === 'me');
+    el.innerHTML = teams.length ? teams.map(t => { const S = P.parseTeam(t.text).sets; return `<button class="tbitem" data-pdto="${t.id}"${S.length >= 6 ? ' disabled title="Ya tiene 6"' : ''}><b>${esc(t.name)} <span class="note">${S.length}/6</span></b><span>${S.map(m => spr(m.species, 'xs')).join('')}</span></button>`; }).join('') : '<p class="note">Aún no tienes equipos: crea uno abajo.</p>';
   }
 
   function teamsView(teams) {
@@ -150,6 +198,23 @@ const PC = (() => {
     const find = id => list.find(x => x.id === id);
     const d = t.dataset;
     if (d.ptab) { V.tab = d.ptab; render(); }
+    else if (d.psel) { V.sel = V.sel === d.psel ? null : d.psel; V.msg = ''; render(); }
+    else if (d.pcbox != null) { const boxes = ['', ...[...new Set(list.map(x => x.box).filter(Boolean))].sort()]; V.box = boxes[+d.pcbox] ?? ''; V.page = 0; render(); }
+    else if (d.pdsave) {
+      const L = list.slice(), i = L.findIndex(x => x.id === d.pdsave);
+      Object.assign(L[i], { name: $('#pdName').value.trim(), box: $('#pdBox').value.trim(), notes: $('#pdNotes').value.trim(), up: Date.now() });
+      await DB.set('pc', L); V.msg = 'Guardado.'; render();
+    }
+    else if (d.pdto || d.pdnew) {
+      const x = find(d.pdnew || V.sel), set = x && parse(x);
+      if (!set) return;
+      let team;
+      if (d.pdnew) { const name = $('#pdNewTeam').value.trim() || `Equipo ${(await P.teams()).filter(t => t.side === 'me').length + 1}`; team = await P.saveTeam({ name, side: 'me', text: P.exportTeam([set]) }); }
+      else { team = await P.teamById(d.pdto); const S = P.parseTeam(team.text).sets; if (S.length >= 6) return; S.push(set); team.text = P.exportTeam(S); await P.saveTeam(team); }
+      Calc.reloadTeams();
+      V.msg = `Añadido a ${team.name} (${P.parseTeam(team.text).sets.length}/6).`;
+      render();
+    }
     else if (t.id === 'pcAdd') addModal();
     else if (t.id === 'pcPrev') { V.page--; render(); }
     else if (t.id === 'pcNext') { V.page++; render(); }

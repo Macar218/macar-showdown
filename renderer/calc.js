@@ -1,6 +1,6 @@
 'use strict';
 /* Macar Showdown · calculadora de daño pegada al combate en directo (y Multicalc en su pestaña). */
-/* global P, DB, api, $, $$, esc, spr, closeModal, Multi */
+/* global P, DB, api, $, $$, esc, spr, sprBack, closeModal, Multi */
 
 const Calc = (() => {
   const { toID, STATS, SL, WEATHERS, TERRAINS, SIDE_FX } = P;
@@ -39,7 +39,10 @@ const Calc = (() => {
   function defaultFoeSet(species) {
     const s = setFromTeam(S.teamFoe, species);
     if (s) return { ...s, src: 'equipo' };
-    const t = S.setSrc !== 'smogon' ? P.tourSet(TT, U, species) : null;
+    const src = S.setSrc || 'dex';
+    const dx = src === 'dex' ? P.dexSet(species) : null;
+    if (dx) return dx;
+    const t = src !== 'smogon' ? P.tourSet(TT, U, species) : null;
     if (t) return t;
     const u = P.usageSet(U, species);
     if (u) return u;
@@ -129,6 +132,7 @@ const Calc = (() => {
     if (usageFor !== format) return;
     U = r;
     TT = await P.tour();
+    await P.dex();
     usageMsg = [TT ? `Torneos: ${TT.nTeams} equipos de ${TT.tours} torneos (Limitless, ${TT.days} días)` : '', r ? `Smogon: ${r.month}, ${r.cutoff}+` : ''].filter(Boolean).join(' · ') || 'Sin datos de uso (¿sin conexión?). El rival sale sin puntos hasta que lo edites.';
     lastHash = '';
     tick(true);
@@ -144,7 +148,7 @@ const Calc = (() => {
   function strip(side) {
     return `<div class="strip"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}<button class="mchip add" data-add="${side}" title="Añadir un Pokémon a mano">+</button></div></div>`;
   }
-  const SRC = { exacto: 'exacto', uso: 'Smogon', torneo: 'de torneo', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC' };
+  const SRC = { dex: 'Macar Dex', exacto: 'exacto', uso: 'Smogon', torneo: 'de torneo', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC' };
   function monCard(m, side) {
     if (!m) return `<div class="mcard empty"><p class="note">${side === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'} o añade uno con +.</p></div>`;
     const st = m.status ? `<span class="st ${m.status}">${esc(m.status.toUpperCase())}</span>` : '';
@@ -288,6 +292,32 @@ const Calc = (() => {
       ${S.mvPick && S.mvPick[0] === side ? P.movePanel(m.species, U, TT, S.mvQ || '', m.moves) : ''}
     </div>`;
   }
+  /**
+   * Arena: los que están en el campo (tú abajo, de espaldas; el rival arriba), con PS y lo que hay en el campo.
+   * opts: { me:[{m, i, hp}], foe:[…], sel:{me, foe}, field, pick } — también la usa la Multicalc.
+   */
+  function arenaHTML(opts) {
+    const f = opts.field || {};
+    const W = { Sun: '☀️', 'Harsh Sunshine': '☀️', Rain: '🌧️', 'Heavy Rain': '🌧️', Sand: '🌪️', Snow: '❄️' };
+    const tags = [f.weather && `${W[f.weather] || ''} <span>${esc((WEATHERS.find(w => w[0] === f.weather) || [])[1] || f.weather)}</span>`, f.terrain && `Campo ${(TERRAINS.find(t => t[0] === f.terrain) || [])[1] || f.terrain}`, f.tr && 'Espacio Raro', f.me && f.me.tw && 'Viento Afín tuyo', f.foe && f.foe.tw && 'Viento Afín rival'].filter(Boolean);
+    const mon = (x, side) => {
+      if (!x || !x.m) return '<div class="armon empty"></div>';
+      const hp = Math.max(0, Math.min(100, x.hp != null ? x.hp : x.m.hp));
+      const on = opts.sel && opts.sel[side] === x.i;
+      return `<button class="armon ${side}${on ? ' on' : ''}${hp <= 0 ? ' ko' : ''}" ${opts.pick ? `data-pick="${side}:${x.i}"` : ''} title="${esc(x.m.species)}">
+        <span class="arinfo"><b class="nolang">${esc(x.m.species)}</b><span class="arhp"><i class="${hpCls(hp)}" style="width:${hp}%"></i></span><small>${Math.round(hp)}%</small></span>
+        <span class="arfig">${side === 'me' ? sprBack(x.m.species, 'arspr') : spr(x.m.species, 'arspr')}</span></button>`;
+    };
+    return `<div class="arena${f.weather ? ` w-${toID(f.weather)}` : ''}${f.terrain ? ` t-${toID(f.terrain)}` : ''}${f.tr ? ' trroom' : ''}">
+      ${tags.length ? `<div class="artags">${tags.map((t, i) => `<span>${i === 0 && f.weather ? t : esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="arside foe">${[0, 1].map(k => mon(opts.foe[k], 'foe')).join('')}</div>
+      <div class="arside me">${[0, 1].map(k => mon(opts.me[k], 'me')).join('')}</div></div>`;
+  }
+  function arena() {
+    const pickAct = (side, act, sel) => { const ids = act.length ? act.slice(0, 2) : [sel]; if (!ids.includes(sel)) ids[0] = sel; return ids.filter(i => S[side][i]).map(i => ({ m: S[side][i], i })); };
+    return arenaHTML({ me: pickAct('me', S.meActive, S.selMe), foe: pickAct('foe', S.foeActive, S.selFoe), sel: { me: S.selMe, foe: S.selFoe }, field: S.field, pick: true });
+  }
+
   /** Cambiar algo del Pokémon desde la calculadora (se recuerda como cambio a mano). */
   function applyEdit(side, key, value, extra) {
     const m = cur(side);
@@ -329,14 +359,20 @@ const Calc = (() => {
       <div class="cteams"><select id="cTeamMe" title="Tu equipo (si no hay combate, o si eres espectador)">${teamOpt('me', S.teamMe)}</select>
         <select id="cTeamFoe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" id="cTeams" title="Pegar o traer de Pokepaste un equipo rival">+ Rival</button></div>
-      <div class="csrc"><span class="note">Sets del rival que no conoces:</span><div class="seg">${[['tour', 'Torneos'], ['smogon', 'Smogon']].map(([k, l]) => `<button data-csrc="${k}" aria-pressed="${(S.setSrc || 'tour') === k}">${l}</button>`).join('')}</div></div>
+      <div class="csrc"><span class="note">Sets del rival que no conoces:</span><div class="seg">${[['dex', 'Macar Dex'], ['tour', 'Torneos'], ['smogon', 'Smogon']].map(([k, l]) => `<button data-csrc="${k}" aria-pressed="${(S.setSrc || 'dex') === k}" title="${k === 'dex' ? 'Los sets de tu Macar Dex: habilidad y movimientos de Smogon del mes, objeto y reparto más usados. Se actualiza cada lunes.' : k === 'tour' ? 'Lo más llevado en los torneos online de Limitless de los últimos 30 días (jugadores de torneo).' : 'Lo más usado en el ladder de Showdown este mes (1760+).'}">${l}</button>`).join('')}</div></div>
+      <p class="note csrcnote">${(S.setSrc || 'dex') === 'dex' ? 'Macar Dex: habilidad y movimientos de Smogon del mes, con el objeto y el reparto más usados. Se actualiza cada lunes.' : (S.setSrc || 'dex') === 'tour' ? 'Torneos: lo que más llevan los jugadores de torneos online (Limitless, últimos 30 días).' : 'Smogon: lo que más se usa en el ladder de Showdown este mes (1760+).'}</p>
       ${strip('me')}${strip('foe')}
       <div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button><button data-ctab="tree" aria-pressed="${S.tab === 'tree'}" title="Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno">Árbol</button></div>
       <div id="cTab">${S.tab === 'multi' ? Multi.render(api_state()) : S.tab === 'tree' ? Multi.renderTree(api_state()) : `
-        <div class="sdres">${moveCol('me')}${moveCol('foe')}${mainResult()}</div>
-        ${speedLine()}
-        <div class="sdpanels">${pokePanel('me')}${pokePanel('foe')}</div>`}</div>
-      ${S.tab === 'dmg' ? fieldPanel() : fieldBox()}
+        <div class="sdlayout">
+          <div class="sdl-arena">${arena()}</div>
+          <div class="sdl-res">${mainResult()}</div>
+          <div class="sdl-moves"><div class="sdres">${moveCol('me')}${moveCol('foe')}</div>${speedLine()}</div>
+          <div class="sdl-me">${pokePanel('me')}</div>
+          <div class="sdl-foe">${pokePanel('foe')}</div>
+          <div class="sdl-field">${fieldPanel()}</div>
+        </div>`}</div>
+      ${S.tab === 'dmg' ? '' : fieldBox()}
       <p class="note usage" id="cUsage">${esc(usageMsg)}</p>`;
     el.scrollTop = keepScroll;
   }
@@ -468,7 +504,14 @@ const Calc = (() => {
       S.mvQ = e.target.value;
       const pos = e.target.selectionStart;
       clearTimeout(S.mvT);
-      S.mvT = setTimeout(() => { render(); const q = $('#calcBody #mvQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }, 120);
+      S.mvT = setTimeout(() => {
+        // Solo la lista: el cuadro de búsqueda no pierde el foco.
+        const pnl = $('#calcBody .mvpanel'), m = S.mvPick && cur(S.mvPick[0]);
+        if (!pnl || !m) return;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = P.movePanel(m.species, U, TT, S.mvQ, m.moves);
+        pnl.querySelector('.mvplist').replaceWith(tmp.querySelector('.mvplist'));
+      }, 100);
     });
     el.addEventListener('contextmenu', e => {
       const t = e.target.closest('[data-pick]');
@@ -544,7 +587,7 @@ const Calc = (() => {
   async function reloadTeams() { TEAMS = await P.teams(); lastHash = ''; tick(true); }
 
   return {
-    init, tick: () => tick(true), render, load, reloadTeams, state: api_state,
+    init, tick: () => tick(true), render, load, reloadTeams, state: api_state, arena: arenaHTML,
     setOpen(v) { const was = S.open; S.open = v; if (v && !was) { lastHash = ''; tick(true); } },
     setTeams(me, foe) { if (me !== undefined) S.teamMe = me; if (foe !== undefined) S.teamFoe = foe; S.edits = { me: {}, foe: {} }; persist(); lastHash = ''; tick(true); }
   };

@@ -59,7 +59,8 @@ const Dash = (() => {
 
   /* ---------- piezas comunes (estilo Macar: filas con barra) ---------- */
   const pick = (attr, key, html) => `<div class="dpick" data-${attr}="${esc(key)}" title="Filtrar el panel">${html}</div>`;
-  const rowsCard = (title, list, labelFn, empty, attr, extra = '') => `<div class="card"><h2>${title}</h2>${extra}${list.length ? `<div class="rows">${list.map(x => (attr ? pick(attr, x.key, wrRow(x, labelFn(x))) : wrRow(x, labelFn(x)))).join('')}</div>` : `<p class="note">${empty}</p>`}</div>`;
+  const rowHead = '<div class="row rowhead"><div></div><div>% de victorias</div><div>de cuántas partidas</div></div>';
+  const rowsCard = (title, list, labelFn, empty, attr, extra = '') => `<div class="card"><h2>${title}</h2>${extra}${list.length ? `<div class="rows">${rowHead}${list.map(x => (attr ? pick(attr, x.key, wrRow(x, labelFn(x))) : wrRow(x, labelFn(x)))).join('')}</div>` : `<p class="note">${empty}</p>`}</div>`;
   const kpi = (label, value, sub = '', c = '') => `<div class="kpi"><small>${label}</small><b class="${c}">${value}</b>${sub ? `<i>${sub}</i>` : ''}</div>`;
   const form = last => `<span class="dform">${last.map(x => `<i class="${x === 'win' ? 'w' : x === 'loss' ? 'l' : 't'}">${x === 'win' ? W() : x === 'loss' ? L() : '='}</i>`).join('')}</span>`;
   const statTile = (label, value, c = '') => `<div class="dtile"><small>${label}</small><b class="${c}">${value}</b></div>`;
@@ -94,7 +95,7 @@ const Dash = (() => {
         <div class="kpi"><small>GXE</small><b>${gxe}</b><i>ladder de Showdown</i></div>
       </div>
       <div class="dtwo">
-        <div class="card dmvp"><h2>Tu MVP</h2>${mvp && card ? `<div class="dmvpb">${spr(mvp.key, 'big')}<div class="dmvpi"><b class="nolang">${esc(mvp.key)}</b><div class="tytags">${typesOf(mvp.key).map(P.typeBadge).join('')}</div>
+        <div class="card dmvp"><h2>Tu MVP</h2>${mvp && card ? `<div class="dmvpb"><span class="dmvpimg">${spr(mvp.key, 'huge')}</span><div class="dmvpi"><b class="nolang">${esc(mvp.key)}</b><div class="tytags">${typesOf(mvp.key).map(P.typeBadge).join('')}</div>
             <div class="dtiles">${statTile('Cuando lo llevas', pc(card), cls(card))}${statTile('Partidas', card.n)}${statTile('Abre', `${Math.round(card.leadPct * 100)}%`)}</div></div></div>
             ${card.moves.length ? `<div class="dlabel">Lo que más usas</div><div class="movechips">${card.moves.slice(0, 4).map(([mv, n]) => moveChip(mv, n)).join('')}</div>` : ''}` : '<p class="note">Juega unas partidas y aquí sale tu MVP.</p>'}</div>
         <div class="card"><div class="dch"><h2>Últimas partidas</h2><span class="note">▶ abre la replay</span></div>
@@ -165,8 +166,10 @@ const Dash = (() => {
     if (!r.oppPreview.length) return '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>';
     const sel = D.rv && r.oppPreview.some(x => x.key === D.rv) ? D.rv : r.oppPreview[0].key;
     const R = Stats.rival(ms, sel);
-    return `<div class="card"><h2>Los que más ves <span class="note">· elige uno</span></h2>
-        <div class="rvstrip">${r.oppPreview.slice(0, 24).map(x => `<button class="rvchip${x.key === sel ? ' on' : ''}" data-rv="${esc(x.key)}" title="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b><small>${Math.round((x.n / r.n) * 100)}% · <em class="${cls(x)}">${wrp(x)}%</em></small></span></button>`).join('')}</div></div>
+    return `<div class="card"><div class="dch"><h2>Los que más ves <span class="note">· elige uno</span></h2>
+        <label class="rvsearch"><input list="dlRivals" id="rvFind" placeholder="Buscar cualquier Pokémon rival…" autocomplete="off"><datalist id="dlRivals">${r.oppPreview.map(x => `<option value="${esc(x.key)}">`).join('')}</datalist></label></div>
+        ${D.rvMsg ? `<p class="note">${esc(D.rvMsg)}</p>` : ''}
+        <div class="rvstrip">${(r.oppPreview.slice(0, 10).some(x => x.key === sel) ? r.oppPreview.slice(0, 10) : [r.oppPreview.find(x => x.key === sel), ...r.oppPreview.slice(0, 9)]).map(x => `<button class="rvchip${x.key === sel ? ' on' : ''}" data-rv="${esc(x.key)}" title="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b><small>${Math.round((x.n / r.n) * 100)}% · <em class="${cls(x)}">${wrp(x)}%</em></small></span></button>`).join('')}</div></div>
       <div class="drvgrid">
         <div class="card drvfile"><h2>Ficha del rival</h2>
           <div class="dmvpb">${spr(sel, 'big')}<div class="dmvpi"><b class="nolang">${esc(sel)}</b><div class="tytags">${typesOf(sel).map(P.typeBadge).join('')}</div></div></div>
@@ -190,25 +193,28 @@ const Dash = (() => {
     if (!species.length) return '<div class="card"><p class="note">Elige tu equipo al empezar la sesión y aquí verás cómo rinde cada Pokémon.</p></div>';
     const cards = Stats.teamCards(ms, species);
     const pctBar = (v, c = '') => `<span class="dpb ${c}"><i style="width:${Math.round(v * 100)}%"></i><em>${Math.round(v * 100)}%</em></span>`;
-    return `<div class="card"><h2>Cómo rinde cada Pokémon</h2><div class="dperf"><table>
-        <thead><tr><th>Pokémon</th><th>Lo llevas</th><th>Abre</th><th>Ganas con él</th><th>Con mega</th><th>Movimientos usados</th></tr></thead>
-        <tbody>${cards.map((c, i) => {
+    const bar2 = (label, v, sub = '', c = '') => `<div class="dtbar"><span>${label}</span><i><b class="${c}" style="width:${Math.max(0, Math.min(100, v))}%"></b></i><em>${Math.round(v)}%</em>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    return `<h3 class="dsec">Cómo rinde cada Pokémon</h3><div class="dtcards3">${cards.map((c, i) => {
           const set = sets[i];
           const used = new Map(c.moves);
           const list = set ? set.moves.filter(Boolean).map(mv => [mv, used.get(mv) || 0]) : c.moves.slice(0, 4);
+          const mx = Math.max(1, ...list.map(x => x[1]));
           const mega = set && /ite( [XY])?$/.test(set.item || '') && set.item !== 'Eviolite';
-          return `<tr><td class="dtmon">${spr(c.key)}<b class="nolang">${esc(c.key)}</b></td><td>${pctBar(c.broughtPct)}</td><td>${pctBar(c.leadPct)}</td>
-            <td><b class="${cls(c)}">${pc(c)}</b> <small class="note">${c.n}</small></td>
-            <td>${mega ? (c.mega.n ? `<b class="${cls(c.mega)}">${wrp(c.mega)}%</b> <small class="note">${c.mega.n} ${c.mega.n === 1 ? 'vez' : 'veces'}</small>` : '<span class="note">nunca</span>') : ''}</td>
-            <td><div class="movechips sm">${list.map(([mv, n]) => moveChip(mv, n)).join('')}</div></td></tr>`;
-        }).join('')}</tbody></table></div></div>
+          return `<div class="mtc dtc3"><div class="mthead">${spr(c.key, 'big')}<div><b class="nolang">${esc(c.key)}</b><div class="tytags">${typesOf(c.key).map(P.typeBadge).join('')}</div></div>
+              <div class="dtc3wr"><b class="${cls(c)}">${pc(c)}</b><small>ganas cuando lo llevas${c.n ? ` (${c.w} de ${c.n})` : ''}</small></div></div>
+            ${bar2('Lo llevas', c.broughtPct * 100, `en ${c.n} de ${ms.length} partidas`)}
+            ${bar2('Abre', c.leadPct * 100, `en ${c.lead} de ${ms.length} partidas`)}
+            ${mega ? `<p class="dtmega">${c.mega.n ? `Con mega: ganas el ${wrp(c.mega)}% de ${c.mega.n} ${c.mega.n === 1 ? 'partida' : 'partidas'}` : 'Aún no ha megaevolucionado'}</p>` : ''}
+            <div class="dlabel">Cuántas partidas usa cada movimiento</div>
+            <div class="dtmv">${list.map(([mv, n]) => { const d = P.moveOf(mv); return `<div><span class="tmv t-${esc(d ? d.type : '')}${d && d.category === 'Status' ? ' st' : ''}">${esc(mv)}</span><i><b style="width:${(n / mx) * 100}%"></b></i><em>${n}</em></div>`; }).join('')}</div></div>`;
+        }).join('')}</div>
       ${(() => {
         const a = Stats.advanced(ms);
         const sel = D.mon && a.mons.some(x => x.key === D.mon) ? D.mon : (a.mons[0] || {}).key;
         const mon = a.mons.find(x => x.key === sel);
         return `<div class="grid dgrid">${rowsCard('Con quién funciona', a.pairs.slice(0, 8), pairLabel, 'Hacen falta al menos 2 partidas con la misma pareja.', '', '<p class="note" style="margin:-4px 0 8px">Cuando van juntos en la partida.</p>')}
           <div class="card dwide2"><h2>Contra quién brilla y contra quién sufre</h2><div class="rvstrip">${a.mons.map(x => `<button class="rvchip${x.key === sel ? ' on' : ''}" data-dmon="${esc(x.key)}">${spr(x.key, 'sm')}<span><b class="nolang">${esc(x.key)}</b></span></button>`).join('')}</div>
-            ${mon ? `<div class="dbs"><div><h4 class="okc">Brilla contra</h4>${mon.best.length ? `<div class="rows">${mon.best.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div><div><h4 class="badc">Sufre contra</h4>${mon.worst.length ? `<div class="rows">${mon.worst.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div></div>` : '<p class="note">Sin datos.</p>'}</div></div>`;
+            ${mon ? `<div class="dbs"><div><h4 class="okc">Brilla contra</h4>${mon.best.length ? `<div class="rows">${rowHead}${mon.best.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div><div><h4 class="badc">Sufre contra</h4>${mon.worst.length ? `<div class="rows">${rowHead}${mon.worst.map(x => wrRow(x, monLabel(x))).join('')}</div>` : '<p class="note">Pocas partidas aún.</p>'}</div></div>` : '<p class="note">Sin datos.</p>'}</div></div>`;
       })()}
       <div class="grid dgrid">${rowsCard('Tus parejas de leads', r.myLeads.slice(0, 10), pairLabel, 'Sin datos.', 'flead', '<p class="note" style="margin:-4px 0 8px">De más a menos jugadas.</p>')}
         <div class="card"><h2>¿Abriendo o desde atrás?</h2>${(() => { const a = Stats.advanced(ms); return a.mons.length ? `<table class="lb"><thead><tr><th></th><th>De lead</th><th>De reserva</th></tr></thead><tbody>${a.mons.slice(0, 8).map(m => `<tr><td>${spr(m.key, 'sm')}${esc(m.key)}</td><td>${m.lead.n ? `<b>${wrp(m.lead)}%</b> <small>${m.lead.n}</small>` : '—'}</td><td>${m.back.n ? `<b>${wrp(m.back)}%</b> <small>${m.back.n}</small>` : '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="note">Sin datos.</p>'; })()}</div></div>`;
@@ -300,7 +306,14 @@ const Dash = (() => {
     if (d.set) openSet(d.set.split(','));
   });
   $('#v-dash').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.set) openSet(e.target.dataset.set.split(',')); });
-  $('#v-dash').addEventListener('change', e => { if (e.target.dataset && e.target.dataset.fn === 'minElo') { F.minElo = Math.max(0, +e.target.value || 0); paint(); } });
+  $('#v-dash').addEventListener('change', e => {
+    if (e.target.id === 'rvFind') {
+      const v = e.target.value.trim().toLowerCase(), base = Stats.usable(M);
+      const all = Stats.compute(base).oppPreview.map(x => x.key);
+      const hit = all.find(k => k.toLowerCase() === v) || all.find(k => k.toLowerCase().startsWith(v));
+      if (hit) { D.rv = hit; D.rvMsg = ''; } else D.rvMsg = `No has jugado contra ${e.target.value.trim()} todavía.`;
+      paint(); return;
+    } if (e.target.dataset && e.target.dataset.fn === 'minElo') { F.minElo = Math.max(0, +e.target.value || 0); paint(); } });
 
   return { render: renderSoon, paint, state: D };
 })();

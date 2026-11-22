@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('macar', {
   clearSession: sid => ipcRenderer.invoke('ms:clearSession', sid),
   replayNow: id => ipcRenderer.invoke('ms:replayNow', id),
   tournaments: force => ipcRenderer.invoke('ms:tournaments', force),
+  dex: force => ipcRenderer.invoke('ms:dex', force),
   extList: () => ipcRenderer.invoke('ms:extList'),
   extAdd: (kind, value) => ipcRenderer.invoke('ms:extAdd', kind, value),
   extRemove: id => ipcRenderer.invoke('ms:extRemove', id),

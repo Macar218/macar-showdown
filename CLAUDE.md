@@ -19,6 +19,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `src/media.js` | Combate actual (notas y grabación) y subida de replays (`/savereplay`) |
 | `src/usage.js` | Sets más usados de Smogon (chaos, 1760+), en caché en `<datos>/uso` |
 | `src/extensions.js` | Extensiones de Chrome para la sesión de Showdown (Chrome Web Store, .crx/.zip, carpeta), en `<userData>/extensiones` |
+| `src/macardex.js` | Datos de la Macar Dex (https://macar218.github.io/macar-dex/: moves, sets, items, meta, es), en `<datos>/macardex`, renovados como mucho una vez al día. Se leen con `vm` (solo `window`) |
 | `src/tournaments.js` | Torneos online de Limitless (API pública, M-C, 30 días, ≥16 jugadores): sets de torneo y equipos del top 8, en `<datos>/torneos.json` |
 | `renderer/app.js` | Navegación, filtros (`F`) y qué partidas cuentan (sesión, equipo o todas), panel de partida (notas y notas finales), importar, Ajustes |
 | `renderer/dash.js` | Dashboard: Resumen, Partidas, Rivales, Tu equipo y Hábitos con los mismos filtros |
@@ -29,18 +30,19 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia), pestañas Daño (estilo calculadora de Showdown, edición en el sitio), Multicalc y Árbol (`Multi.renderTree`) |
 | `renderer/team.js` | Teambuilder: pestañas de los 6 y editor en la página (puntos estilo Showdown primero; el editor completo en «Más opciones») |
 | `renderer/pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
+| `renderer/transcript.js` | Transcripción de una partida desde su registro (también en Node para los tests) |
 | `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla), con sonido apagado al empezar, leads/reserva y notas con marcas `[T5]` que saltan a ese turno |
 | `renderer/i18n.js` | Idiomas: la interfaz se escribe en español; en inglés se traduce lo que se ve (diccionario de frases, frases con números `#` y trozos seguros). Textos nuevos: añadir su traducción aquí |
 | `renderer/items-data.js` | Objetos de Champions (nombre EN/ES, descripción EN/ES, grupo, icono), sacados de la Macar Dex |
 | `renderer/index.html`, `style.css` | Marcado y estilos |
 
 ## Reglas que no se pueden romper
-- Daño: siempre `@smogon/calc` 0.12.0, generación 0 = Champions, nivel 50. Nunca una fórmula propia de daño.
+- Daño: siempre `@smogon/calc` 0.12.0, generación 0 = Champions, nivel 50. Nunca una fórmula propia de daño. El motor no cuenta la Sitrus Berry en los KO: `sitrusKO` (poke.js) lo rehace con sus tiradas.
 - Stats nivel 50: PS = base + 75 + SP; resto = ⌊(base + 20 + SP) × naturaleza⌋. 66 SP en total, 32 como máximo por stat. En los textos de Showdown los SP van en la línea `EVs:`.
 - Muchos movimientos de estado vienen sin categoría (o ni vienen) en los datos del motor: usar siempre `P.moveOf()`, que los completa (y su prioridad).
 - Con su megapiedra, el Pokémon se calcula en forma Mega con la habilidad de la Mega (`P.megaOf`).
 - Datos del usuario en la carpeta de datos (por defecto `%APPDATA%\Macar Showdown\datos`, o la de OneDrive que elija): formatos compatibles siempre.
-- Los webviews solo pueden ser Showdown (`persist:showdown`) o el visor de replays (`msreplay://` en `persist:replay`, que carga el reproductor de play.pokemonshowdown.com); la página de la app no navega a ningún sitio; CSP sin scripts externos.
+- Los webviews solo pueden ser Showdown (`persist:showdown`), el visor de replays (`msreplay://` en `persist:replay`, que carga el reproductor de play.pokemonshowdown.com) o la Macar Dex (`persist:dex`, solo https://macar218.github.io/macar-dex/); la página de la app no navega a ningún sitio; CSP sin scripts externos.
 - Replays: solo de combates del usuario y si `autoReplay` está activado. No se graba vídeo (se quitó en la 0.7 a petición del usuario). Showdown y las replays arrancan silenciados.
 - Aspecto: estilo propio de la Macar Dex (tiras de datos, tablas y barras). Nada de copiar el aspecto de Flinched (tarjetas grandes con el nombre de fondo, escenarios…). Sprites fijos de Showdown (`gen5`), nunca animados.
 - Estilos nuevos: comprobar que el nombre de clase no existe ya en `style.css` (en la 0.7 chocaron `.dres`, `.mrow`, `.dbar` y `.dteam`).
@@ -50,7 +52,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 ## Probar
 ```
 npm install            # con npm 11 puede no bajar Electron: node node_modules/electron/install.js
-npm test               # 18 pruebas: lector, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
+npm test               # 19 pruebas: lector, transcripción, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
 npm start
 ```
 Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de Electron aparte: sin tu sesión de Showdown ni tus extensiones), `MACAR_DATOS=<carpeta>` (datos), `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`; la app arranca en la pantalla de inicio: `Start.hide()` para saltarla). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).
