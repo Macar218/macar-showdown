@@ -71,7 +71,7 @@ const Dash = (() => {
   /** Barra horizontal pequeña con un %. */
   const minibar = (x, label) => `<div class="dminib"><span>${label}</span><i><b class="${cls(x)}" style="width:${x && x.n ? wrp(x) : 0}%"></b></i><em>${pc(x)}</em></div>`;
   /** Columnas verticales (hora, día…): alto = % de victorias; encima, las partidas. */
-  const vbars = (list, lab) => `<div class="dvbars">${list.map((h, i) => `<div class="dvb${h.n ? '' : ' none'}" title="${esc(h.key)}: ${h.n ? `${wrp(h)}% · ${h.n}` : '—'}"><small>${h.n || ''}</small><i><b class="${cls(h) || 'mid'}" style="height:${h.n ? Math.max(4, wrp(h)) : 0}%"></b></i><span>${esc(lab ? lab(h, i) : h.key)}</span></div>`).join('')}</div>`;
+  const vbars = (list, lab) => `<div class="dvbars">${list.map((h, i) => `<div class="dvb${h.n ? '' : ' none'}" title="${h.n ? `${wrp(h)}% · ${h.n} partida${h.n === 1 ? '' : 's'}` : '—'}"><small>${h.n || ''}</small><i><b class="${cls(h) || 'mid'}" style="height:${h.n ? Math.max(4, wrp(h)) : 0}%"></b></i><span>${esc(lab ? lab(h, i) : h.key)}</span></div>`).join('')}</div>`;
 
   /* ---------- Resumen ---------- */
   function resumen(ms) {
@@ -201,7 +201,7 @@ const Dash = (() => {
           const mx = Math.max(1, ...list.map(x => x[1]));
           const mega = set && /ite( [XY])?$/.test(set.item || '') && set.item !== 'Eviolite';
           return `<div class="mtc dtc3"><div class="mthead">${spr(c.key, 'big')}<div><b class="nolang">${esc(c.key)}</b><div class="tytags">${typesOf(c.key).map(P.typeBadge).join('')}</div></div>
-              <div class="dtc3wr"><b class="${cls(c)}">${pc(c)}</b><small>ganas cuando lo llevas${c.n ? ` (${c.w} de ${c.n})` : ''}</small></div></div>
+              <div class="dtc3wr"><b class="${cls(c)}">${pc(c)}</b><small><span>ganas cuando lo llevas</span>${c.n ? ` <span>(${c.w} de ${c.n})</span>` : ''}</small></div></div>
             ${bar2('Lo llevas', c.broughtPct * 100, `en ${c.n} de ${ms.length} partidas`)}
             ${bar2('Abre', c.leadPct * 100, `en ${c.lead} de ${ms.length} partidas`)}
             ${mega ? `<p class="dtmega">${c.mega.n ? `Con mega: ganas el ${wrp(c.mega)}% de ${c.mega.n} ${c.mega.n === 1 ? 'partida' : 'partidas'}` : 'Aún no ha megaevolucionado'}</p>` : ''}

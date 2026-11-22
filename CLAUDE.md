@@ -52,7 +52,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 ## Probar
 ```
 npm install            # con npm 11 puede no bajar Electron: node node_modules/electron/install.js
-npm test               # 19 pruebas: lector, transcripción, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
+npm test               # 21 pruebas: lector, transcripción, Sitrus Berry, Macar Dex, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
 npm start
 ```
 Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de Electron aparte: sin tu sesión de Showdown ni tus extensiones), `MACAR_DATOS=<carpeta>` (datos), `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`; la app arranca en la pantalla de inicio: `Start.hide()` para saltarla). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).

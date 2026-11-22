@@ -236,6 +236,29 @@ t('transcripción de la partida (turnos, movimientos, daño, KO, subidas)', () =
   assert.deepStrictEqual(t[2].ev[0].fx.map(f => f.t), ['crit', 'dmg', 'faint']);
 });
 
+t('Sitrus Berry en los KO (el motor no la cuenta)', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'poke.js'), 'utf8');
+  const sitrusKO = new Function(`${src.slice(src.indexOf('function sitrusKO'), src.indexOf('/** Daño de un movimiento'))};return sitrusKO;`)();
+  const rolls = Array.from({ length: 16 }, (_, i) => 45 + Math.floor(i / 2)); // 45–52 sobre 200 PS
+  const r = sitrusKO(rolls, 200, 200);
+  assert.strictEqual(r.n, 5); // sin baya serían 4 golpes; con la cura de 50 PS hacen falta 5
+  assert.ok(/after Sitrus Berry recovery/.test(r.text));
+  assert.strictEqual(sitrusKO([250], 200, 200).text, 'guaranteed OHKO');
+});
+
+t('Macar Dex: lee sus archivos de datos en un contexto aislado', () => {
+  const { MacarDex, readData } = require('../src/macardex');
+  const w = readData('window.SETS={"garchomp":{"a":[["Rough Skin",90]],"m":[["Earthquake",99]]}};window.X=1;');
+  assert.deepStrictEqual(Object.keys(w).sort(), ['SETS', 'X']);
+  assert.throws(() => readData('require("fs")'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-dex-'));
+  fs.mkdirSync(path.join(dir, 'macardex'));
+  fs.writeFileSync(path.join(dir, 'macardex', 'moves.js'), 'window.MOVES=[{"k":"earthquake","n":"Earthquake","t":"Ground","c":"P","p":100,"a":100,"d":"Hits adjacent Pokemon."}];window.LEARN={"garchomp":[0]};');
+  fs.writeFileSync(path.join(dir, 'macardex', 'sets.js'), 'window.SETS={"garchomp":{"a":[["Rough Skin",90]],"m":[["Earthquake",99]]}};');
+  const d = new MacarDex(dir).build();
+  assert.deepStrictEqual(JSON.parse(JSON.stringify([d.learn.garchomp, d.moves.earthquake.p, d.sets.garchomp.a[0][0]])), [["earthquake"], 100, "Rough Skin"]);
+});
+
 t('la interfaz no tiene errores de sintaxis', () => {
   const dir = path.join(__dirname, '..', 'renderer');
   for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.js'))) {
