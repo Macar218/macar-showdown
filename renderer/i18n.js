@@ -203,7 +203,35 @@ const I18N = (() => {
     // tipos
     'Normal ': 'Normal ', 'Fuego': 'Fire', 'Agua': 'Water', 'Planta': 'Grass', 'Hielo': 'Ice', 'Lucha': 'Fighting', 'Veneno': 'Poison', 'Tierra': 'Ground', 'Volador': 'Flying', 'Bicho': 'Bug', 'Roca': 'Rock', 'Fantasma': 'Ghost', 'Dragón': 'Dragon', 'Siniestro': 'Dark', 'Acero': 'Steel', 'Hada': 'Fairy',
     // stats
-    'PS': 'HP', 'Atq': 'Atk', 'AtE': 'SpA', 'DfE': 'SpD', 'Vel': 'Spe', 'Total': 'Total'
+    'PS': 'HP', 'Atq': 'Atk', 'AtE': 'SpA', 'DfE': 'SpD', 'Vel': 'Spe', 'Total': 'Total',
+    // 0.11 · calculadoras, Tu equipo, Mi PC, visor y Jugar
+    'Valor': 'Value', 'Puntos usados': 'Points used', 'Reparto estimado (el más común)': 'Estimated spread (most common)', 'Físico · #': 'Physical · #', 'Especial · #': 'Special · #',
+    'Aparecen al empezar un combate.': 'They show up when a battle starts.', 'Elige tu equipo en la sesión.': 'Pick your team in the session.', 'Ninguno: añade con +': 'None: add with +',
+    'hoja de equipo': 'team sheet', 'Guardar en Mi PC': 'Save to My PC', 'Guarda este cálculo en las notas de estos Pokémon en Mi PC': 'Saves this calc to these Pokémon in My PC',
+    'Rival con hoja de equipo: objeto, habilidad, naturaleza y movimientos son los suyos; el reparto (SP) es el más común con esa naturaleza.': 'Rival with a team sheet: item, ability, nature and moves are theirs; the spread (SP) is the most common one with that nature.',
+    'Sin hoja de equipo: lo que no se ha visto sale de la fuente elegida y se corrige según se ve en el combate.': 'No team sheet: what has not been seen comes from the chosen source and is corrected as the battle shows it.',
+    'SIN COMBATE': 'NO BATTLE', 'Se llena sola al empezar un combate': 'Fills itself when a battle starts', 'Turno # · con hoja de equipo': 'Turn # · with team sheet', 'Turno # · espectador · con hoja de equipo': 'Turn # · spectator · with team sheet',
+    'Aquí salen los Pokémon del combate que juegues y se van al terminar. Para estudiar sets y equipos, usa la página Calculadora.': 'The Pokémon of the battle you play show up here and leave when it ends. To study sets and teams, use the Calculator page.',
+    'ESTUDIO': 'STUDY', 'Tus equipos, Mi PC y los rivales de tus partidas': 'Your teams, My PC and the rivals from your matches', 'De una partida': 'From a match', 'Pegar rival': 'Paste rival', 'Vaciar rivales': 'Clear rivals',
+    'Los rivales de una partida tuya: su hoja de equipo (OTS) con el reparto más común': 'The rivals from one of your matches: their team sheet (OTS) with the most common spread', 'Quitar a todos los rivales': 'Remove all rivals',
+    'Pegar o traer de Pokepaste un equipo rival': 'Paste or fetch a rival team from Pokepaste', '← Daño': '← Damage', 'Volver a la pestaña Daño': 'Back to the Damage tab',
+    'Rivales de tus partidas': 'Rivals from your matches', 'sin hoja': 'no sheet', 'Aún no hay partidas guardadas.': 'No saved matches yet.',
+    'Elige una partida: sus Pokémon pasan a «Sus Pokémon». Con hoja de equipo (OTS) llevan su objeto, habilidad, naturaleza y movimientos; el reparto (SP) es el más común con esa naturaleza y lo puedes cambiar.': 'Pick a match: their Pokémon go to “Their Pokémon”. With a team sheet (OTS) they carry their item, ability, nature and moves; the spread (SP) is the most common one with that nature and you can change it.',
+    'Guardado en # sets de Mi PC.': 'Saved to # sets in My PC.', 'Guardado en # set de Mi PC.': 'Saved to # set in My PC.', 'Ninguno de los dos está en Mi PC.': 'Neither of them is in My PC.',
+    'El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.': 'The rival spread is never shown: this is the most common one. Change it if you know another.',
+    'Cambiar su set: objeto, naturaleza, puntos, movimientos': 'Change its set: item, nature, points, moves',
+    'Todos (#)': 'All (#)', 'Tus sets (#)': 'Your sets (#)', 'Sets de rivales (#)': 'Rival sets (#)', 'Set de rival': 'Rival set',
+    'Los sets de rivales guardan lo que se ve en su hoja de equipo (objeto, habilidad, naturaleza y movimientos). Su reparto (SP) nunca se ve: se estima con el más común. Se traen desde Partidas.': 'Rival sets keep what their team sheet shows (item, ability, nature and moves). Their spread (SP) is never shown: it is estimated with the most common one. Bring them from Matches.',
+    'Doble clic para cambiar el nombre': 'Double-click to rename', 'Doble clic en el nombre para cambiarlo.': 'Double-click the name to rename it.', 'Enter para guardar · Esc para dejarlo como estaba': 'Enter to save · Esc to leave it as it was',
+    'Sin caja': 'No box', 'Qué hizo en la partida, qué aguanta, cómo ganarle…': 'What it did in the match, what it survives, how to beat it…', 'Contra qué va bien, de dónde lo sacaste…': 'What it is good against, where you got it…',
+    'Cálculos': 'Calcs', 'Sin cálculos. En la Calculadora, «Guardar en Mi PC» guarda el cálculo aquí; o escríbelo abajo.': 'No calcs. In the Calculator, “Save to My PC” saves the calc here; or type it below.',
+    'Ej.: 32+ Atk Kingambit Kowtow Cleave vs. 0 HP / 0 Def: 45-54%': 'E.g.: 32+ Atk Kingambit Kowtow Cleave vs. 0 HP / 0 Def: 45-54%', 'Quitar': 'Remove',
+    'Nombre (opcional)': 'Name (optional)', '+ Equipo nuevo con él': '+ New team with it', '#/# · Ya está': '#/# · Already in', '#/# · Lleno': '#/# · Full', 'Ese Pokémon ya está en este equipo': 'That Pokémon is already in this team', 'Notas guardadas.': 'Notes saved.',
+    '→ Mi PC': '→ My PC', 'Guardarlo en Mi PC, en «Sets de rivales» (sin reparto: no se ve)': 'Save it to My PC, in “Rival sets” (no spread: it is never shown)', 'Todos a Mi PC': 'All to My PC',
+    '# guardado en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', '# guardados en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', 'Ya estaba en Mi PC.': 'It was already in My PC.', '✓ En Mi PC': '✓ In My PC',
+    'Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…': 'Click “+ Note” or a transcript line to write a note at that replay turn…',
+    '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
+    'Empieza una línea con el turno de ahora ([T5]) para apuntar algo de ese turno': 'Starts a line with the current turn ([T5]) to note something about that turn'
   };
 
   // Frases con números (# = un número).
@@ -383,6 +411,7 @@ const I18N = (() => {
 
   const RX = [
     [/\(ganas ([\d.,]+)% en (\d+)\)/g, '(you win $1% in $2)'],
+    [/^(.+) ya está en el equipo: cada Pokémon solo puede ir una vez\.$/, '$1 is already in the team: each Pokémon can only be in it once.'],
     [/(\d+) partidas\b/g, '$1 matches'], [/(\d+) partida\b/g, '$1 match'], [/\ben (\d+) (matches|match)\b/g, 'in $1 $2'], [/(\d+) turnos\b/g, '$1 turns'], [/(\d+) equipos\b/g, '$1 teams'],
     [/(\d+) jugadores\b/g, '$1 players'], [/(\d+) torneos\b/g, '$1 tournaments'], [/(\d+) días\b/g, '$1 days'], [/(\d+) golpes\b/g, '$1 hits'], [/(\d+) sesiones\b/g, '$1 sessions'],
     [/(\d+) rivales\b/g, '$1 rivals'], [/(\d+) PS\b/g, '$1 HP'], [/(\d+) Atq\b/g, '$1 Atk'], [/(\d+) AtE\b/g, '$1 SpA'], [/(\d+) DfE\b/g, '$1 SpD'], [/(\d+) Vel\b/g, '$1 Spe'], [/(\d+) guardadas?\b/g, '$1 saved'], [/(\d+) nuevas?\b/g, '$1 new'], [/\bhace 1 día\b/g, '1 day ago'], [/\bhace (\d+) (min|h|days)\b/g, '$1 $2 ago'], [/\bTurno (\d+)/g, 'Turn $1'], [/\bturno (\d+)/g, 'turn $1'], [/(\d+) t\b/g, '$1 t']

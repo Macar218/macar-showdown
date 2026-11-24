@@ -5,7 +5,7 @@
  * el registro guardado: no hace falta haberla subido). Al lado: leads y reserva de los dos y las notas de la
  * partida, con marcas de turno [T5] que saltan a ese momento. Arranca en silencio (botón del altavoz).
  */
-/* global api, esc, spr, pill, fmtDate, Transcript, P, I18N */
+/* global api, esc, spr, pill, fmtDate, Transcript, P, I18N, NoteHL */
 
 const Viewer = (() => {
   const SPEEDS = [['hyperfast', 'Muy rápida'], ['fast', 'Rápida'], ['normal', 'Normal'], ['slow', 'Lenta']];
@@ -45,7 +45,32 @@ const Viewer = (() => {
         <button class="btn sm" data-rv="side" title="Ver la partida desde el otro lado">⇄ Lados</button>
         <button class="btn sm ibtn mute" data-rv="mute" id="rvMute"></button>
       </div>
+      <div class="rvots" id="rvOts">${otsHTML()}</div>
       <div class="rvtx nolang" id="rvTx">${txHTML()}</div>`;
+  }
+
+  /* ---------- hoja de equipo (OTS): la del rival por defecto, con pestaña para ver la tuya ---------- */
+  function otsHTML() {
+    const s = V.s, me = s.me || 'p1', opp = s.opp || (me === 'p1' ? 'p2' : 'p1');
+    const sd = V.otsSide === 'me' ? me : opp;
+    const x = s[sd] || {};
+    const tabs = `<div class="seg rvotstabs">${[['foe', s.me ? 'Rival' : 'Jugador 2'], ['me', s.me ? 'Tú' : 'Jugador 1']].map(([k, l]) => `<button data-rvots="${k}" aria-pressed="${(V.otsSide || 'foe') === k}">${l}</button>`).join('')}</div>`;
+    let body;
+    if (x.sheet && x.sheet.length) {
+      body = x.sheet.map(m => {
+        const brought = (x.brought || []).some(b => P.toID(P.baseSpecies(b)) === P.toID(P.baseSpecies(m.species)));
+        const ab = /^[01H]$/.test(m.ability) ? '' : P.nameOf('abilities', m.ability);
+        return `<div class="otsmon${brought ? '' : ' out'}">${spr(m.species, 'sm')}<div><b>${esc(m.species)}</b><span>${esc(P.nameOf('items', m.item) || '—')}${ab ? ` · ${esc(ab)}` : ''}${m.nature ? ` · ${esc(m.nature)}` : ''}</span><small>${m.moves.map(v => { const d = P.moveOf(P.nameOf('moves', v)); return `<i class="otsmv t-${esc(d ? d.type : '')}"></i>${esc(P.nameOf('moves', v))}`; }).join(' ')}</small></div></div>`;
+      }).join('');
+    } else {
+      const seen = x.moves || {};
+      body = (x.preview && x.preview.length ? x.preview : x.brought || []).map(n => {
+        const k = Object.keys(seen).find(y => P.toID(P.baseSpecies(y)) === P.toID(P.baseSpecies(n)));
+        const brought = (x.brought || []).includes(n);
+        return `<div class="otsmon${brought ? '' : ' out'}">${spr(n, 'sm')}<div><b>${esc(n)}</b><small>${k && seen[k].length ? seen[k].map(esc).join(' · ') : tt('sin movimientos vistos', 'no moves seen')}</small></div></div>`;
+      }).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
+    }
+    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}</div><div class="otsgrid nolang">${body}</div>`;
   }
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
@@ -116,10 +141,11 @@ const Viewer = (() => {
           <div class="rvteam foe"><h3>${s.me ? 'Rival' : 'Jugador 2'}</h3>${monsHTML(s[b])}</div>
           <div class="rvnhead"><h3>Notas</h3><span class="note" id="rvSaved"></span></div>
           <button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button>
-          <textarea id="rvNotes" placeholder="Pulsa «+ Nota» para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
+          <textarea id="rvNotes" placeholder="Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
           <p class="note">Pulsa una línea que empiece por [T5] para saltar a ese turno.</p>
         </aside>
       </div></div>`;
+    NoteHL.wrap(document.querySelector('#rvNotes'));
     hook();
   }
 
@@ -189,7 +215,8 @@ const Viewer = (() => {
       const box = document.querySelector('#rvTx');
       document.querySelectorAll('#rvTx .txturn').forEach(b => b.classList.toggle('on', +b.dataset.txt === V.turn));
       const blk = box && box.querySelector(`.txturn[data-txt="${V.turn}"]`);
-      if (box && blk && !V.txHold) box.scrollTop = blk.offsetTop - box.offsetTop - 6;
+      // El turno que se está viendo, arriba del todo.
+      if (box && blk) box.scrollTo({ top: Math.max(0, blk.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 4), behavior: 'smooth' });
     }
     const p = document.querySelector('#rvPlay');
     if (p) p.textContent = paused || end ? '▶ Play' : '⏸ Pausa';
@@ -232,6 +259,7 @@ const Viewer = (() => {
     ta.value = ta.value.slice(0, at) + pre + tag + ta.value.slice(at);
     V.notes = ta.value;
     const c = at + pre.length + tag.length;
+    NoteHL.sync(ta);
     ta.focus(); ta.setSelectionRange(c, c); V.caret = c;
     run('Replays.battle.pause()');
     save();
@@ -280,6 +308,7 @@ const Viewer = (() => {
     else if (d.rv === 'side') run('Replays.battle.switchViewpoint()');
     else if (d.rvturn != null) run(`Replays.battle.seekTurn(${+d.rvturn})`).then(poll);
     else if (d.rv === 'mute') { muted = !muted; applyMute(); }
+    else if (d.rvots) { V.otsSide = d.rvots; document.querySelector('#rvOts').innerHTML = otsHTML(); }
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
     else if (b.id === 'rvMark') mark();
   });

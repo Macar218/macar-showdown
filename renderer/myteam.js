@@ -4,7 +4,7 @@
  * El equipo de la sesión abierta, montado: cada Pokémon con su objeto, habilidad y movimientos. Tu usuario de
  * Showdown, copiarlo o subirlo a Pokepaste, cambiarlo pegando otro Pokepaste y abrirlo en el Teambuilder.
  */
-/* global $, esc, spr, api, P, SET, VIEWS, show, Calc, Team, Start, Sess, load, scopeInfo */
+/* global $, esc, spr, api, P, SET, VIEWS, show, Calc, Team, Start, Sess, load, scopeInfo, I18N */
 
 const MyTeam = (() => {
   const V = { msg: '', ok: true, paste: '', url: '', link: '' };
@@ -25,12 +25,15 @@ const MyTeam = (() => {
         ${team ? `<button class="btn primary" id="mtEdit">Editar en el Teambuilder</button><button class="btn" id="mtCopy" title="Copiar el equipo en formato Showdown">Copiar</button><button class="btn" id="mtPaste" title="Lo sube a pokepast.es (quien tenga el enlace puede verlo)">Crear Pokepaste</button><button class="btn" id="mtSd" title="Lo añade a tu teambuilder de Showdown (carpeta «Macar Showdown»)">Llevar a Showdown</button>` : ''}</div></div>
       ${V.msg ? `<p class="${V.ok ? 'okmsg' : 'errmsg'} mtmsg">${esc(V.msg)}${V.link ? ` <button class="btn sm" id="mtOpen">Abrir</button>` : ''}</p>` : ''}
       ${sets.length ? `<div class="mtgrid">${sets.map(m => {
-          const st = P.stats(m) || {}, it = m.item && P.itemInfo(m.item);
-          return `<div class="mtc"><div class="mthead">${spr(m.species, 'big')}<div><b class="nolang">${esc(name(m))}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div></div>
-            <dl class="mtkv"><dt>Objeto</dt><dd class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(m.item || '—')}</dd><dt>Habilidad</dt><dd class="nolang">${esc(m.ability || '—')}</dd><dt>Naturaleza</dt><dd>${esc(P.natLabel(m.nature))}</dd></dl>
-            <div class="mtsp"><div class="mtsph"><span>Puntos</span><b>${m.sp.reduce((x, y) => x + (+y || 0), 0)}/${P.SP_TOTAL}</b></div>${P.STATS.map((k, j) => { const nm = P.natMult(m.nature, k), v = st[k] || 0, sp = m.sp[j] || 0;
-              return `<div class="mtspr ${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><span>${P.SL[k]}</span><i><b style="width:${Math.min(100, (v / 230) * 100)}%"></b></i><strong>${v}</strong><em class="${sp ? 'on' : ''}">${sp ? `+${sp}` : '0'}</em></div>`; }).join('')}</div>
-            <div class="mtmoves">${m.moves.map(x => { const d = x && P.moveOf(x); return x ? `<span class="tbmv${d ? ` t-${esc(d.type)}` : ''}"><b class="nolang">${esc(x)}</b><small>${d && d.basePower ? d.basePower : ''}</small></span>` : '<span class="tbmv"><span>—</span></span>'; }).join('')}</div></div>`;
+          const it = m.item && P.itemInfo(m.item), en = typeof I18N !== 'undefined' && I18N.lang === 'en';
+          return `<div class="mtc"><div class="mthead">${spr(m.species, 'huge')}<div class="mthn"><b class="nolang">${esc(name(m))}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div></div>
+            <div class="mtinfo">
+              <div class="mtik"><small>Objeto</small><span class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<b>${esc(m.item || '—')}</b></span>${it ? `<em class="nolang">${esc(en ? it.d : it.dEs || it.d)}</em>` : ''}</div>
+              <div class="mtik"><small>Habilidad</small><span class="nolang"><b>${esc(m.ability || '—')}</b></span></div>
+              <div class="mtik"><small>Naturaleza</small><span><b>${esc(P.natLabel(m.nature))}</b></span></div>
+            </div>
+            ${P.statBlock(m)}
+            <div class="mtmoves">${m.moves.map(x => P.moveTile(x)).join('')}</div></div>`;
         }).join('')}</div>`
         : `<div class="card mtempty"><b>${s ? 'Esta sesión aún no tiene equipo.' : 'No tienes ninguna sesión abierta.'}</b><span class="note">${s ? 'Pega su Pokepaste abajo y queda montado.' : 'Empieza o carga una sesión con tu equipo.'}</span></div>`}
       <div class="mtbottom">

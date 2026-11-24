@@ -67,7 +67,10 @@ const LIVE = `(() => {
       const active = (s.active || []).map(p => (p ? (s.pokemon || []).indexOf(p) : -1));
       const sc = {};
       for (const k in (s.sideConditions || {})) sc[k] = true;
-      return { name: s.name || '', team, active, cond: sc };
+      // Hoja de equipo abierta (OTS): objeto, habilidad, naturaleza y movimientos de los 6.
+      const pre = '|showteam|' + (s.sideid || '') + '|';
+      const sl = (b.stepQueue || []).find(l => typeof l === 'string' && l.startsWith(pre));
+      return { name: s.name || '', team, active, cond: sc, sheet: sl ? sl.slice(pre.length) : '' };
     };
     const me = b.mySide || b.nearSide || (b.sides && b.sides[0]);
     const foe = (me && me.foe) || b.farSide || (b.sides && b.sides[1]);

@@ -11,12 +11,15 @@ const Multi = (() => {
   const SLOTS = [['a', 'me', 0], ['b', 'me', 1], ['c', 'foe', 0], ['d', 'foe', 1]];
   const PROTECT = new Set(['protect', 'detect', 'spikyshield', 'banefulbunker', 'silktrap', 'burningbulwark', 'kingsshield', 'obstruct']);
   const ROLLS = [['peor', 'Peor caso'], ['media', 'Normal'], ['mejor', 'Mejor caso']];
-  const M = { slots: {}, roll: 'media', turn: 1, hp: null, key: '', all: null, allKey: '', mods: {}, tree: null, open: {} };
+  const fresh = () => ({ slots: {}, roll: 'media', turn: 1, hp: null, key: '', all: null, allKey: '', mods: {}, tree: null, open: {} });
+  let M = fresh(); // estado de la calculadora que está pintando (cada calculadora tiene el suyo)
+  const use = st => { M = (st && st.S) ? (st.S.multi || (st.S.multi = fresh())) : M; };
   let CTX = null; // estado de una rama del árbol (PS y efectos), mientras se calcula
   const toID = P.toID;
 
   /** Quién está en cada hueco (por defecto, los del campo). */
   function sync(st) {
+    use(st);
     const key = `${st.battleId || 'manual'}|${st.me.map(m => m.species).join(',')}|${st.foe.map(m => m.species).join(',')}|${st.meActive}|${st.foeActive}|${st.turn}`;
     if (key === M.key) return;
     const firstTime = !M.key || M.key.split('|')[0] !== key.split('|')[0];
@@ -320,7 +323,7 @@ const Multi = (() => {
       return `<label class="mvopt${sl.mv === i ? ' on' : ''}"><input type="radio" name="mm-${s}" data-mmv="${s}:${i}"${sl.mv === i ? ' checked' : ''}>${P.typeDot(d ? d.type : '')}${esc(name)}${area ? '<small>área</small>' : ''}${d && d.priority ? `<small>${d.priority > 0 ? '+' : ''}${d.priority}</small>` : ''}</label>${single && sl.mv === i ? `<div class="tgts">${foesOf(s).map(t => { const tm = monOf(st, t); return tm ? `<button class="chipbtn${sl.tgt === t ? ' on' : ''}" data-mtgt="${s}:${t}">→ ${esc(tm.species)}</button>` : ''; }).join('')}</div>` : ''}`;
     }).join('') : '';
     return `<div class="mslot ${side}${hpNow <= 0 && m ? ' dead' : ''}">
-      <div class="mstop">${m ? spr(m.species, 'sm') : ''}<select data-mmon="${s}">${opts}</select></div>
+      <div class="mstop">${m ? spr(m.species, 'sm') : ''}<select data-mmon="${s}">${opts}</select>${m ? `<button class="btn sm" data-medit="${side}:${sl.idx}" title="Cambiar su set: objeto, naturaleza, puntos, movimientos">Editar</button>` : ''}</div>
       ${m ? `<div class="mhp"><div class="hpline"><i style="width:${hpNow}%" class="${hpNow <= 25 ? 'r' : hpNow <= 50 ? 'y' : ''}"></i></div><label>PS <input type="number" min="0" max="100" value="${Math.round(hpNow)}" data-mhp="${s}">%</label></div>
       <div class="mvlist">${mvs}<label class="mvopt${sl.mv === -1 ? ' on' : ''}"><input type="radio" name="mm-${s}" data-mmv="${s}:-1"${sl.mv === -1 ? ' checked' : ''}>No hace nada</label></div>` : '<p class="note">Vacío</p>'}
     </div>`;
@@ -378,6 +381,7 @@ const Multi = (() => {
 
   /* ---------- eventos (los recibe el panel de la calculadora) ---------- */
   function click(t, st) {
+    use(st);
     if (t.dataset.mtgt) { const [s, tg] = t.dataset.mtgt.split(':'); M.slots[s].tgt = tg; M.slots[s].userSet = true; M.all = null; return true; }
     if (t.dataset.mroll) { M.roll = t.dataset.mroll; if (M.tree) M.tree = {}; return true; }
     if (t.dataset.mnext) {
@@ -411,6 +415,7 @@ const Multi = (() => {
     return false;
   }
   function change(t, st) {
+    use(st);
     if (t.dataset.mmv) { const [s, i] = t.dataset.mmv.split(':'); M.slots[s].mv = +i; M.slots[s].userSet = true; M.all = null; return true; }
     if (t.dataset.mhp || t.dataset.mmon) { if (M.tree) { M.tree = {}; M.open = {}; } }
     if (t.dataset.mmon) { const s = t.dataset.mmon; const idx = +t.value; M.slots[s] = { idx, mv: -1, tgt: M.slots[s].tgt }; Object.assign(M.slots[s], bestPlay(st, s)); if (M.hp) delete M.hp[s]; M.all = null; return true; }

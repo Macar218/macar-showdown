@@ -246,6 +246,23 @@ t('Sitrus Berry en los KO (el motor no la cuenta)', () => {
   assert.strictEqual(sitrusKO([250], 200, 200).text, 'guaranteed OHKO');
 });
 
+t('hoja de equipo (OTS) empaquetada de Showdown', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'poke.js'), 'utf8');
+  const unpackSheet = new Function(`${src.slice(src.indexOf('function unpackSheet'), src.indexOf('/** El reparto que no se ve'))};return unpackSheet;`)();
+  const s = unpackSheet('Gambit|Kingambit|choplberry|Defiant|kowtowcleave,suckerpunch,ironhead,protect|Adamant||||||]|Incineroar|sitrusberry|Intimidate|fakeout,partingshot|Careful|||||');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(s.map(x => [x.species, x.item, x.ability, x.moves.length, x.nature]))), [['Kingambit', 'choplberry', 'Defiant', 4, 'Adamant'], ['Incineroar', 'sitrusberry', 'Intimidate', 2, 'Careful']]);
+});
+
+t('notas: la marca de turno y lo que pasó van en otro color', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'notehl.js'), 'utf8');
+  const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const NoteHL = new Function('esc', `${src.replace(/^'use strict';/, '')};return NoteHL;`)(esc);
+  const out = NoteHL.paint('[T1] Kingambit entra: cuidado <Sucker>\nsin marca\n[T3] solo turno');
+  assert.ok(out.startsWith('<span class="nhltag">[T1] Kingambit entra:</span> cuidado &lt;Sucker>'));
+  assert.ok(out.includes('\nsin marca\n'));
+  assert.ok(out.includes('<span class="nhltag">[T3]</span> solo turno'));
+});
+
 t('Macar Dex: lee sus archivos de datos en un contexto aislado', () => {
   const { MacarDex, readData } = require('../src/macardex');
   const w = readData('window.SETS={"garchomp":{"a":[["Rough Skin",90]],"m":[["Earthquake",99]]}};window.X=1;');

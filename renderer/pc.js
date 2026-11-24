@@ -1,6 +1,6 @@
 'use strict';
 /* Macar Showdown · Mi PC: tus sets guardados (por cajas) y el Team Box (todos los equipos, tuyos y de rivales). */
-/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId */
+/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId, I18N, Team */
 
 const PC = (() => {
   const V = { tab: 'sets', q: '', side: '', box: '', sort: 'new', page: 0, tq: '', tmine: false, tpage: 0, T: null, U: null, sel: null, msg: '' };
@@ -43,7 +43,8 @@ const PC = (() => {
     const q = V.q.toLowerCase();
     let L = list.map(x => ({ x, s: parse(x) })).filter(o => o.s);
     if (q) L = L.filter(o => `${o.x.name} ${o.s.species} ${o.x.notes} ${o.s.item} ${o.s.moves.join(' ')}`.toLowerCase().includes(q));
-    if (V.side) L = L.filter(o => o.x.side === V.side);
+    const nMe = L.filter(o => o.x.side !== 'foe').length, nFoe = L.length - nMe;
+    if (V.side) L = L.filter(o => (V.side === 'foe') === (o.x.side === 'foe'));
     const names = ['', ...boxes];
     if (!names.includes(V.box)) V.box = '';
     if (V.box) L = L.filter(o => o.x.box === V.box);
@@ -56,41 +57,65 @@ const PC = (() => {
     const slots = Array.from({ length: PAGE }, (_, i) => shown[i]);
     return `<div class="pctools card">
         <input type="search" id="pcQ" placeholder="Buscar: nombre, Pokémon, objeto, movimiento, notas…" value="${esc(V.q)}">
-        <select id="pcSide"><option value="">Tuyos y de rivales</option><option value="me"${V.side === 'me' ? ' selected' : ''}>Tuyos</option><option value="foe"${V.side === 'foe' ? ' selected' : ''}>De rivales</option></select>
+        <div class="seg">${[['', `Todos (${nMe + nFoe})`], ['me', `Tus sets (${nMe})`], ['foe', `Sets de rivales (${nFoe})`]].map(([k, l]) => `<button data-pcside="${k}" aria-pressed="${V.side === k}">${l}</button>`).join('')}</div>
         <button class="btn primary" id="pcAdd">Añadir sets</button></div>
-      <p class="note" style="margin:-6px 0 10px">Los sets de los equipos de tus sesiones se guardan solos aquí, en una caja por equipo.</p>
+      <p class="note" style="margin:-6px 0 10px">${V.side === 'foe' ? 'Los sets de rivales guardan lo que se ve en su hoja de equipo (objeto, habilidad, naturaleza y movimientos). Su reparto (SP) nunca se ve: se estima con el más común. Se traen desde Partidas.' : 'Los sets de los equipos de tus sesiones se guardan solos aquí, en una caja por equipo.'}</p>
       <div class="pcwrap">
         <div class="pcbox2">
           <div class="pcboxhead"><button class="btn sm" data-pcbox="${bi - 1}"${bi > 0 ? '' : ' disabled'} title="Caja anterior">◀</button>
             <select id="pcBox"><option value="">Todas las cajas (${list.length})</option>${boxes.map(b => `<option${b === V.box ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
             <button class="btn sm" data-pcbox="${bi + 1}"${bi < names.length - 1 ? '' : ' disabled'} title="Caja siguiente">▶</button>
             ${pages > 1 ? `<span class="note">${V.page + 1}/${pages}</span><button class="btn sm" id="pcPrev"${V.page ? '' : ' disabled'}>‹</button><button class="btn sm" id="pcNext"${V.page < pages - 1 ? '' : ' disabled'}>›</button>` : ''}</div>
-          <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species)}<small class="nolang">${esc(o.x.name || o.s.species)}</small></button>` : '<span class="pcslot empty"></span>')).join('')}</div>
+          <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species, 'pcspr')}<small class="nolang">${esc(o.x.name || o.s.species)}</small>${o.x.side === 'foe' ? '<i class="pcfoe">Rival</i>' : ''}</button>` : '<span class="pcslot empty"></span>')).join('')}</div>
           ${!list.length ? '<p class="note" style="margin-top:8px">Tu PC está vacío. Añade sets con «Añadir sets» o empieza una sesión con tu equipo.</p>' : !L.length ? '<p class="note" style="margin-top:8px">Ningún set coincide.</p>' : ''}
         </div>
         <aside class="pcdetail">${sel ? detailHTML(sel.x, sel.s) : '<div class="pcempty"><b>Pulsa un Pokémon</b><span class="note">Verás su set entero y podrás ponerle nombre o añadirlo a un equipo.</span></div>'}</aside>
       </div>`;
   }
   function detailHTML(x, s) {
-    const st = P.stats(s) || {}, it = s.item && P.itemInfo(s.item);
-    return `<div class="mthead">${spr(s.species, 'big')}<div><b class="nolang">${esc(x.name || s.species)}</b><div class="tytags">${P.typesOf(s.species).map(P.typeBadge).join('')}</div><span class="pill ${x.side === 'me' ? 'win' : 'loss'}">${x.side === 'me' ? 'Tuyo' : 'Rival'}</span></div></div>
-      <div class="ed pcmeta"><label class="field">Nombre<input id="pdName" value="${esc(x.name || '')}" placeholder="${esc(s.species)}"></label><label class="field">Caja<input id="pdBox" value="${esc(x.box || '')}" list="dlBoxes"></label></div>
-      <dl class="mtkv"><dt>Objeto</dt><dd class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(s.item || '—')}</dd><dt>Habilidad</dt><dd class="nolang">${esc(s.ability || '—')}</dd><dt>Naturaleza</dt><dd>${esc(P.natLabel(s.nature))}</dd></dl>
-      <div class="mtsp"><div class="mtsph"><span>Puntos</span><b>${s.sp.reduce((a, b) => a + (+b || 0), 0)}/${P.SP_TOTAL}</b></div>${P.STATS.map((k, j) => { const nm = P.natMult(s.nature, k), v = st[k] || 0, sp = s.sp[j] || 0; return `<div class="mtspr ${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><span>${P.SL[k]}</span><i><b style="width:${Math.min(100, (v / 230) * 100)}%"></b></i><strong>${v}</strong><em class="${sp ? 'on' : ''}">${sp ? `+${sp}` : '0'}</em></div>`; }).join('')}</div>
-      <div class="mtmoves">${s.moves.map(m => { const d = m && P.moveOf(m); return m ? `<span class="tbmv${d ? ` t-${esc(d.type)}` : ''}"><b class="nolang">${esc(m)}</b><small>${d && d.basePower ? d.basePower : ''}</small></span>` : '<span class="tbmv"><span>—</span></span>'; }).join('')}</div>
-      <label class="field">Notas<textarea id="pdNotes" rows="2" placeholder="Contra qué va bien, de dónde lo sacaste…">${esc(x.notes || '')}</textarea></label>
-      <div class="row-btns"><button class="btn sm primary" data-pdsave="${x.id}">Guardar nombre y notas</button><span class="note" id="pdMsg">${esc(V.msg)}</span></div>
-      <h4 class="pch4">Añadir a un equipo</h4>
+    const it = s.item && P.itemInfo(s.item), en = typeof I18N !== 'undefined' && I18N.lang === 'en';
+    const foe = x.side === 'foe';
+    // Del rival no se sabe el reparto: si no lo tiene, se enseña el más común con su naturaleza.
+    const known = s.sp.some(Boolean);
+    const shown = foe && !known ? { ...s, sp: P.spreadGuess(s.species, s.nature, null) || s.sp } : s;
+    const nm = x.name || s.species;
+    return `<div class="pcdh">${spr(s.species, 'huge')}<div class="pcdhn">
+        ${V.rename ? `<input id="pdName" class="pcren" value="${esc(x.name || '')}" placeholder="${esc(s.species)}" maxlength="80">` : `<b class="nolang pcnm" data-pren="1" title="Doble clic para cambiar el nombre">${esc(nm)}</b>`}
+        ${x.name ? `<span class="note nolang">${esc(s.species)}</span>` : ''}
+        <div class="tytags">${P.typesOf(s.species).map(P.typeBadge).join('')}</div>
+        <span class="pill ${foe ? 'loss' : 'win'}">${foe ? 'Set de rival' : 'Tuyo'}</span>${x.from ? `<span class="note">vs <span class="nolang">${esc(x.from.opp || '')}</span>${x.from.at ? ` · ${new Date(x.from.at).toLocaleDateString(en ? 'en-GB' : 'es-ES')}` : ''}</span>` : ''}</div></div>
+      <p class="note pcrenhint">${V.rename ? 'Enter para guardar · Esc para dejarlo como estaba' : 'Doble clic en el nombre para cambiarlo.'}</p>
+      <div class="mtinfo">
+        <div class="mtik"><small>Objeto</small><span class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<b>${esc(s.item || '—')}</b></span>${it ? `<em class="nolang">${esc(en ? it.d : it.dEs || it.d)}</em>` : ''}</div>
+        <div class="mtik"><small>Habilidad</small><span class="nolang"><b>${esc(s.ability || '—')}</b></span></div>
+        <div class="mtik"><small>Naturaleza</small><span><b>${esc(P.natLabel(s.nature))}</b></span></div>
+        <div class="mtik"><small>Caja</small><span><input id="pdBox" class="pcboxin" value="${esc(x.box || '')}" list="dlBoxes" placeholder="Sin caja"></span></div>
+      </div>
+      ${P.statBlock(shown, foe && !known)}
+      <div class="mtmoves">${s.moves.map(m => P.moveTile(m)).join('')}</div>
+      <h4 class="pch4">Notas</h4>
+      <textarea id="pdNotes" class="pcnotesin" rows="6" placeholder="${foe ? 'Qué hizo en la partida, qué aguanta, cómo ganarle…' : 'Contra qué va bien, de dónde lo sacaste…'}">${esc(x.notes || '')}</textarea>
+      <h4 class="pch4">Cálculos <span class="note">${(x.calcs || []).length || ''}</span></h4>
+      <div class="pccalcs">${(x.calcs || []).length ? x.calcs.slice().reverse().map((c, i) => `<div class="pccalc"><span class="nolang">${esc(c.t)}</span><button class="dbtn" data-pcdel="${x.calcs.length - 1 - i}" title="Quitar">×</button></div>`).join('') : '<p class="note">Sin cálculos. En la Calculadora, «Guardar en Mi PC» guarda el cálculo aquí; o escríbelo abajo.</p>'}</div>
+      <div class="row-btns"><input id="pdCalc" placeholder="Ej.: 32+ Atk Kingambit Kowtow Cleave vs. 0 HP / 0 Def: 45-54%" style="flex:1"><button class="btn sm" data-pcadd="1">Añadir</button></div>
+      <p class="note" id="pdMsg">${esc(V.msg)}</p>
+      ${foe ? '' : `<h4 class="pch4">Añadir a un equipo</h4>
       <div class="pcteamsel" id="pcTeamSel"></div>
-      <div class="row-btns"><input id="pdNewTeam" placeholder="Nombre del equipo nuevo" style="flex:1"><button class="btn sm" data-pdnew="${x.id}">Crear equipo con él</button></div>
+      <div class="row-btns"><input id="pdNewTeam" placeholder="Nombre (opcional)" style="flex:1"><button class="btn sm primary" data-pdnew="${x.id}">+ Equipo nuevo con él</button></div>`}
       <div class="row-btns"><button class="btn sm" data-pedit="${x.id}">Cambiar el set…</button><button class="btn sm" data-pcalc="${x.id}">Calculadora</button><button class="btn sm" data-pcopy="${x.id}">Copiar</button><button class="btn sm" data-pdup="${x.id}">Duplicar</button><button class="btn sm danger" data-pdel="${x.id}">Borrar</button></div>`;
   }
-  /** Tus equipos para meter el set (como el equipo del juego: hasta 6). */
+  /** Tus equipos para meter el set: hasta 6 y nunca dos veces el mismo Pokémon. */
   async function paintTeamSel() {
     const el = $('#pcTeamSel');
     if (!el) return;
+    const list = await P.pcList(), x = list.find(y => y.id === V.sel), s = x && parse(x);
+    const base = s ? P.toID(P.baseSpecies(s.species)) : '';
     const teams = (await P.teams()).filter(t => t.side === 'me');
-    el.innerHTML = teams.length ? teams.map(t => { const S = P.parseTeam(t.text).sets; return `<button class="tbitem" data-pdto="${t.id}"${S.length >= 6 ? ' disabled title="Ya tiene 6"' : ''}><b>${esc(t.name)} <span class="note">${S.length}/6</span></b><span>${S.map(m => spr(m.species, 'xs')).join('')}</span></button>`; }).join('') : '<p class="note">Aún no tienes equipos: crea uno abajo.</p>';
+    el.innerHTML = teams.length ? teams.map(t => {
+      const S = P.parseTeam(t.text).sets, has = S.some(m => P.toID(P.baseSpecies(m.species)) === base);
+      const why = has ? 'Ya está' : S.length >= 6 ? 'Lleno' : '';
+      return `<button class="tbitem" data-pdto="${t.id}"${why ? ` disabled title="${has ? 'Ese Pokémon ya está en este equipo' : 'Ya tiene 6'}"` : ''}><b>${esc(t.name)} <span class="note">${S.length}/6${why ? ` · ${why}` : ''}</span></b><span>${S.map(m => spr(m.species, 'xs')).join('')}</span></button>`;
+    }).join('') : '<p class="note">Aún no tienes equipos: crea uno abajo.</p>';
   }
 
   function teamsView(teams) {
@@ -198,28 +223,42 @@ const PC = (() => {
     const find = id => list.find(x => x.id === id);
     const d = t.dataset;
     if (d.ptab) { V.tab = d.ptab; render(); }
-    else if (d.psel) { V.sel = V.sel === d.psel ? null : d.psel; V.msg = ''; render(); }
-    else if (d.pcbox != null) { const boxes = ['', ...[...new Set(list.map(x => x.box).filter(Boolean))].sort()]; V.box = boxes[+d.pcbox] ?? ''; V.page = 0; render(); }
-    else if (d.pdsave) {
-      const L = list.slice(), i = L.findIndex(x => x.id === d.pdsave);
-      Object.assign(L[i], { name: $('#pdName').value.trim(), box: $('#pdBox').value.trim(), notes: $('#pdNotes').value.trim(), up: Date.now() });
-      await DB.set('pc', L); V.msg = 'Guardado.'; render();
+    else if (d.psel) { V.sel = V.sel === d.psel ? null : d.psel; V.msg = ''; V.rename = false; render(); }
+    else if (d.pcside != null) { V.side = d.pcside; V.page = 0; render(); }
+    else if (d.pcadd || d.pcdel != null) {
+      const L = list.slice(), i = L.findIndex(x => x.id === V.sel);
+      if (i < 0) return;
+      const calcs = (L[i].calcs || []).slice();
+      if (d.pcadd) { const v = $('#pdCalc').value.trim(); if (!v) return; calcs.push({ t: v.slice(0, 400), at: Date.now() }); } else calcs.splice(+d.pcdel, 1);
+      L[i] = { ...L[i], calcs }; await DB.set('pc', L); render();
     }
+    else if (d.pcbox != null) { const boxes = ['', ...[...new Set(list.map(x => x.box).filter(Boolean))].sort()]; V.box = boxes[+d.pcbox] ?? ''; V.page = 0; render(); }
     else if (d.pdto || d.pdnew) {
       const x = find(d.pdnew || V.sel), set = x && parse(x);
       if (!set) return;
       let team;
-      if (d.pdnew) { const name = $('#pdNewTeam').value.trim() || `Equipo ${(await P.teams()).filter(t => t.side === 'me').length + 1}`; team = await P.saveTeam({ name, side: 'me', text: P.exportTeam([set]) }); }
-      else { team = await P.teamById(d.pdto); const S = P.parseTeam(team.text).sets; if (S.length >= 6) return; S.push(set); team.text = P.exportTeam(S); await P.saveTeam(team); }
+      if (d.pdnew) { const name = $('#pdNewTeam').value.trim() || `${set.species} · equipo ${(await P.teams()).filter(t => t.side === 'me').length + 1}`; team = await P.saveTeam({ name, side: 'me', text: P.exportTeam([set]) }); }
+      else {
+        team = await P.teamById(d.pdto); const S = P.parseTeam(team.text).sets;
+        if (S.length >= 6 || S.some(m => P.toID(P.baseSpecies(m.species)) === P.toID(P.baseSpecies(set.species)))) return;
+        S.push(set); team.text = P.exportTeam(S); await P.saveTeam(team);
+      }
       Calc.reloadTeams();
       V.msg = `Añadido a ${team.name} (${P.parseTeam(team.text).sets.length}/6).`;
-      render();
+      V.lastTeam = team.id;
+      await render();
+      const m = $('#pdMsg'); if (m) m.insertAdjacentHTML('beforeend', ` <button class="btn sm" data-tbopen="${team.id}">Abrir en el Teambuilder</button>`);
     }
     else if (t.id === 'pcAdd') addModal();
     else if (t.id === 'pcPrev') { V.page--; render(); }
     else if (t.id === 'pcNext') { V.page++; render(); }
     else if (d.pedit) editItem(find(d.pedit));
-    else if (d.pcalc) { const x = find(d.pcalc); Calc.load(x.side, { ...parse(x), src: 'pc' }); show('calc'); }
+    else if (d.pcalc) {
+      const x = find(d.pcalc), set = parse(x);
+      // Del rival no se sabe el reparto: el más común con su naturaleza.
+      if (x.side === 'foe' && !set.sp.some(Boolean)) { await P.dex(); set.sp = P.spreadGuess(set.species, set.nature, await P.usage('')) || set.sp; }
+      Calc.load(x.side === 'foe' ? 'foe' : 'me', { ...set, src: 'pc' }); show('calc');
+    }
     else if (d.pteam) toTeam(find(d.pteam));
     else if (d.pdup) { const x = find(d.pdup); const copy = { ...x, id: newId('s'), name: `${x.name || parse(x).species} (copia)`, up: Date.now() }; await DB.set('pc', [copy, ...list]); render(); }
     else if (d.pcopy) { navigator.clipboard.writeText(find(d.pcopy).text); t.textContent = 'Copiado'; }
@@ -237,7 +276,28 @@ const PC = (() => {
     else if (d.tbdel) { if (!confirm('¿Borrar este equipo?')) return; await P.removeTeam(d.tbdel); Calc.reloadTeams(); render(); }
   });
   el.addEventListener('input', e => { if (e.target.id === 'tQ') { V.tq = e.target.value; V.tpage = 0; clearTimeout(V.t); V.t = setTimeout(async () => { const pos = e.target.selectionStart; await render(); const q = $('#tQ'); q.focus(); q.setSelectionRange(pos, pos); }, 250); return; } if (e.target.id === 'pcQ') { V.q = e.target.value; V.page = 0; clearTimeout(V.t); V.t = setTimeout(async () => { const pos = e.target.selectionStart; await render(); const q = $('#pcQ'); q.focus(); q.setSelectionRange(pos, pos); }, 200); } });
+  /* Nombre: doble clic para cambiarlo (Enter guarda, Esc lo deja). Notas y caja se guardan solas. */
+  async function patchSel(patch) {
+    const L = (await P.pcList()).slice(), i = L.findIndex(x => x.id === V.sel);
+    if (i < 0) return;
+    L[i] = { ...L[i], ...patch, up: Date.now() };
+    await DB.set('pc', L);
+  }
+  el.addEventListener('dblclick', e => { if (e.target.closest('[data-pren]')) { V.rename = true; render().then(() => { const i = $('#pdName'); if (i) { i.focus(); i.select(); } }); } });
+  el.addEventListener('keydown', async e => {
+    if (e.target.id !== 'pdName') return;
+    if (e.key === 'Enter') { e.preventDefault(); V.rename = false; await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); }
+    else if (e.key === 'Escape') { e.stopPropagation(); V.rename = false; render(); }
+  });
+  el.addEventListener('focusout', async e => { if (e.target.id === 'pdName' && V.rename) { V.rename = false; await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); } });
+  el.addEventListener('input', e => {
+    if (e.target.id !== 'pdNotes') return;
+    clearTimeout(V.nt);
+    const v = e.target.value;
+    V.nt = setTimeout(async () => { await patchSel({ notes: v.slice(0, 3000) }); const m = $('#pdMsg'); if (m) m.textContent = 'Notas guardadas.'; }, 600);
+  });
   el.addEventListener('change', e => {
+    if (e.target.id === 'pdBox') { patchSel({ box: e.target.value.trim().slice(0, 40) }).then(render); return; }
     if (e.target.id === 'tMine') { V.tmine = e.target.checked; V.tpage = 0; render(); return; }
     const k = { pcSide: 'side', pcBox: 'box', pcSort: 'sort' }[e.target.id];
     if (k) { V[k] = e.target.value; V.page = 0; render(); }

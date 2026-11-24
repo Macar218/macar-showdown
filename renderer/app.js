@@ -271,19 +271,47 @@ async function openSet(ids) {
       $('#bo3Saved').textContent = 'Notas guardadas';
     }, 600);
   };
-  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.view) Viewer.open(b.dataset.view); if (b.dataset.open) openDetail(b.dataset.open); if (b.dataset.sheetcalc) sheetToCalc(sheet, s0[opSd].name); };
+  const sheetMeta = { opp: s0[opSd].name, at: s0.endedAt, id: s0.id };
+  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.view) Viewer.open(b.dataset.view); if (b.dataset.open) openDetail(b.dataset.open); if (sheet) sheetClick(b, sheet, sheetMeta); };
 }
-/** Hoja de equipo abierta → tabla con sus sets y botón para cargarla como rival. */
+/** Hoja de equipo abierta → sus sets, con botón para llevar cada uno a Mi PC y el equipo a la calculadora. */
 function sheetHTML(sheet) {
-  return `<div class="sheet">${sheet.map(x => `<div class="sheetmon">${spr(x.species, 'sm')}<div><b>${esc(x.species)}</b><span>${[P.nameOf('items', x.item) || 'Sin objeto', /^[01H]$/.test(x.ability) ? '' : P.nameOf('abilities', x.ability), x.nature].filter(Boolean).map(esc).join(' · ')}</span><small>${x.moves.map(m => esc(P.nameOf('moves', m))).join(' / ')}</small></div></div>`).join('')}</div>
-    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button></div>`;
+  return `<div class="sheet">${sheet.map((x, i) => `<div class="sheetmon">${spr(x.species, 'sm')}<div><b>${esc(x.species)}</b><span>${[P.nameOf('items', x.item) || 'Sin objeto', /^[01H]$/.test(x.ability) ? '' : P.nameOf('abilities', x.ability), x.nature].filter(Boolean).map(esc).join(' · ')}</span><small>${x.moves.map(m => esc(P.nameOf('moves', m))).join(' / ')}</small></div><button class="btn sm sheetpc" data-sheetpc="${i}" title="Guardarlo en Mi PC, en «Sets de rivales» (sin reparto: no se ve)">→ Mi PC</button></div>`).join('')}</div>
+    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button><button class="btn sm" data-sheetpcall="1">Todos a Mi PC</button><span class="note sheetmsg"></span></div>`;
 }
-async function sheetToCalc(sheet, name) {
-  const [U, T] = await Promise.all([P.usage(''), P.tour()]);
-  const team = sheet.map(x => ({ id: Stats.toID(x.species), name: x.species, item: x.item, ability: /^[01H]$/.test(x.ability) ? '' : x.ability, nature: x.nature, moves: x.moves }));
-  const sets = P.tourTeamSets(team, U).map(m => ({ ...m, src: 'equipo' }));
-  const v = await P.saveTeam({ name: `Hoja de ${name}`.slice(0, 100), side: 'foe', text: P.exportTeam(sets), notes: 'Hoja de equipo abierta de un combate. Puntos (SP) estimados con Smogon.' });
-  closeModal(); Calc.reloadTeams(); Calc.setTeams(undefined, v.id); show('calc');
+/** Los sets de la hoja a la calculadora de estudio, con el reparto más común. */
+async function sheetToCalc(sheet) {
+  const U = await P.usage('');
+  await P.dex();
+  Calc.showRivals(sheet.map(x => P.sheetSet(x, U)).filter(Boolean));
+  closeModal(); show('calc');
+}
+/** Un Pokémon de la hoja a Mi PC (sets de rivales): todo lo de la hoja, sin reparto. */
+async function sheetToPC(list, meta) {
+  let n = 0;
+  for (const x of list) {
+    const m = P.sheetSet(x, null);
+    if (!m) continue;
+    m.sp = [0, 0, 0, 0, 0, 0];
+    const r = await P.pcAdd(P.cleanSet(m), { side: 'foe', box: 'Rivales', notes: '' });
+    if (!r.ok) continue;
+    const L = (await P.pcList()).slice(), i = L.findIndex(y => y.id === r.item.id);
+    if (i >= 0) { L[i] = { ...L[i], from: meta }; await DB.set('pc', L); }
+    n++;
+  }
+  return n;
+}
+/** Botones de la hoja de equipo (en el detalle de la partida y en el de un Bo3). */
+async function sheetClick(b, sheet, meta) {
+  const msg = $('#modalBox .sheetmsg');
+  if (b.dataset.sheetcalc) { sheetToCalc(sheet); return true; }
+  if (b.dataset.sheetpc != null || b.dataset.sheetpcall) {
+    const n = await sheetToPC(b.dataset.sheetpcall ? sheet : [sheet[+b.dataset.sheetpc]], meta);
+    if (msg) msg.textContent = n ? `${n} guardado${n > 1 ? 's' : ''} en Mi PC (Sets de rivales).` : 'Ya estaba en Mi PC.';
+    if (b.dataset.sheetpc != null && n) { b.textContent = '✓ En Mi PC'; b.disabled = true; }
+    return true;
+  }
+  return false;
 }
 /** Importar replays: archivos o varios enlaces (uno por línea). */
 function importModal() {
@@ -331,7 +359,7 @@ async function openDetail(id) {
       <div style="display:flex;gap:8px;align-items:center">${pill(s.result)}<button class="btn" id="mClose">Cerrar</button></div></div>
     <div class="mlinks"><button class="btn sm primary" id="mView" title="La replay dentro de la app, con tus notas por turno">▶ Ver replay</button>${s.replay ? `<button class="btn sm" id="mReplay">Abrir en Showdown</button><button class="btn sm" id="mReplayCopy">Copiar enlace</button>` : (s.me ? '<button class="btn sm" id="mReplayUp" title="Solo funciona si la sala del combate sigue abierta en Jugar">Subir replay</button>' : '')}<button class="btn sm" id="mReplayDl" title="Guarda la replay en un archivo .html que se abre en el navegador">Descargar replay</button><span class="note" id="mLinkMsg"></span></div>
     <div class="sides">${sideCard(s, a, s.me ? 'Tú' : 'Jugador 1')}${sideCard(s, b, s.me ? 'Rival' : 'Jugador 2')}</div>
-    ${s[b].sheet ? `<h3 style="margin:4px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(s[b].sheet).replace('data-sheetcalc="1"', 'id="mSheetCalc"')}` : ''}
+    ${s[b].sheet ? `<h3 style="margin:4px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(s[b].sheet)}` : ''}
     ${SESS.length ? `<label class="field" style="margin-bottom:10px">Sesión de esta partida<select id="mSess"><option value="">Sin sesión</option>${SESS.map(x => `<option value="${esc(x.id)}"${s.session === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
     ${s.me && TEAMS_ME.length ? `<label class="field" style="margin-bottom:10px">Tu equipo en esta partida<select id="mTeam"><option value="">Sin asignar</option>${TEAMS_ME.map(t => `<option value="${esc(t.id)}"${teamOf(s) === t.id ? ' selected' : ''}>${esc(t.name)}${!MATCH_TEAM[s.id] && teamOf(s) === t.id ? ' (detectado)' : ''}</option>`).join('')}</select></label>` : ''}
     <label class="field">Notas de la partida<textarea id="mNotes" placeholder="Qué viste del rival, errores, ideas para la próxima…">${esc(m.notes || '')}</textarea></label>
@@ -342,7 +370,7 @@ async function openDetail(id) {
   if ($('#mReplay')) $('#mReplay').onclick = () => api.openExternal(s.replay);
   if ($('#mReplayCopy')) $('#mReplayCopy').onclick = () => { navigator.clipboard.writeText(s.replay); $('#mLinkMsg').textContent = 'Enlace copiado'; };
   $('#mReplayDl').onclick = async () => { const r = await api.downloadReplay(id); if (r.ok) $('#mLinkMsg').textContent = 'Replay guardada.'; };
-  if ($('#mSheetCalc')) $('#mSheetCalc').onclick = () => sheetToCalc(s[s.opp || 'p2'].sheet, s[s.opp || 'p2'].name);
+  $('#modalBox').onclick = e => { const bt = e.target.closest('button'); if (bt && s[b].sheet) sheetClick(bt, s[b].sheet, { opp: s[b].name, at: s.endedAt, id: s.id }); };
   if ($('#mReplayUp')) $('#mReplayUp').onclick = async () => { $('#mLinkMsg').textContent = 'Subiendo…'; const r = await api.replayNow(id); $('#mLinkMsg').textContent = r.ok ? 'Replay subida.' : r.why; if (r.ok) { s.replay = r.url; openDetail(id); } };
   if ($('#mSess')) $('#mSess').onchange = async e => { await api.setMatchSession(id, e.target.value); $('#mSaved').textContent = 'Sesión cambiada'; };
   if ($('#mTeam')) $('#mTeam').onchange = async e => {

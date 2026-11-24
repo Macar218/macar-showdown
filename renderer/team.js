@@ -341,6 +341,15 @@ const Team = (() => {
     const S = sets(team);
     const m = T.draft || S[T.slot];
     if (!m) return;
+    // Un Pokémon solo puede ir una vez en el equipo.
+    if (x.id === 'tbSpc') {
+      const sp = P.calcSpecies(x.value.trim()), base = sp && P.toID(P.baseSpecies(sp));
+      if (base && S.some((y, i) => y !== m && (T.draft || i !== T.slot) && P.toID(P.baseSpecies(y.species)) === base)) {
+        T.msg = `${sp} ya está en el equipo: cada Pokémon solo puede ir una vez.`;
+        x.value = m.species || '';
+        render(); return;
+      }
+    }
     readEditor(m);
     if (T.draft) {
       if (!m.species) { render(); return; }

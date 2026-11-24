@@ -322,6 +322,28 @@ const P = (() => {
   }
   const typeDot = t => `<span class="ty t-${esc(t || '')}" title="${esc(TYPES_ES[t] || t || '')}"></span>`;
   const typeBadge = t => `<span class="tyb t-${esc(t)}">${esc(TYPES_ES[t] || t)}</span>`;
+  /** Un movimiento como ficha: nombre, tipo (color y etiqueta), categoría y potencia. Con attrs es un botón. */
+  const CATS = { Physical: 'Físico', Special: 'Especial', Status: 'Estado' };
+  function moveTile(name, attrs = '', cls = '', empty = '—') {
+    const tag = attrs ? 'button' : 'span';
+    const d = name && moveOf(name);
+    if (!name) return `<${tag} class="tbmv mvt empty${cls ? ` ${cls}` : ''}" ${attrs}><span>${esc(empty)}</span></${tag}>`;
+    const meta = d ? `${d.category === 'Status' ? CATS.Status : `${CATS[d.category] || ''}${d.basePower ? ` · ${d.basePower}` : ''}`}` : '';
+    return `<${tag} class="tbmv mvt${d ? ` t-${esc(d.type)}` : ''}${cls ? ` ${cls}` : ''}" ${attrs}><b class="nolang">${esc(name)}</b><span class="mvtm">${d ? typeBadge(d.type) : ''}<small>${esc(meta)}</small></span></${tag}>`;
+  }
+  /**
+   * Estadísticas claras: cada stat con su valor final, una barra, la base y los puntos (SP) que lleva;
+   * la naturaleza marca ▲ y ▼. guess: el reparto no se conoce (rival) y es el más común.
+   */
+  function statBlock(m, guess) {
+    const st = stats(m) || {}, sp = spOf(m.species), tot = m.sp.reduce((a, b) => a + (+b || 0), 0);
+    const rows = STATS.map((k, j) => {
+      const nm = natMult(m.nature, k), v = st[k] || 0, p = m.sp[j] || 0;
+      return `<div class="stb ${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><span class="stbn">${SL[k]}${nm > 1 ? '<i>▲</i>' : nm < 1 ? '<i>▼</i>' : ''}</span><strong>${v}</strong><span class="stbbar"><b style="width:${Math.min(100, (v / 220) * 100)}%"></b></span><small>${sp ? sp.baseStats[k] : ''}</small><em class="${p ? 'on' : ''}">${p || '—'}</em></div>`;
+    }).join('');
+    return `<div class="stblock${guess ? ' guess' : ''}"><div class="stbh"><span>Stat</span><span>Valor</span><span></span><span>Base</span><span>SP</span></div>${rows}
+      <div class="stbf"><span>${guess ? 'Reparto estimado (el más común)' : 'Puntos usados'}</span><b>${tot}/${SP_TOTAL}</b></div></div>`;
+  }
   const spLine = m => STATS.map((s, i) => (m.sp[i] ? `${m.sp[i]} ${SL[s]}` : '')).filter(Boolean).join(' · ') || 'sin puntos';
 
   /* ---------- sets más usados (Smogon) ---------- */
@@ -374,6 +396,35 @@ const P = (() => {
     m.moves = [...t.moves.slice(0, 4).map(x => nameOf('moves', x[0])), '', '', '', ''].slice(0, 4);
     const sp = spreadFor(U, species, m.nature);
     if (sp) m.sp = sp;
+    return m;
+  }
+  /** Hoja de equipo empaquetada de Showdown (|showteam|) → [{species, item, ability, moves, nature}]. */
+  function unpackSheet(buf) {
+    return String(buf || '').split(']').filter(Boolean).map(x => {
+      const f = x.split('|');
+      return { species: f[1] || f[0] || '', item: f[2] || '', ability: f[3] || '', moves: (f[4] || '').split(',').filter(Boolean), nature: f[5] || '' };
+    }).filter(s => s.species);
+  }
+  /** El reparto que no se ve: el más común con esa naturaleza (Macar Dex y, si no, Smogon). */
+  function spreadGuess(species, nature, U) {
+    const cs = dexOf('csets', species);
+    const L = cs && Array.isArray(cs.s) ? cs.s : [];
+    const hit = L.find(s => s[0] === nature) || (nature ? null : L[0]);
+    if (hit && Array.isArray(hit[1])) return hit[1].map(x => Math.min(SP_MAX, +x || 0));
+    return spreadFor(U, species, nature);
+  }
+  /** Un Pokémon de una hoja de equipo (OTS) a set: todo lo de la hoja y el reparto más común. */
+  function sheetSet(x, U) {
+    const species = calcSpecies(x.species) || calcSpecies(toID(x.species));
+    if (!species) return null;
+    const m = blankMon(species);
+    m.item = x.item ? nameOf('items', x.item) : '';
+    m.ability = x.ability && !/^[01H]$/.test(x.ability) ? nameOf('abilities', x.ability) : m.ability;
+    if (NAT[x.nature]) m.nature = x.nature;
+    m.moves = [...(x.moves || []).map(v => nameOf('moves', v)), '', '', '', ''].slice(0, 4);
+    const sp = spreadGuess(species, NAT[x.nature] ? x.nature : '', U);
+    if (sp) m.sp = sp;
+    m.src = 'hoja';
     return m;
   }
   /** Un equipo de torneo (hoja de equipo) a sets de la calculadora. */
@@ -746,8 +797,8 @@ const P = (() => {
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
     blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
-    pct, koClass, koEs, bar, cell, typeDot, typeBadge, spLine,
-    usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor,
+    pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, statBlock, spLine,
+    usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor, unpackSheet, spreadGuess, sheetSet,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
     openEditor, datalists, itemPanel, movePanel, dex, dexSet, moveInfo, learnOf
   };

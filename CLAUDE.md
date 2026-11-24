@@ -15,7 +15,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `src/parser.js` | Lector de registros de Showdown → resumen de partida |
 | `src/store.js` | Guardado: una partida por archivo + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`, `sesiones`, `bo3Notes`) y ajustes (`sessionId` = sesión abierta) |
 | `src/capture.js` | Captura: guarda cada combate al terminar |
-| `src/live.js` | Lee el combate abierto para la calculadora en directo |
+| `src/live.js` | Lee el combate abierto para la calculadora en directo (también la hoja de equipo, línea showteam, de cada lado) |
 | `src/media.js` | Combate actual (notas y grabación) y subida de replays (`/savereplay`) |
 | `src/usage.js` | Sets más usados de Smogon (chaos, 1760+), en caché en `<datos>/uso` |
 | `src/extensions.js` | Extensiones de Chrome para la sesión de Showdown (Chrome Web Store, .crx/.zip, carpeta), en `<userData>/extensiones` |
@@ -27,9 +27,10 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/myteam.js` | Tu equipo: ficha de cada Pokémon del equipo de la sesión, usuario de Showdown, Pokepaste, cambiarlo |
 | `renderer/stats.js` | Estadísticas (también en Node para los tests) |
 | `renderer/poke.js` | Piezas comunes: datos del motor, sets Showdown, daño/velocidad, editor de Pokémon, selector de movimientos (`movePanel`) y de objetos (`itemPanel`), datos de uso y de torneo, Team Box, Mi PC |
-| `renderer/calc.js` / `multicalc.js` | Calculadora (cajón en Jugar y página propia), pestañas Daño (estilo calculadora de Showdown, edición en el sitio), Multicalc y Árbol (`Multi.renderTree`) |
+| `renderer/calc.js` / `multicalc.js` | Dos calculadoras independientes de `makeCalc`: `CalcLive` (cajón de Jugar: sigue el combate, hoja de equipo del rival, se vacía al acabar) y `CalcStudy` (página Calculadora: equipos, Mi PC, rivales de partidas). `Calc` reparte las llamadas de fuera. Pestañas Daño (estilo Showdown), Multicalc y Árbol; la Multicalc guarda su estado en cada calculadora (`S.multi`) |
 | `renderer/team.js` | Teambuilder: pestañas de los 6 y editor en la página (puntos estilo Showdown primero; el editor completo en «Más opciones») |
 | `renderer/pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
+| `renderer/notehl.js` | Notas con la marca de turno `[T5] …:` en amarillo (capa detrás del textarea) en Jugar y en el visor |
 | `renderer/transcript.js` | Transcripción de una partida desde su registro (también en Node para los tests) |
 | `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla), con sonido apagado al empezar, leads/reserva y notas con marcas `[T5]` que saltan a ese turno |
 | `renderer/i18n.js` | Idiomas: la interfaz se escribe en español; en inglés se traduce lo que se ve (diccionario de frases, frases con números `#` y trozos seguros). Textos nuevos: añadir su traducción aquí |
@@ -52,7 +53,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 ## Probar
 ```
 npm install            # con npm 11 puede no bajar Electron: node node_modules/electron/install.js
-npm test               # 21 pruebas: lector, transcripción, Sitrus Berry, Macar Dex, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
+npm test               # 23 pruebas: lector, transcripción, Sitrus Berry, hoja de equipo, notas, Macar Dex, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
 npm start
 ```
 Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de Electron aparte: sin tu sesión de Showdown ni tus extensiones), `MACAR_DATOS=<carpeta>` (datos), `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`; la app arranca en la pantalla de inicio: `Start.hide()` para saltarla). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).

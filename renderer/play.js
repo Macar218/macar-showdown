@@ -6,12 +6,13 @@
  * - Sonido: Showdown arranca silenciado; el botón del altavoz lo activa o lo vuelve a silenciar.
  * - Aviso de versión nueva (se descarga sola y se instala al reiniciar).
  */
-/* global api, DB, P, $, esc, SET */
+/* global api, DB, P, $, esc, SET, NoteHL */
 
 const Play = (() => {
-  const st = { cur: null, mid: null, saveT: null, open: true, muted: true };
-  try { st.open = localStorage.getItem('msNotes') !== '0'; } catch (e) { /* nada */ }
+  const st = { cur: null, mid: null, saveT: null, open: true, muted: true, big: true, zoom: 1 };
+  try { st.open = localStorage.getItem('msNotes') !== '0'; st.big = localStorage.getItem('msBigBattle') !== '0'; } catch (e) { /* nada */ }
   const bar = $('#notesBar'), txt = $('#nbText');
+  NoteHL.wrap(txt);
 
   /* ---------- notas ---------- */
   function setOpen(v) {
@@ -26,7 +27,7 @@ const Play = (() => {
     const live = ((await DB.get('liveNotes')) || {})[mid];
     let v = live || '';
     if (!v) { const m = await api.get(mid); if (m && m.notes) v = m.notes; }
-    if (st.mid === mid && document.activeElement !== txt) txt.value = v;
+    if (st.mid === mid && document.activeElement !== txt) { txt.value = v; NoteHL.sync(txt); }
   }
   async function saveNotes() {
     const mid = st.mid;
@@ -41,9 +42,39 @@ const Play = (() => {
     $('#nbSaved').textContent = 'Guardado';
   }
   txt.addEventListener('input', () => { $('#nbSaved').textContent = ''; clearTimeout(st.saveT); st.saveT = setTimeout(saveNotes, 600); });
+  /** Nota del turno de ahora: una línea nueva que empieza por [T5], lista para escribir. */
+  $('#nbMark').addEventListener('click', () => {
+    if (!st.cur || txt.disabled) return;
+    if (!st.open) setOpen(true);
+    const tag = `[T${st.cur.turn || 0}] `;
+    const v = txt.value.replace(/\s+$/, '');
+    txt.value = (v ? `${v}\n` : '') + tag;
+    NoteHL.sync(txt);
+    txt.focus(); txt.setSelectionRange(txt.value.length, txt.value.length); txt.scrollTop = txt.scrollHeight;
+    txt.dispatchEvent(new Event('input'));
+  });
+
+  /* ---------- combate grande: en combate, Showdown se amplía para llenar el hueco ---------- */
+  const sdv = $('#sd');
+  function fitBattle() {
+    const inBattle = st.big && st.cur && !st.cur.ended;
+    let z = 1;
+    if (inBattle) {
+      const w = sdv.clientWidth, h = sdv.clientHeight;
+      z = Math.max(1, Math.min(2, Math.floor(Math.min(w / 1000, h / 560) * 20) / 20));
+    }
+    if (z !== st.zoom) { st.zoom = z; try { sdv.setZoomFactor(z); } catch (e) { /* aún no ha cargado */ } }
+    const b = $('#sdBig'); b.classList.toggle('on', st.big); b.setAttribute('aria-pressed', String(st.big));
+  }
+  $('#sdBig').addEventListener('click', () => { st.big = !st.big; try { localStorage.setItem('msBigBattle', st.big ? '1' : '0'); } catch (e) { /* nada */ } fitBattle(); });
+  new ResizeObserver(() => fitBattle()).observe(sdv);
+  sdv.addEventListener('dom-ready', () => { st.zoom = 0; fitBattle(); });
 
   function showCur(c) {
     const who = $('#nbWho'), stat = $('#playStat');
+    const mk = $('#nbMark');
+    mk.disabled = !c || c.ended;
+    mk.textContent = c && !c.ended ? `+ Nota del turno ${c.turn || 0}` : '+ Nota del turno';
     if (!c) {
       who.textContent = st.mid ? 'Última partida' : 'Abre un combate para tomar notas';
       stat.textContent = 'Juega como siempre: al terminar cada combate, la partida se guarda sola.';
@@ -76,6 +107,7 @@ const Play = (() => {
     if (c && c.mid !== st.mid) { st.mid = c.mid; txt.value = ''; $('#nbSaved').textContent = ''; loadNotes(c.mid); }
     st.cur = c;
     showCur(c);
+    fitBattle();
   }
   setInterval(tick, 1500);
   tick();

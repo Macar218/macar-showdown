@@ -9,7 +9,14 @@ App de escritorio para Windows: juegas en Pokémon Showdown desde dentro y cada 
 
 Cada cambio en `main` también genera el instalador en **Actions** (artefacto `macar-showdown-instalador`).
 
-## Qué hace (versión 0.10)
+## Qué hace (versión 0.11)
+
+- **Dos calculadoras independientes**: la de **Jugar** sigue el combate (tus Pokémon con sus stats reales y la naturaleza de tu equipo; los del rival con su **hoja de equipo (OTS)**: objeto, habilidad, naturaleza y movimientos, y el reparto más común con esa naturaleza) y se vacía al acabar. La página **Calculadora** es para estudiar: tus equipos, Mi PC, el Teambuilder y los **rivales de tus partidas** («De una partida»). Arena con el rival arriba y tú abajo, cada lado en su franja; editar cada Pokémon también desde la Multicalc y «← Daño» para volver.
+- **Visor de replays**: sin hueco entre la partida y los turnos; **hoja de equipo** del rival a la vista (pestaña para ver la tuya); la transcripción se pone sola en el turno que ves; en las notas, la marca del turno en amarillo y lo tuyo en blanco.
+- **Jugar**: notas más grandes, «+ Nota del turno» y **combate grande** (Showdown se amplía al llenar el hueco mientras juegas).
+- **Tu equipo**: sprites más grandes, objeto con su descripción, estadísticas en tabla (valor, barra, base y SP, ▲▼ de naturaleza) y ataques con el color de su tipo en el borde, sin marear.
+- **Mi PC**: se ve grande en monitores grandes; doble clic en el nombre para cambiarlo; equipo nuevo con un clic y nunca dos veces el mismo Pokémon en un equipo; **sets de rivales** (desde la hoja de equipo de una partida, «→ Mi PC», sin reparto: se estima el más común); notas más grandes y **cálculos guardados** («Guardar en Mi PC» desde la Calculadora).
+- **Teambuilder**: no deja repetir un Pokémon en el equipo.
 
 - **Macar Dex dentro**: sección «Macar Dex» con tu web, y sus datos (sets de Smogon del mes, objeto y reparto más usados, movimientos con descripción y lo que aprende cada Pokémon) se bajan solos cada día. La Calculadora usa sus sets para el rival (por defecto) y el Teambuilder sus movimientos con descripción.
 - **Sitrus Berry**: el motor no la cuenta en los KO; ahora sí (golpe a golpe con sus 16 tiradas), también en la Multicalc.
