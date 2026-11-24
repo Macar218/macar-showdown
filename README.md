@@ -14,7 +14,7 @@ Cada cambio en `main` también genera el instalador en **Actions** (artefacto `m
 - **Dos calculadoras independientes**: la de **Jugar** sigue el combate (tus Pokémon con sus stats reales y la naturaleza de tu equipo; los del rival con su **hoja de equipo (OTS)**: objeto, habilidad, naturaleza y movimientos, y el reparto más común con esa naturaleza) y se vacía al acabar. La página **Calculadora** es para estudiar: tus equipos, Mi PC, el Teambuilder y los **rivales de tus partidas** («De una partida»). Arena con el rival arriba y tú abajo, cada lado en su franja; editar cada Pokémon también desde la Multicalc y «← Daño» para volver.
 - **Visor de replays**: sin hueco entre la partida y los turnos; **hoja de equipo** del rival a la vista (pestaña para ver la tuya); la transcripción se pone sola en el turno que ves; en las notas, la marca del turno en amarillo y lo tuyo en blanco.
 - **Jugar**: notas más grandes y «+ Nota del turno».
-- **0.11.3**: icono nuevo: una Poké Ball con «PS!» en el centro.
+- **0.11.3**: icono nuevo: una Poké Ball con «PS!» en el centro y las tres luces de la Pokédex.
 - **0.11.2**: tamaño de Showdown a mano, como en el navegador: botones − / + en Jugar (pulsar el % lo vuelve al 100%) y Ctrl + / Ctrl − / Ctrl 0. Se recuerda.
 - **0.11.1**: arreglada la captura en monitores grandes (la ampliación del combate dejaba a la app sin leer Showdown: se ha quitado) y cada lectura de Showdown tiene límite de tiempo.
 - **Tu equipo**: sprites más grandes, objeto con su descripción, estadísticas en tabla (valor, barra, base y SP, ▲▼ de naturaleza) y ataques con el color de su tipo en el borde, sin marear.
