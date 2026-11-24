@@ -9,8 +9,8 @@
 /* global api, DB, P, $, esc, SET, NoteHL */
 
 const Play = (() => {
-  const st = { cur: null, mid: null, saveT: null, open: true, muted: true, big: true, zoom: 1 };
-  try { st.open = localStorage.getItem('msNotes') !== '0'; st.big = localStorage.getItem('msBigBattle') !== '0'; } catch (e) { /* nada */ }
+  const st = { cur: null, mid: null, saveT: null, open: true, muted: true };
+  try { st.open = localStorage.getItem('msNotes') !== '0'; } catch (e) { /* nada */ }
   const bar = $('#notesBar'), txt = $('#nbText');
   NoteHL.wrap(txt);
 
@@ -54,21 +54,9 @@ const Play = (() => {
     txt.dispatchEvent(new Event('input'));
   });
 
-  /* ---------- combate grande: en combate, Showdown se amplía para llenar el hueco ---------- */
+  // Nada de ampliar Showdown (setZoomFactor): con el combate ampliado la app deja de poder leerlo (0.11.0).
   const sdv = $('#sd');
-  function fitBattle() {
-    const inBattle = st.big && st.cur && !st.cur.ended;
-    let z = 1;
-    if (inBattle) {
-      const w = sdv.clientWidth, h = sdv.clientHeight;
-      z = Math.max(1, Math.min(2, Math.floor(Math.min(w / 1000, h / 560) * 20) / 20));
-    }
-    if (z !== st.zoom) { st.zoom = z; try { sdv.setZoomFactor(z); } catch (e) { /* aún no ha cargado */ } }
-    const b = $('#sdBig'); b.classList.toggle('on', st.big); b.setAttribute('aria-pressed', String(st.big));
-  }
-  $('#sdBig').addEventListener('click', () => { st.big = !st.big; try { localStorage.setItem('msBigBattle', st.big ? '1' : '0'); } catch (e) { /* nada */ } fitBattle(); });
-  new ResizeObserver(() => fitBattle()).observe(sdv);
-  sdv.addEventListener('dom-ready', () => { st.zoom = 0; fitBattle(); });
+  sdv.addEventListener('dom-ready', () => { try { if (sdv.getZoomFactor() !== 1) sdv.setZoomFactor(1); } catch (e) { /* nada */ } });
 
   function showCur(c) {
     const who = $('#nbWho'), stat = $('#playStat');
@@ -107,7 +95,6 @@ const Play = (() => {
     if (c && c.mid !== st.mid) { st.mid = c.mid; txt.value = ''; $('#nbSaved').textContent = ''; loadNotes(c.mid); }
     st.cur = c;
     showCur(c);
-    fitBattle();
   }
   setInterval(tick, 1500);
   tick();

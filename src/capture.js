@@ -30,6 +30,12 @@ const GET = id => `(() => {
   return r && r.battle && Array.isArray(r.battle.stepQueue) ? r.battle.stepQueue.join('\\n') : null;
 })()`;
 
+/** Lee de la página de Showdown con límite de tiempo: si no responde, no se queda colgada la captura. */
+function run(contents, js, ms = 5000) {
+  let t;
+  return Promise.race([contents.executeJavaScript(js, false), new Promise((_, rej) => { t = setTimeout(() => rej(new Error('Showdown no responde')), ms); })]).finally(() => clearTimeout(t));
+}
+
 function attach(contents, onFinished, intervalMs = 3000) {
   const seen = new Map();
   const status = { ok: false, why: 'Iniciando…', me: null, open: 0, finished: 0, saved: 0, lastCheck: null, lastSaved: null };
@@ -38,7 +44,7 @@ function attach(contents, onFinished, intervalMs = 3000) {
     if (busy || contents.isDestroyed()) return;
     busy = true;
     try {
-      const r = await contents.executeJavaScript(PROBE, false);
+      const r = await run(contents, PROBE);
       status.lastCheck = Date.now();
       status.ok = !!(r && r.ok);
       status.why = r && r.why ? r.why : null;
@@ -48,7 +54,7 @@ function attach(contents, onFinished, intervalMs = 3000) {
         status.finished = r.rooms.filter(x => x.fin).length;
         for (const room of r.rooms) {
           if (!room.fin || room.n <= (seen.get(room.id) || 0)) continue;
-          const log = await contents.executeJavaScript(GET(room.id), false);
+          const log = await run(contents, GET(room.id), 15000);
           if (!log) continue;
           seen.set(room.id, room.n);
           const res = onFinished({ id: room.id, log, clientName: r.me });
@@ -67,4 +73,4 @@ function attach(contents, onFinished, intervalMs = 3000) {
   return status;
 }
 
-module.exports = { attach, PROBE, GET };
+module.exports = { attach, run, PROBE, GET };

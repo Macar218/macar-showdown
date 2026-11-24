@@ -220,7 +220,7 @@ function registerIpc() {
   // Combate que tienes delante (barra de notas).
   ipcMain.handle('ms:current', async () => {
     if (!sdContents || sdContents.isDestroyed()) return null;
-    try { const c = await sdContents.executeJavaScript(CURRENT, false); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
+    try { const c = await capture.run(sdContents, CURRENT); return c ? { ...c, mid: matchId(c.id) } : null; } catch (e) { return null; }
   });
   ipcMain.handle('ms:matchExists', (_e, id) => !!store.get(String(id)));
   // Documento de preparación a PDF: se pinta en una ventana oculta y se imprime.
@@ -313,7 +313,7 @@ function registerIpc() {
   // Calculadora
   ipcMain.handle('ms:live', async () => {
     if (!sdContents || sdContents.isDestroyed()) return { ok: false, why: 'Showdown no está abierto' };
-    try { return await sdContents.executeJavaScript(LIVE, false); } catch (e) { return { ok: false, why: e.message }; }
+    try { return await capture.run(sdContents, LIVE); } catch (e) { return { ok: false, why: e.message }; }
   });
   ipcMain.handle('ms:usage', async (_e, tier) => {
     try { return { ok: true, ...(await usage.get(String(tier || ''))) }; } catch (e) { return { ok: false, why: e.message }; }

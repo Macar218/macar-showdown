@@ -47,6 +47,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 - Replays: solo de combates del usuario y si `autoReplay` está activado. No se graba vídeo (se quitó en la 0.7 a petición del usuario). Showdown y las replays arrancan silenciados.
 - Aspecto: estilo propio de la Macar Dex (tiras de datos, tablas y barras). Nada de copiar el aspecto de Flinched (tarjetas grandes con el nombre de fondo, escenarios…). Sprites fijos de Showdown (`gen5`), nunca animados.
 - Estilos nuevos: comprobar que el nombre de clase no existe ya en `style.css` (en la 0.7 chocaron `.dres`, `.mrow`, `.dbar` y `.dteam`).
+- Nunca ampliar el webview de Showdown (`setZoomFactor`): en la 0.11.0, en monitores grandes, la app dejó de leer el combate (ni captura, ni notas, ni calculadora). Las lecturas de Showdown van con límite de tiempo (`capture.run`). Las pruebas de interfaz usan una ventana pequeña: lo que dependa del tamaño de pantalla hay que probarlo también con la ventana grande.
 - Nada de `prompt()` (Electron no lo tiene): formularios propios. `confirm()` sí funciona (y se traduce).
 - Idioma: cada texto nuevo de la interfaz necesita su traducción en `renderer/i18n.js`. No traducir trozos de una sola palabra corriente (cambiarían nombres puestos por el usuario).
 
