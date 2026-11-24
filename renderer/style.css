@@ -1346,3 +1346,6 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .cteams{display:flex!important;flex-wrap:wrap;gap:6px;align-items:center}
 .cteams select{flex:1 1 220px;min-width:0}
 .cteams .btn{flex:none}
+.sdzoom{display:inline-flex;gap:2px;align-items:center}
+.sdzoom .btn{min-width:30px;padding:4px 8px}
+#sdZoomVal{font-family:var(--mono);min-width:54px}

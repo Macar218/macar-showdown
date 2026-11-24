@@ -86,6 +86,15 @@ function createWindow() {
     contents.on('will-navigate', (event, url) => { if (!SHOWDOWN.test(url)) { event.preventDefault(); openExternal(url); } });
     sdContents = contents;
     contents.once('destroyed', () => { if (sdContents === contents) sdContents = null; });
+    // Zoom a mano como en el navegador: Ctrl + / Ctrl − / Ctrl 0 (sin la rueda: 'zoom-changed' entraba en bucle). La página de la app lo guarda y pinta.
+    const zoomBy = d => { const z = d === 0 ? 1 : Math.round(Math.max(0.5, Math.min(2.5, contents.getZoomFactor() + d * 0.1)) * 10) / 10; contents.setZoomFactor(z); if (win && !win.isDestroyed()) win.webContents.send('ms:sdZoom', z); };
+    contents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return;
+      const k = input.key;
+      if (k === '+' || k === '=' || input.code === 'NumpadAdd') { event.preventDefault(); zoomBy(1); }
+      else if (k === '-' || input.code === 'NumpadSubtract') { event.preventDefault(); zoomBy(-1); }
+      else if (k === '0' || input.code === 'Numpad0') { event.preventDefault(); zoomBy(0); }
+    });
     capStatus = capture.attach(contents, ({ id, log, clientName }) => {
       try {
         const r = store.saveLog({ id, log, clientName, source: 'auto' });

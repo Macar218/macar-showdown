@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('macar', {
   ladder: name => ipcRenderer.invoke('ms:ladder', name),
   updateInstall: () => ipcRenderer.invoke('ms:updateInstall'),
   updateState: () => ipcRenderer.invoke('ms:updateState'),
+  onSdZoom: cb => { const f = (_e, z) => cb(z); ipcRenderer.on('ms:sdZoom', f); return () => ipcRenderer.removeListener('ms:sdZoom', f); },
   onUpdate: cb => { const f = (_e, d) => cb(d); ipcRenderer.on('ms:update', f); return () => ipcRenderer.removeListener('ms:update', f); },
   sdAddTeam: (name, text, format) => ipcRenderer.invoke('ms:sdAddTeam', name, text, format),
   sdSearch: (name, text, format) => ipcRenderer.invoke('ms:sdSearch', name, text, format),

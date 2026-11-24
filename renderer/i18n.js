@@ -231,7 +231,8 @@ const I18N = (() => {
     '# guardado en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', '# guardados en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', 'Ya estaba en Mi PC.': 'It was already in My PC.', '✓ En Mi PC': '✓ In My PC',
     'Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…': 'Click “+ Note” or a transcript line to write a note at that replay turn…',
     '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
-    'Empieza una línea con el turno de ahora ([T5]) para apuntar algo de ese turno': 'Starts a line with the current turn ([T5]) to note something about that turn'
+    'Empieza una línea con el turno de ahora ([T5]) para apuntar algo de ese turno': 'Starts a line with the current turn ([T5]) to note something about that turn',
+    'Tamaño de Showdown, como en el navegador (también Ctrl + / Ctrl − / Ctrl 0)': 'Showdown size, like in the browser (also Ctrl + / Ctrl − / Ctrl 0)', 'Más pequeño': 'Smaller', 'Más grande': 'Bigger', 'Volver al 100%': 'Back to 100%'
   };
 
   // Frases con números (# = un número).

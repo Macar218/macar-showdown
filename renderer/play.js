@@ -54,9 +54,23 @@ const Play = (() => {
     txt.dispatchEvent(new Event('input'));
   });
 
-  // Nada de ampliar Showdown (setZoomFactor): con el combate ampliado la app deja de poder leerlo (0.11.0).
+  /* ---------- tamaño de Showdown a mano, como en el navegador (− / + y Ctrl + / Ctrl − / Ctrl 0) ---------- */
   const sdv = $('#sd');
-  sdv.addEventListener('dom-ready', () => { try { if (sdv.getZoomFactor() !== 1) sdv.setZoomFactor(1); } catch (e) { /* nada */ } });
+  let zoom = 1;
+  try { zoom = Math.max(0.5, Math.min(2.5, +localStorage.getItem('msSdZoom') || 1)); } catch (e) { /* nada */ }
+  const showZoom = () => { $('#sdZoomVal').textContent = `${Math.round(zoom * 100)}%`; };
+  function setZoom(z, apply = true) {
+    zoom = Math.round(Math.max(0.5, Math.min(2.5, z)) * 10) / 10;
+    if (apply) { try { sdv.setZoomFactor(zoom); } catch (e) { /* aún no ha cargado */ } }
+    try { localStorage.setItem('msSdZoom', String(zoom)); } catch (e) { /* nada */ }
+    showZoom();
+  }
+  $('#sdZoomOut').addEventListener('click', () => setZoom(zoom - 0.1));
+  $('#sdZoomIn').addEventListener('click', () => setZoom(zoom + 0.1));
+  $('#sdZoomVal').addEventListener('click', () => setZoom(1));
+  api.onSdZoom(z => setZoom(z, false));
+  sdv.addEventListener('dom-ready', () => setZoom(zoom));
+  showZoom();
 
   function showCur(c) {
     const who = $('#nbWho'), stat = $('#playStat');
