@@ -369,7 +369,7 @@ VIEWS.dex = () => {
   const el = $('#v-dex');
   if (el.querySelector('webview')) return;
   el.innerHTML = `<div class="dexbar"><span class="note">Tu Macar Dex. Sus datos (sets, uso y movimientos) también los usan la Calculadora y el Teambuilder, y se renuevan cada día.</span><span style="flex:1"></span><button class="btn sm" id="dexReload">⟳ <span>Recargar</span></button><button class="btn sm" id="dexData" title="Volver a bajar ahora los datos de la Macar Dex">Actualizar datos</button></div>
-    <webview id="dexWeb" src="https://macar218.github.io/macar-dex/" partition="persist:dex"></webview>`;
+    <webview id="dexWeb" src="https://macar218.github.io/macar-dex/?embed=1" partition="persist:dex"></webview>`;
   $('#dexReload').onclick = () => { const w = $('#dexWeb'); if (w && w.reload) w.reload(); };
   $('#dexData').onclick = async e => { e.target.textContent = 'Actualizando…'; await P.dex(true); e.target.textContent = 'Datos al día'; };
 };
