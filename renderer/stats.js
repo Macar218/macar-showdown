@@ -34,6 +34,11 @@
       if (f.session && f.session !== 'all' && (s.session || '-') !== f.session) return false;
       if (f.from && s.endedAt < f.from) return false;
       if (f.to && s.endedAt > f.to) return false;
+      // Marcas: con notas, para analizar, buena, indiferente o mala.
+      if (f.mark) {
+        const mk = s.mark || {};
+        if (f.mark === 'notes' ? !String(s.notes || '').trim() : f.mark === 'analyze' ? !mk.a : f.mark === 'none' ? !!(mk.r || mk.a) : mk.r !== f.mark) return false;
+      }
       return true;
     });
   }

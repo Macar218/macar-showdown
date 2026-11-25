@@ -43,7 +43,8 @@ const Dash = (() => {
     const sel = (key, label, groups) => `<label class="field">${label}<select data-fs="${key}"><option value="">Cualquiera</option>${groups.map(([g, list]) => (list.length ? (g ? `<optgroup label="${g}">${opts(list, F[key])}</optgroup>` : opts(list, F[key])) : '')).join('')}</select></label>`;
     const seg = (key, list) => `<div class="seg" role="group">${list.map(([v, l]) => `<button data-f="${key}" data-val="${v}" aria-pressed="${String(F[key]) === String(v)}">${l}</button>`).join('')}</div>`;
     const dstr = t => (t ? new Date(t).toISOString().slice(0, 10) : '');
-    const any = F.result !== 'all' || F.days || F.lead || F.back || F.rival || F.oppLead || F.minElo;
+    const any = F.result !== 'all' || F.days || F.lead || F.back || F.rival || F.oppLead || F.minElo || F.mark;
+    const MK = [['', 'Cualquiera'], ['notes', 'Con notas'], ['analyze', 'Para analizar'], ['good', 'Buenas'], ['meh', 'Indiferentes'], ['bad', 'Malas'], ['none', 'Sin marcar']];
     return `<div class="filters dfil">
       <div class="field">Resultado${seg('result', [['all', 'Todas'], ['win', 'Victorias'], ['loss', 'Derrotas']])}</div>
       <div class="field">Fechas<div class="dfdates">${seg('days', [[0, 'Todo'], [1, 'Hoy'], [7, '7 días'], [30, '30 días']])}<button class="btn ibtn${F.days === -1 ? ' on' : ''}" data-dcal="1" title="Elegir fechas"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg></button></div></div>
@@ -52,6 +53,7 @@ const Dash = (() => {
       ${sel('back', 'Tu reserva', [['', o.backs]])}
       ${sel('rival', 'Rival con', [['', o.rivals]])}
       ${sel('oppLead', 'Lead rival', [[EN() ? 'One Pokémon' : 'Un Pokémon', o.oppLeads], [EN() ? 'Pair' : 'Pareja', r.oppLeads.map(x => x.key)]])}
+      <label class="field">Marcas<select data-fs="mark" title="Tus marcas y notas de cada partida">${MK.map(([v, l]) => `<option value="${v}"${(F.mark || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field">ELO mín.<input type="number" class="delo" data-fn="minElo" min="0" max="3000" step="50" placeholder="—" value="${F.minElo || ''}" title="Solo partidas contra rivales con este ELO o más"></label>
       ${any ? '<button class="btn sm ibtn dfx" data-fclear="1" title="Quitar filtros">✕</button>' : ''}
     </div>`;
@@ -121,6 +123,12 @@ const Dash = (() => {
     const txt = d.toLocaleDateString(EN() ? 'en-GB' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     return txt.charAt(0).toUpperCase() + txt.slice(1);
   }
+  /** Las marcas de las partidas de una fila: buena / indiferente / mala y «analizar». */
+  function markTags(games) {
+    const L = { good: 'Buena', meh: 'Indiferente', bad: 'Mala' };
+    const t = games.map((y, i) => { const mk = y.mark || {}; const pre = games.length > 1 ? `G${i + 1} ` : ''; return [mk.r ? `<i class="mktag mk-${mk.r}">${pre}<span>${L[mk.r]}</span></i>` : '', mk.a ? `<i class="mktag mk-a">${pre}<span>Analizar</span></i>` : ''].join(''); }).join('');
+    return t ? `<span class="mktags">${t}</span>` : '';
+  }
   function partidas(ms) {
     const a = Stats.advanced(ms);
     const groups = groupBo3(ms);
@@ -138,7 +146,7 @@ const Dash = (() => {
       return `<div class="match dmatch" data-set="${esc(g.games.map(y => y.id).join(','))}" tabindex="0">
         <span class="d">${hhmm(f.endedAt)}</span>
         <span class="pill ${x.r}">${bo3 ? `Bo3 ${x.w}–${x.l}` : (x.r === 'win' ? 'Victoria' : x.r === 'loss' ? 'Derrota' : 'Empate')}</span>
-        <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}${g.games.some(y => y.notes) ? ' · ✎' : ''}</small></span>
+        <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}${g.games.some(y => y.notes) ? ' · ✎' : ''}</small>${markTags(g.games)}</span>
         <span class="mons" title="Tu lead">${me.leads.map(n => spr(n, 'sm')).join('')}</span>
         <span class="mons" title="Equipo rival (en gris, los que no salieron)">${op.preview.map(n => spr(n, `sm${op.brought.includes(n) ? '' : ' dim'}`)).join('')}</span>
         <span class="bo3g">${g.games.map((y, i) => `<button class="gbtn ${y.result || ''}" data-view="${esc(y.id)}" title="Ver la replay de G${i + 1}">▶ G${i + 1}</button>`).join('')}</span>
@@ -276,7 +284,13 @@ const Dash = (() => {
     const base = Stats.usable(M).filter(s => !ids || ids.has(s.id));
     const ms = Stats.filter(M, { ...F, ids });
     const unknown = M.length - Stats.usable(M).length;
-    const body = D.tab === 'games' ? partidas(ms) : D.tab === 'riv' ? rivales(ms) : D.tab === 'team' ? equipo(ms) : D.tab === 'hab' ? habitos(ms) : resumen(ms);
+    // En Partidas, con el filtro de marcas se ve el Bo3 entero si alguna de sus partidas cumple.
+    let games = ms;
+    if (F.mark) {
+      const all = Stats.filter(M, { ...F, ids, mark: '' }), hit = new Set(ms.map(s => s.id));
+      games = groupBo3(all).filter(g => g.games.some(s => hit.has(s.id))).flatMap(g => g.games);
+    }
+    const body = D.tab === 'games' ? partidas(games) : D.tab === 'riv' ? rivales(ms) : D.tab === 'team' ? equipo(ms) : D.tab === 'hab' ? habitos(ms) : resumen(ms);
     el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1><p class="note" style="margin-top:4px">${sub}</p></div><div class="row-btns" style="margin:0">${seg}<button class="btn sm" data-go="doc" title="Documento de preparación">PDF</button></div></div>
       <div class="seg dtabs">${TABS.map(([k, l]) => `<button data-dtab="${k}" aria-pressed="${D.tab === k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>${l}</button>`).join('')}</div>
       ${unknown ? `<div class="warnbox"><span>${unknown} partida${unknown === 1 ? '' : 's'} sin identificar: no sé qué jugador eras. Pon tu usuario de Showdown en Tu equipo.</span><button class="btn" data-go="miequipo">Ir a Tu equipo</button></div>` : ''}

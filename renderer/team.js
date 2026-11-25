@@ -182,15 +182,18 @@ const Team = (() => {
   /** Lo que hay en el editor, al Pokémon. */
   function readEditor(m) {
     const sp = P.calcSpecies(($('#tbSpc') || {}).value ? $('#tbSpc').value.trim() : '');
-    if (sp && sp !== m.species) {
+    const changed = !!(sp && sp !== m.species);
+    if (changed) {
       const fresh = !m.species;
       m.species = sp;
       const ab = P.abilitiesOf(sp);
-      if (fresh || !ab.includes(m.ability)) m.ability = ab[0] || '';
+      // La más usada (Macar Dex), si no la primera de las posibles.
+      const top = P.topAbility ? P.topAbility(sp) : '';
+      if (fresh || !ab.includes(m.ability)) m.ability = (top && ab.includes(top) ? top : ab[0]) || '';
     }
     if ($('#tbNick')) m.nick = $('#tbNick').value.trim();
     if ($('#tbIt')) m.item = $('#tbIt').value.trim() ? P.nameOf('items', $('#tbIt').value.trim()) : '';
-    if ($('#tbAb') && $('#tbAb').value) m.ability = $('#tbAb').value;
+    if (!changed && $('#tbAb') && $('#tbAb').value) m.ability = $('#tbAb').value;
     if ($('#tbNat')) m.nature = $('#tbNat').value;
     $$('[data-tmv]').forEach(x => { m.moves[+x.dataset.tmv] = x.value.trim() ? P.nameOf('moves', x.value.trim()) : ''; });
   }
@@ -284,13 +287,13 @@ const Team = (() => {
     else if (t.id === 'tbSd') toShowdown(team);
     else if (t.id === 'tbPC') { let n = 0; for (const x of S) { const r = await P.pcAdd(P.cleanSet(x), { name: `${x.species} · ${team.name}`, side: 'me', box: team.name }); if (r.ok) n++; } T.msg = n ? `${n} set${n > 1 ? 's' : ''} guardados en Mi PC.` : 'Esos sets ya están en tu PC.'; render(); }
     else if (t.id === 'tbCalc') { Calc.setTeams(team.id); show('calc'); }
-    else if (t.id === 'tbDel') { if (!confirm(`¿Borrar el equipo «${team.name}»?`)) return; await P.removeTeam(team.id); if (SET.teamId === team.id) await setMine(''); T.id = null; Calc.reloadTeams(); render(); }
+    else if (t.id === 'tbDel') { await Undo.snap('equipos', `Equipo «${team.name}» borrado`); await P.removeTeam(team.id); if (SET.teamId === team.id) await setMine(''); T.id = null; Calc.reloadTeams(); render(); }
     else if (d.tleft || d.tright) {
       const i = +(d.tleft || d.tright), j = d.tleft ? i - 1 : i + 1;
       if (j < 0 || j >= S.length) return;
       [S[i], S[j]] = [S[j], S[i]]; T.slot = j; await saveSets(team, S); render();
-    } else if (t.id === 'tbRm') { if (!confirm(`¿Quitar ${S[T.slot].species} del equipo?`)) return; S.splice(T.slot, 1); await saveSets(team, S); render(); }
-    else if (t.id === 'tbMore') P.openEditor({ set: S[T.slot], side: 'me', onSave: async x => { S[T.slot] = P.cleanSet(x); await saveSets(team, S); render(); }, onDelete: async () => { S.splice(T.slot, 1); await saveSets(team, S); render(); }, deleteLabel: 'Quitar del equipo' });
+    } else if (t.id === 'tbRm') { await Undo.snap('equipos', `${S[T.slot].species} quitado del equipo`); S.splice(T.slot, 1); await saveSets(team, S); render(); }
+    else if (t.id === 'tbMore') P.openEditor({ set: S[T.slot], side: 'me', onSave: async x => { S[T.slot] = P.cleanSet(x); await saveSets(team, S); render(); }, onDelete: async () => { await Undo.snap('equipos', `${S[T.slot].species} quitado del equipo`); S.splice(T.slot, 1); await saveSets(team, S); render(); }, deleteLabel: 'Quitar del equipo' });
     else if (!m || !m.species) return;
     else if (t.id === 'tbSp0') { m.sp = [0, 0, 0, 0, 0, 0]; await saveSets(team, S); refresh(); }
     else if (d.natp || d.natm) { readEditor(m); setNature(m, d.natp, d.natm); await saveSets(team, S); refresh(); }

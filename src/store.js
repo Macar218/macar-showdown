@@ -119,7 +119,7 @@ class Store {
     // Notas escritas durante el combate (barra de notas de Jugar): pasan a la partida al guardarla.
     let live = '';
     try { live = (this.data('liveNotes') || {})[mid] || ''; } catch (e) { live = ''; }
-    const m = { log, clientName: clientName || (prev && prev.clientName) || null, source: prev ? prev.source : source, notes: (prev && prev.notes) || live, replay: prev ? prev.replay || null : null,
+    const m = { log, clientName: clientName || (prev && prev.clientName) || null, source: prev ? prev.source : source, notes: (prev && prev.notes) || live, replay: prev ? prev.replay || null : null, mark: (prev && prev.mark) || null,
       // La partida se apunta en la sesión abierta al jugarla.
       session: prev ? prev.session || null : (this.settings().sessionId || null) };
     m.summary = this.summarize(mid, m, endedAt || (prev && prev.summary.endedAt) || Date.now());
@@ -135,6 +135,7 @@ class Store {
     s.replay = m.replay || null;
     s.session = m.session || null;
     s.rounds = m.rounds || null;
+    s.mark = m.mark || null;
     return s;
   }
 
@@ -156,6 +157,19 @@ class Store {
     m.summary.notes = m.notes;
     this.writeMatch(id, m);
     this.cache.set(id, m.summary);
+    return true;
+  }
+
+  /** Marca de la partida: r = 'good' | 'meh' | 'bad' | '' (cómo fue) y a = para analizar. */
+  setMark(id, mark) {
+    const m = this.get(id);
+    if (!m) return false;
+    const r = ['good', 'meh', 'bad'].includes(mark && mark.r) ? mark.r : '';
+    const a = !!(mark && mark.a);
+    m.mark = r || a ? { r, a } : null;
+    m.summary.mark = m.mark;
+    this.writeMatch(id, m);
+    if (this.cache) this.cache.set(id, m.summary);
     return true;
   }
 

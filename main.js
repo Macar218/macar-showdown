@@ -262,6 +262,7 @@ function registerIpc() {
     shell.showItemInFolder(r.filePath);
     return { ok: true, file: r.filePath };
   });
+  ipcMain.handle('ms:setMark', (_e, id, mark) => { const r = store.setMark(String(id), mark || null); notify(); return r; });
   ipcMain.handle('ms:setMatchSession', (_e, id, sid) => { const r = store.setSession(String(id), sid ? String(sid) : null); notify(); return r; });
   ipcMain.handle('ms:clearSession', (_e, sid) => { const n = store.clearSession(String(sid)); notify(); return n; });
   ipcMain.handle('ms:replayNow', async (_e, id) => {

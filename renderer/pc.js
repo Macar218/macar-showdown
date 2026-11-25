@@ -66,7 +66,7 @@ const PC = (() => {
             <select id="pcBox"><option value="">Todas las cajas (${list.length})</option>${boxes.map(b => `<option${b === V.box ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
             <button class="btn sm" data-pcbox="${bi + 1}"${bi < names.length - 1 ? '' : ' disabled'} title="Caja siguiente">▶</button>
             ${pages > 1 ? `<span class="note">${V.page + 1}/${pages}</span><button class="btn sm" id="pcPrev"${V.page ? '' : ' disabled'}>‹</button><button class="btn sm" id="pcNext"${V.page < pages - 1 ? '' : ' disabled'}>›</button>` : ''}</div>
-          <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species, 'pcspr')}<small class="nolang">${esc(o.x.name || o.s.species)}</small>${o.x.side === 'foe' ? '<i class="pcfoe">Rival</i>' : ''}</button>` : '<span class="pcslot empty"></span>')).join('')}</div>
+          <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species, 'pcspr')}<small class="nolang">${esc(o.x.name || o.s.species)}</small>${o.x.side === 'foe' ? '<i class="pcfoe">Rival</i>' : ''}<span class="pcx" data-pcx="${o.x.id}" role="button" title="Borrar de Mi PC (Ctrl+Z para deshacer)">×</span></button>` : '<span class="pcslot empty"></span>')).join('')}</div>
           ${!list.length ? '<p class="note" style="margin-top:8px">Tu PC está vacío. Añade sets con «Añadir sets» o empieza una sesión con tu equipo.</p>' : !L.length ? '<p class="note" style="margin-top:8px">Ningún set coincide.</p>' : ''}
         </div>
         <aside class="pcdetail">${sel ? detailHTML(sel.x, sel.s) : '<div class="pcempty"><b>Pulsa un Pokémon</b><span class="note">Verás su set entero y podrás ponerle nombre o añadirlo a un equipo.</span></div>'}</aside>
@@ -217,6 +217,9 @@ const PC = (() => {
   /* ---------- eventos ---------- */
   const el = $('#v-pc');
   el.addEventListener('click', async e => {
+    // × encima del Pokémon: se borra al momento (Ctrl+Z o «Deshacer» lo devuelve).
+    const xb = e.target.closest('[data-pcx]');
+    if (xb) { e.stopPropagation(); const L = await P.pcList(), x = L.find(y => y.id === xb.dataset.pcx); if (!x) return; await Undo.snap('pc', `${x.name || parse(x).species} borrado de Mi PC`); await DB.set('pc', L.filter(y => y.id !== x.id)); if (V.sel === x.id) V.sel = null; render(); return; }
     const t = e.target.closest('button');
     if (!t) return;
     const list = await P.pcList();
@@ -237,6 +240,7 @@ const PC = (() => {
       const x = find(d.pdnew || V.sel), set = x && parse(x);
       if (!set) return;
       let team;
+      await Undo.snap('equipos', d.pdnew ? 'Equipo nuevo creado' : 'Pokémon añadido al equipo');
       if (d.pdnew) { const name = $('#pdNewTeam').value.trim() || `${set.species} · equipo ${(await P.teams()).filter(t => t.side === 'me').length + 1}`; team = await P.saveTeam({ name, side: 'me', text: P.exportTeam([set]) }); }
       else {
         team = await P.teamById(d.pdto); const S = P.parseTeam(team.text).sets;
@@ -260,9 +264,9 @@ const PC = (() => {
       Calc.load(x.side === 'foe' ? 'foe' : 'me', { ...set, src: 'pc' }); show('calc');
     }
     else if (d.pteam) toTeam(find(d.pteam));
-    else if (d.pdup) { const x = find(d.pdup); const copy = { ...x, id: newId('s'), name: `${x.name || parse(x).species} (copia)`, up: Date.now() }; await DB.set('pc', [copy, ...list]); render(); }
+    else if (d.pdup) { const x = find(d.pdup); await Undo.snap('pc', 'Set duplicado'); const copy = { ...x, id: newId('s'), name: `${x.name || parse(x).species} (copia)`, up: Date.now() }; await DB.set('pc', [copy, ...list]); render(); }
     else if (d.pcopy) { navigator.clipboard.writeText(find(d.pcopy).text); t.textContent = 'Copiado'; }
-    else if (d.pdel) { if (!confirm('¿Borrar este set de Mi PC?')) return; await DB.set('pc', list.filter(x => x.id !== d.pdel)); render(); }
+    else if (d.pdel) { const x = find(d.pdel); await Undo.snap('pc', `${x.name || parse(x).species} borrado de Mi PC`); await DB.set('pc', list.filter(y => y.id !== d.pdel)); V.sel = null; render(); }
     else if (t.id === 'pcTeamAdd') { show('equipo'); setTimeout(() => $('#tbImp') && $('#tbImp').click(), 50); }
     else if (t.id === 'pcTeamExport') {
       const teams = await P.teams();
@@ -271,9 +275,9 @@ const PC = (() => {
     } else if (d.tbopen) { show('equipo'); Team && (await Team.current()); setTimeout(() => $(`[data-tsel="${d.tbopen}"]`) && $(`[data-tsel="${d.tbopen}"]`).click(), 50); }
     else if (d.tbmine) { Object.assign(SET, await api.setSettings({ teamId: d.tbmine })); Calc.setTeams(d.tbmine); render(); }
     else if (d.tbrival) { Calc.setTeams(undefined, d.tbrival); show('calc'); }
-    else if (d.tbside) { const tm = await P.teamById(d.tbside); tm.side = tm.side === 'me' ? 'foe' : 'me'; await P.saveTeam(tm); Calc.reloadTeams(); render(); }
+    else if (d.tbside) { await Undo.snap('equipos', 'Equipo cambiado de lado'); const tm = await P.teamById(d.tbside); tm.side = tm.side === 'me' ? 'foe' : 'me'; await P.saveTeam(tm); Calc.reloadTeams(); render(); }
     else if (d.tbcopy) { navigator.clipboard.writeText((await P.teamById(d.tbcopy)).text); t.textContent = 'Copiado'; }
-    else if (d.tbdel) { if (!confirm('¿Borrar este equipo?')) return; await P.removeTeam(d.tbdel); Calc.reloadTeams(); render(); }
+    else if (d.tbdel) { const tm = await P.teamById(d.tbdel); await Undo.snap('equipos', `Equipo «${tm ? tm.name : ''}» borrado`); await P.removeTeam(d.tbdel); Calc.reloadTeams(); render(); }
   });
   el.addEventListener('input', e => { if (e.target.id === 'tQ') { V.tq = e.target.value; V.tpage = 0; clearTimeout(V.t); V.t = setTimeout(async () => { const pos = e.target.selectionStart; await render(); const q = $('#tQ'); q.focus(); q.setSelectionRange(pos, pos); }, 250); return; } if (e.target.id === 'pcQ') { V.q = e.target.value; V.page = 0; clearTimeout(V.t); V.t = setTimeout(async () => { const pos = e.target.selectionStart; await render(); const q = $('#pcQ'); q.focus(); q.setSelectionRange(pos, pos); }, 200); } });
   /* Nombre: doble clic para cambiarlo (Enter guarda, Esc lo deja). Notas y caja se guardan solas. */
@@ -286,10 +290,10 @@ const PC = (() => {
   el.addEventListener('dblclick', e => { if (e.target.closest('[data-pren]')) { V.rename = true; render().then(() => { const i = $('#pdName'); if (i) { i.focus(); i.select(); } }); } });
   el.addEventListener('keydown', async e => {
     if (e.target.id !== 'pdName') return;
-    if (e.key === 'Enter') { e.preventDefault(); V.rename = false; await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); }
+    if (e.key === 'Enter') { e.preventDefault(); V.rename = false; await Undo.snap('pc', 'Nombre cambiado'); await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); }
     else if (e.key === 'Escape') { e.stopPropagation(); V.rename = false; render(); }
   });
-  el.addEventListener('focusout', async e => { if (e.target.id === 'pdName' && V.rename) { V.rename = false; await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); } });
+  el.addEventListener('focusout', async e => { if (e.target.id === 'pdName' && V.rename) { V.rename = false; await Undo.snap('pc', 'Nombre cambiado'); await patchSel({ name: e.target.value.trim().slice(0, 80) }); render(); } });
   el.addEventListener('input', e => {
     if (e.target.id !== 'pdNotes') return;
     clearTimeout(V.nt);
@@ -297,7 +301,7 @@ const PC = (() => {
     V.nt = setTimeout(async () => { await patchSel({ notes: v.slice(0, 3000) }); const m = $('#pdMsg'); if (m) m.textContent = 'Notas guardadas.'; }, 600);
   });
   el.addEventListener('change', e => {
-    if (e.target.id === 'pdBox') { patchSel({ box: e.target.value.trim().slice(0, 40) }).then(render); return; }
+    if (e.target.id === 'pdBox') { const v = e.target.value.trim().slice(0, 40); Undo.snap('pc', 'Caja cambiada').then(() => patchSel({ box: v })).then(render); return; }
     if (e.target.id === 'tMine') { V.tmine = e.target.checked; V.tpage = 0; render(); return; }
     const k = { pcSide: 'side', pcBox: 'box', pcSort: 'sort' }[e.target.id];
     if (k) { V[k] = e.target.value; V.page = 0; render(); }

@@ -282,6 +282,36 @@ t('la interfaz no tiene errores de sintaxis', () => {
     try { new Function(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { throw new Error(`${f}: ${e.message}`); }
   }
 });
+t('marcas de cada partida (buena, mala, analizar) y su filtro', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-mark-'));
+  const st = new Store(dir);
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-1', log: LOG });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-2', log: LOG });
+  st.setNotes('gen9championsvgc2026regmc-2', 'Mirar el turno 3');
+  assert.ok(st.setMark('gen9championsvgc2026regmc-1', { r: 'good', a: true }));
+  st.setMark('gen9championsvgc2026regmc-2', { r: 'nada' });
+  // Al volver a guardar la partida (el registro crece) la marca se queda.
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-1', log: `${LOG}\n|raw|fin` });
+  const L = new Store(dir).list().map(x => ({ ...x, me: 'p2', result: 'win' }));
+  assert.deepStrictEqual(L.find(x => x.id.endsWith('-1')).mark, { r: 'good', a: true });
+  assert.strictEqual(L.find(x => x.id.endsWith('-2')).mark, null);
+  const ids = f => Stats.filter(L, { mark: f }).map(x => x.id.slice(-1)).sort().join(',');
+  assert.strictEqual(ids('good'), '1');
+  assert.strictEqual(ids('analyze'), '1');
+  assert.strictEqual(ids('bad'), '');
+  assert.strictEqual(ids('notes'), '2');
+  assert.strictEqual(ids('none'), '2');
+});
+
+t('Macar Dex: habilidades posibles de cada Pokémon (data.js)', () => {
+  const { MacarDex } = require('../src/macardex');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-dex2-'));
+  fs.mkdirSync(path.join(dir, 'macardex'));
+  fs.writeFileSync(path.join(dir, 'macardex', 'sets.js'), 'window.SETS={};');
+  fs.writeFileSync(path.join(dir, 'macardex', 'data.js'), 'window.DEX=[{"k":"incineroar","n":"Incineroar","a":[["Blaze",0],["Intimidate",1]]}];');
+  assert.strictEqual(new MacarDex(dir).build().abil.incineroar.join(','), 'Blaze,Intimidate');
+});
+
 t('sesiones: sin archivo de sesiones se devuelve una lista vacía', () => {
   const st = new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'ms-ses-')));
   assert.ok(Array.isArray(st.data('sesiones')));

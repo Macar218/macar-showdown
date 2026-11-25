@@ -2,7 +2,7 @@
 /*
  * Macar Showdown · datos de la Macar Dex (https://macar218.github.io/macar-dex/).
  * La Macar Dex actualiza cada lunes su uso y sus sets. Aquí se bajan sus archivos de datos (movimientos con
- * descripción y lo que aprende cada Pokémon, sets de Smogon, objeto y reparto más usados, uso y nombres en español),
+ * descripción y lo que aprende cada Pokémon, sets de Smogon, las habilidades posibles de cada Pokémon (data.js), objeto y reparto más usados, uso y nombres en español),
  * se guardan en <datos>/macardex y se vuelven a pedir como mucho una vez al día. Sin conexión, la última copia.
  * Los archivos son JS de datos («window.X = {...}»): se leen en un contexto aislado sin nada más que un «window».
  */
@@ -11,7 +11,7 @@ const path = require('path');
 const vm = require('vm');
 
 const BASE = 'https://macar218.github.io/macar-dex/';
-const FILES = ['moves.js', 'sets.js', 'items.js', 'meta.js', 'es.js'];
+const FILES = ['moves.js', 'sets.js', 'items.js', 'meta.js', 'es.js', 'data.js'];
 const DAY = 24 * 3600 * 1000;
 
 function readData(src) {
@@ -56,20 +56,24 @@ class MacarDex {
     const moves = {};
     for (const m of w.MOVES || []) moves[m.k] = { n: m.n, t: m.t, c: m.c, p: m.p, a: m.a, pp: m.pp, pr: m.pr, tg: m.tg, d: m.d };
     const list = w.MOVES || [];
+    // Habilidades posibles de cada Pokémon (el motor de daño de Champions solo trae una).
+    const abil = {};
+    for (const d of w.DEX || []) if (d && d.k && Array.isArray(d.a)) abil[d.k] = d.a.map(x => x[0]).filter(Boolean);
     const learn = {};
     for (const [k, ids] of Object.entries(w.LEARN || {})) learn[k] = ids.map(i => (list[i] ? list[i].k : null)).filter(Boolean);
     return {
-      t: this.stamp(), src: w.SRC || {}, moves, learn, sets: w.SETS || {}, csets: w.CSETS || {},
+      t: this.stamp(), src: w.SRC || {}, moves, learn, abil, sets: w.SETS || {}, csets: w.CSETS || {},
       usage: (w.USAGES && w.USAGES.showdown) || {}, online: (w.USAGES && w.USAGES.online) || {},
       es: { m: (w.ES && w.ES.m) || {}, md: (w.ES && w.ES.md) || {}, a: (w.ES && w.ES.a) || {}, ad: (w.ES && w.ES.ad) || {}, n: (w.ES && w.ES.n) || {} }
     };
   }
 
   async get(force) {
-    if (this.cache && !force && Date.now() - this.stamp() < DAY) return this.cache;
+    if (this.cache && !force && Date.now() - this.stamp() < DAY && this.cache.abil && Object.keys(this.cache.abil).length) return this.cache;
     if (this.loading) return this.loading;
     this.loading = (async () => {
-      if (force || Date.now() - this.stamp() > DAY) await this.download();
+      const missing = FILES.some(f => !fs.existsSync(path.join(this.dir, f)));
+      if (force || missing || Date.now() - this.stamp() > DAY) await this.download();
       this.cache = this.build();
       return this.cache;
     })().finally(() => { this.loading = null; });

@@ -36,7 +36,8 @@ const Start = (() => {
         <button class="stbig" data-st="load"${d.sess.length ? '' : ' disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>Cargar sesión</b><span>${d.sess.length ? 'Sigue con una sesión de uno de tus equipos.' : 'Aún no tienes sesiones.'}</span></button>
         <button class="stbig primary" data-st="new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Nueva sesión</b><span>Con un equipo que ya tienes o con uno nuevo (pega su Pokepaste).</span></button>
       </div>
-      <button class="stlink" data-st="skip">${V.first ? 'Entrar sin sesión' : 'Cerrar'}</button>`;
+      <button class="stlink" data-st="skip">${V.first ? 'Entrar sin sesión' : 'Cerrar'}</button>
+      <button class="stlink sttour" data-tourstart="1">¿Primera vez? Ver el tutorial</button>`;
   }
 
   function loadHTML(d) {

@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('macar', {
   current: () => ipcRenderer.invoke('ms:current'),
   matchExists: id => ipcRenderer.invoke('ms:matchExists', id),
   downloadReplay: id => ipcRenderer.invoke('ms:downloadReplay', id),
+  setMark: (id, mark) => ipcRenderer.invoke('ms:setMark', id, mark),
   setMatchSession: (id, sid) => ipcRenderer.invoke('ms:setMatchSession', id, sid),
   clearSession: sid => ipcRenderer.invoke('ms:clearSession', sid),
   replayNow: id => ipcRenderer.invoke('ms:replayNow', id),

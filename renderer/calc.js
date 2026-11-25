@@ -50,6 +50,7 @@ function makeCalc(cfg) {
     selMe: 0, selFoe: 0,
     field: P.blankField(),
     teamMe: '', teamFoe: '',          // equipos del Team Box elegidos
+    meMode: 'team',                   // estudio: 'team' = tu equipo (el de la sesión por defecto) · 'free' = los Pokémon que tú pongas
     battleId: null, format: '', turn: 0, spectator: false,
     edits: { me: {}, foe: {} },       // cambios a mano sobre lo que viene del combate o del equipo
     manual: { me: [], foe: [] }       // Pokémon añadidos a mano
@@ -59,10 +60,11 @@ function makeCalc(cfg) {
   let lastHash = '';
 
   try { Object.assign(S, JSON.parse(localStorage.getItem(cfg.key) || '{}'), { battleId: null, edits: { me: {}, foe: {} } }); } catch (e) { /* nada */ }
-  if (LIVE) { S.manual = { me: [], foe: [] }; S.teamFoe = ''; }
+  if (LIVE) { S.manual = { me: [], foe: [] }; S.teamFoe = ''; S.meMode = 'team'; }
+  const freeMe = () => !LIVE && S.meMode === 'free';
   if (!S.field || !S.field.me) S.field = P.blankField();
   const persist = () => {
-    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, field: S.field })); } catch (e) { /* nada */ }
+    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, field: S.field })); } catch (e) { /* nada */ }
   };
 
   /* ---------- sets ---------- */
@@ -165,12 +167,12 @@ function makeCalc(cfg) {
   function applyManual() {
     // Un equipo que ya no existe (borrado, otra carpeta de datos): el de tu sesión.
     if (TEAMS.length && S.teamMe && !teamById(S.teamMe)) S.teamMe = (typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) ? SET.teamId : '';
-    if (TEAMS.length && !S.teamMe && typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) S.teamMe = SET.teamId;
+    if (!freeMe() && TEAMS.length && !S.teamMe && typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) S.teamMe = SET.teamId;
     if (!LIVE && TEAMS.length && S.teamFoe && !teamById(S.teamFoe)) S.teamFoe = '';
     if (LIVE && S.battleId) { S.edits = { me: {}, foe: {} }; S.selMove = null; S.field = P.blankField(); }
     S.battleId = null; S.format = ''; S.turn = 0; S.spectator = false; S.sheet = false;
     const fromTeam = (id, extra) => { const t = teamById(id); return [...(t ? P.parseTeam(t.text).sets : []), ...extra.map(x => ({ ...x }))]; };
-    S.me = withEdits('me', fromTeam(S.teamMe, LIVE ? [] : S.manual.me).map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
+    S.me = withEdits('me', fromTeam(freeMe() ? '' : S.teamMe, LIVE ? [] : S.manual.me).map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     // En Jugar, sin combate no hay rival: los del combate se van al terminar.
     S.foe = LIVE ? [] : withEdits('foe', fromTeam(S.teamFoe, S.manual.foe).map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     S.meActive = S.meActive && S.meActive.length && S.meActive.every(i => S.me[i]) ? S.meActive : S.me.slice(0, 2).map((_, i) => i);
@@ -204,12 +206,13 @@ function makeCalc(cfg) {
   function monChip(m, i, side) {
     const act = (side === 'me' ? S.meActive : S.foeActive).includes(i);
     const sel = (side === 'me' ? S.selMe : S.selFoe) === i;
-    return `<button class="mchip${sel ? ' sel' : ''}${act ? ' act' : ''}${m.fainted ? ' fnt' : ''}" data-pick="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ''}${S.battleId ? '' : ' · clic derecho: sacarlo al campo o retirarlo'}">${spr(m.species, 'sm')}<i class="hpbar"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></i></button>`;
+    const hp = Math.max(0, Math.min(100, m.hp));
+    return `<button class="mchip${sel ? ' sel' : ''}${act ? ' act' : ''}${m.fainted ? ' fnt' : ''}" data-pick="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ''}${S.battleId ? '' : ' · clic derecho: sacarlo al campo o retirarlo'}">${spr(m.species, 'sm')}<span class="mcn nolang">${esc(P.baseSpecies(m.species))}</span><i class="hpbar"><i style="width:${hp}%" class="${hpCls(m.hp)}"></i></i><small class="mchp">${m.fainted ? 'KO' : `${Math.round(hp)}%`}</small>${act ? '<em class="mcact" title="En el campo">●</em>' : ''}</button>`;
   }
   function strip(side) {
     const canAdd = !LIVE;
     const empty = !S[side].length ? `<span class="note">${LIVE ? (side === 'me' ? 'Elige tu equipo en la sesión.' : 'Aparecen al empezar un combate.') : 'Ninguno: añade con +'}</span>` : '';
-    return `<div class="strip"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}${empty}${canAdd ? `<button class="mchip add" data-add="${side}" title="Añadir un Pokémon a mano">+</button>` : ''}</div></div>`;
+    return `<div class="strip ${side}"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}${empty}${canAdd ? `<button class="mchip add" data-add="${side}" title="Añadir un Pokémon a mano">+</button>` : ''}</div></div>`;
   }
   const SRC = { dex: 'Macar Dex', exacto: 'exacto', uso: 'Smogon', torneo: 'de torneo', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC', hoja: 'hoja de equipo' };
   /** Cómo sale el daño del movimiento marcado: las 16 tiradas, PS que le quedan y qué lo cambia. */
@@ -362,14 +365,16 @@ function makeCalc(cfg) {
       const status = S.battleId
         ? `<span class="pill live">EN DIRECTO</span><span>Turno ${S.turn}${S.spectator ? ' · espectador' : ''}${S.sheet ? ' · con hoja de equipo' : ''}</span>`
         : '<span class="pill">SIN COMBATE</span><span>Se llena sola al empezar un combate</span>';
-      return `<div class="ctop">${status}<span style="flex:1"></span><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
+      return `<div class="ctop">${status}<span style="flex:1"></span><button class="btn sm" data-cwide="1" title="Abrir la calculadora más ancha o volver a tu ancho">${window.CalcDrawer && CalcDrawer.wide() ? '⇥ Más estrecha' : '⇤ Más ancha'}</button><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
         ${S.battleId ? '' : '<p class="note cnobattle">Aquí salen los Pokémon del combate que juegues y se van al terminar. Para estudiar sets y equipos, usa la página Calculadora.</p>'}
         ${srcSeg}
         <p class="note csrcnote">${S.sheet ? 'Rival con hoja de equipo: objeto, habilidad, naturaleza y movimientos son los suyos; el reparto (SP) es el más común con esa naturaleza.' : 'Sin hoja de equipo: lo que no se ha visto sale de la fuente elegida y se corrige según se ve en el combate.'}</p>`;
     }
     const teamOpt = (side, v) => `<option value="">${side === 'me' ? 'Tu equipo…' : 'Equipo rival…'}</option>${TEAMS.filter(t => t.side === side).map(t => `<option value="${esc(t.id)}"${t.id === v ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}`;
     return `<div class="ctop"><span class="pill">ESTUDIO</span><span>Tus equipos, Mi PC y los rivales de tus partidas</span><span style="flex:1"></span><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
-      <div class="cteams"><select data-cteam="me" title="Tu equipo">${teamOpt('me', S.teamMe)}</select>
+      <div class="cmode"><span class="note">Tus Pokémon:</span><div class="seg">${[['team', 'Tu equipo'], ['free', 'Los que tú elijas']].map(([k, l]) => `<button data-cmode="${k}" aria-pressed="${(S.meMode || 'team') === k}" title="${k === 'team' ? 'Un equipo tuyo: por defecto, el de tu sesión' : 'Empieza vacío y añade con + los Pokémon que quieras: de Mi PC, de tus equipos o nuevos'}">${l}</button>`).join('')}</div>
+        ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? '<button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>' : ''}` : ''}</div>
+      <div class="cteams">${S.meMode === 'free' ? '' : `<select data-cteam="me" title="Tu equipo">${teamOpt('me', S.teamMe)}</select>`}
         <select data-cteam="foe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" data-cmatch="1" title="Los rivales de una partida tuya: su hoja de equipo (OTS) con el reparto más común">De una partida</button>
         <button class="btn sm" data-cpaste="1" title="Pegar o traer de Pokepaste un equipo rival">Pegar rival</button>
@@ -538,11 +543,19 @@ function makeCalc(cfg) {
       if (!t) return;
       if (t.dataset.info) { P.openInfo(t.dataset.info); return; }
       if (t.dataset.dex) { P.openInfo((S.foe[S.selFoe] || S.me[S.selMe] || {}).species || 'Garchomp'); return; }
+      if (t.dataset.cwide) { if (window.CalcDrawer) CalcDrawer.toggleWide(); render(); return; }
       if (t.dataset.detx) { S.showRolls = false; render(); return; }
       if (t.dataset.sdkeep) { keepCalc(); return; }
       if (t.dataset.cmatch) { fromMatch(); return; }
       if (t.dataset.cpaste) { quickRival(); return; }
+      if (t.dataset.cclear === 'me') { S.manual.me = []; S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return; }
       if (t.dataset.cclear) { S.teamFoe = ''; S.manual.foe = []; S.edits.foe = {}; S.foeActive = []; persist(); lastHash = ''; tick(true); return; }
+      if (t.dataset.cmode) {
+        S.meMode = t.dataset.cmode === 'free' ? 'free' : 'team';
+        // Con tu equipo, el de la sesión si no habías elegido otro; a mano, empiezas con lo que ya hubieras puesto.
+        if (S.meMode === 'team' && !S.teamMe && typeof SET !== 'undefined' && SET.teamId) S.teamMe = SET.teamId;
+        S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return;
+      }
       if (t.dataset.medit) { const [side, i] = t.dataset.medit.split(':'); if (+i >= 0) edit(side, +i, false); return; }
       if (t.dataset.cmv) { const [side, i] = t.dataset.cmv.split(':'); S.mvPick = S.mvPick && S.mvPick[0] === side && S.mvPick[1] === +i ? null : [side, +i]; S.mvQ = ''; render(); setTimeout(() => { const q = q1('#mvQ'); if (q) q.focus(); }, 30); return; }
       if (t.dataset.mvclose) { S.mvPick = null; render(); return; }
@@ -623,7 +636,7 @@ function makeCalc(cfg) {
     try {
       let b = null;
       if (LIVE) { const r = await api.live(); b = r && r.ok ? r.battle : null; if (b && b.ended) b = null; }
-      const hash = JSON.stringify(b) + S.teamMe + S.teamFoe + (U ? U.month : '') + TEAMS.length + JSON.stringify(S.manual);
+      const hash = JSON.stringify(b) + S.teamMe + S.meMode + S.teamFoe + (U ? U.month : '') + TEAMS.length + JSON.stringify(S.manual);
       if (!force && hash === lastHash) return;
       lastHash = hash;
       if (b && (b.me || b.foe)) applyLive(b); else applyManual();
@@ -638,7 +651,7 @@ function makeCalc(cfg) {
 
   async function init() {
     TEAMS = await P.teams();
-    if (LIVE || !S.teamMe) { const s = await api.settings(); if (s.teamId) S.teamMe = s.teamId; }
+    if (LIVE || (!S.teamMe && !freeMe())) { const s = await api.settings(); if (s.teamId) S.teamMe = s.teamId; }
     bind();
     tick(true);
     if (LIVE) setInterval(() => tick(false), 1500);
@@ -684,18 +697,26 @@ const Calc = {
   btn.addEventListener('click', () => setOpen(panel.classList.contains('closed')));
   document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen(panel.classList.contains('closed')); } });
   window.addEventListener('ms:view', () => { CalcStudy.setOpen(onPage()); });
-  let w = 480;
-  try { w = +localStorage.getItem('msCalcW') || 480; } catch (e) { /* nada */ }
-  const setW = x => { w = Math.max(380, Math.min(820, x)); panel.style.width = `${w}px`; };
-  setW(w);
+  // Ancho: el que dejes al arrastrar (de 380 px hasta dejar sitio a Showdown) o «Más ancha» (el 60 % de la ventana).
+  let w = 560, wide = false;
+  try { w = +localStorage.getItem('msCalcW') || 560; wide = localStorage.getItem('msCalcWide') === '1'; } catch (e) { /* nada */ }
+  const maxW = () => Math.max(380, window.innerWidth - 700);
+  const apply = () => { panel.style.width = `${wide ? Math.max(w, Math.min(maxW(), Math.round(window.innerWidth * 0.6))) : Math.min(w, maxW())}px`; };
+  const setW = x => { w = Math.max(380, Math.min(maxW(), x)); wide = false; apply(); };
+  window.CalcDrawer = {
+    wide: () => wide,
+    toggleWide() { wide = !wide; try { localStorage.setItem('msCalcWide', wide ? '1' : '0'); } catch (e) { /* nada */ } apply(); }
+  };
+  apply();
+  window.addEventListener('resize', apply);
   const grip = $('#calcGrip');
   grip.addEventListener('pointerdown', e => {
     e.preventDefault();
     grip.setPointerCapture(e.pointerId);
     document.body.classList.add('resizing');
-    const x0 = e.clientX, w0 = w;
+    const x0 = e.clientX, w0 = panel.getBoundingClientRect().width;
     const move = ev => setW(w0 + (x0 - ev.clientX));
-    const up = () => { grip.removeEventListener('pointermove', move); document.body.classList.remove('resizing'); try { localStorage.setItem('msCalcW', String(w)); } catch (err) { /* nada */ } };
+    const up = () => { grip.removeEventListener('pointermove', move); document.body.classList.remove('resizing'); try { localStorage.setItem('msCalcW', String(w)); localStorage.setItem('msCalcWide', '0'); } catch (err) { /* nada */ } };
     grip.addEventListener('pointermove', move);
     grip.addEventListener('pointerup', up, { once: true });
   });

@@ -10,8 +10,8 @@ let M = [];          // resúmenes de partidas
 let SET = {};        // ajustes
 let VIEW = 'jugar';
 /** Filtros del Dashboard. scope: qué partidas cuentan (la sesión abierta, todo su equipo o todas). */
-const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, scope: 'session' };
-const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0 };
+const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', scope: 'session' };
+const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '' };
 
 /* ---------- sprites ---------- */
 const NOHYPHEN = new Set(['kommoo', 'hakamoo', 'jangmoo', 'hooh', 'porygonz', 'chiyu', 'chienpao', 'tinglu', 'wochien', 'mrmime', 'mimejr', 'typenull', 'mrrime', 'nidoranf', 'nidoranm']);
@@ -235,8 +235,44 @@ function groupBo3(list) {
   }
   return groups.reverse();
 }
+/* ---------- marcas de cada partida: cómo fue (buena, indiferente, mala) y si hay que analizarla ---------- */
+const MARKS = [['good', 'Buena'], ['meh', 'Indiferente'], ['bad', 'Mala']];
+function markHTML(s) {
+  const mk = s.mark || {};
+  return `<div class="mkrow" data-mkid="${esc(s.id)}"><span class="mklbl">Cómo fue</span><div class="seg mkseg">${MARKS.map(([k, l]) => `<button data-mk="${k}" class="mk-${k}" aria-pressed="${mk.r === k}">${l}</button>`).join('')}</div>
+    <button class="btn sm mka${mk.a ? ' on' : ''}" data-mka="1" aria-pressed="${!!mk.a}" title="Apúntala para analizarla más tarde">${mk.a ? '✓ Para analizar' : '+ Para analizar'}</button></div>`;
+}
+/** Pulsar una marca: se guarda al momento en la partida. */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('.mkrow button');
+  if (!b) return;
+  const row = b.closest('.mkrow'), id = row.dataset.mkid;
+  const x = M.find(y => y.id === id) || {};
+  const mk = { r: '', a: false, ...(x.mark || {}) };
+  if (b.dataset.mk) mk.r = mk.r === b.dataset.mk ? '' : b.dataset.mk; else mk.a = !mk.a;
+  x.mark = mk.r || mk.a ? mk : null;
+  row.outerHTML = markHTML({ id, mark: x.mark });
+  await api.setMark(id, x.mark);
+});
+/** Al acabar un Bo3 tuyo (o una partida suelta fuera de Bo3), sale para marcar sus partidas. Una vez por serie. */
+async function askMarks(saved) {
+  if (!saved || !saved.id || !saved.me || !saved.result) return;
+  let asked = [];
+  try { asked = JSON.parse(localStorage.getItem('msMarkAsked') || '[]'); } catch (e) { asked = []; }
+  const g = groupBo3(M.filter(s => s.me)).find(x => x.games.some(y => y.id === saved.id));
+  if (!g || !g.bo3) return;
+  const w = g.games.filter(y => y.result === 'win').length, l = g.games.filter(y => y.result === 'loss').length;
+  if (w < 2 && l < 2 && g.games.length < 3) return;
+  const key = g.games[0].id;
+  if (asked.includes(key)) return;
+  asked = [...asked, key].slice(-200);
+  try { localStorage.setItem('msMarkAsked', JSON.stringify(asked)); } catch (e) { /* nada */ }
+  if (!$('#modal').classList.contains('hide')) return;
+  openSet(g.games.map(y => y.id), { ask: true });
+}
+
 /** Una partida o un match Bo3: rondas, leads, reservas, megas, las notas de cada partida y las notas finales. */
-async function openSet(ids) {
+async function openSet(ids, opts) {
   const games = (await Promise.all(ids.map(id => api.get(id)))).filter(Boolean);
   if (!games.length) return;
   const notes = (await DB.get('bo3Notes')) || {};
@@ -247,10 +283,11 @@ async function openSet(ids) {
   const back = (sd, s) => s[sd].brought.filter(x => !s[sd].leads.includes(x));
   const sheet = games.map(g => g.summary[opSd].sheet).find(Boolean);
   const bo3 = games.length > 1 || /bo3/.test(s0.formatId || '');
-  $('#modalBox').innerHTML = `<div class="head"><div><h1 style="font-size:22px">${bo3 ? 'Bo3 ' : ''}vs <span class="nolang">${esc(s0[opSd].name)}</span> ${bo3 ? `<span class="pill ${w > l ? 'win' : l > w ? 'loss' : 'tie'}">${w}–${l}</span>` : pill(s0.result)}</h1>
+  $('#modalBox').innerHTML = `${opts && opts.ask ? `<div class="mkask"><b>${bo3 ? 'Bo3 terminado' : 'Partida terminada'}</b><span>Marca cómo fue cada partida y si quieres analizarla. Luego puedes filtrarlas en Dashboard → Partidas.</span></div>` : ''}<div class="head"><div><h1 style="font-size:22px">${bo3 ? 'Bo3 ' : ''}vs <span class="nolang">${esc(s0[opSd].name)}</span> ${bo3 ? `<span class="pill ${w > l ? 'win' : l > w ? 'loss' : 'tie'}">${w}–${l}</span>` : pill(s0.result)}</h1>
       <p class="note">${fmtDate(s0.endedAt)} · ${esc(s0.format)}</p></div><button class="btn" id="mClose">Cerrar</button></div>
     <div class="rounds">${games.map((g, i) => { const s = g.summary; return `<div class="round">
       <div class="rhead"><b>G${i + 1}</b>${pill(s.result)}<span class="note">${s.turns} turnos</span><button class="btn sm primary" data-view="${esc(s.id)}">▶ Ver replay</button><button class="btn sm" data-open="${esc(s.id)}">Detalles</button></div>
+      ${markHTML(s)}
       <div class="rgrid"><span>Tus leads</span><span>${s[meSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Tu reserva</span><span>${back(meSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
         <span>Sus leads</span><span>${s[opSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Su reserva</span><span>${back(opSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
         <span>Mega rival</span><span>${s[opSd].megas.map(n => `${spr(n, 'sm')}${esc(n)}`).join(' ') || '—'}</span></div>
@@ -362,6 +399,7 @@ async function openDetail(id) {
     ${s[b].sheet ? `<h3 style="margin:4px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(s[b].sheet)}` : ''}
     ${SESS.length ? `<label class="field" style="margin-bottom:10px">Sesión de esta partida<select id="mSess"><option value="">Sin sesión</option>${SESS.map(x => `<option value="${esc(x.id)}"${s.session === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
     ${s.me && TEAMS_ME.length ? `<label class="field" style="margin-bottom:10px">Tu equipo en esta partida<select id="mTeam"><option value="">Sin asignar</option>${TEAMS_ME.map(t => `<option value="${esc(t.id)}"${teamOf(s) === t.id ? ' selected' : ''}>${esc(t.name)}${!MATCH_TEAM[s.id] && teamOf(s) === t.id ? ' (detectado)' : ''}</option>`).join('')}</select></label>` : ''}
+    ${markHTML(s)}
     <label class="field">Notas de la partida<textarea id="mNotes" placeholder="Qué viste del rival, errores, ideas para la próxima…">${esc(m.notes || '')}</textarea></label>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="note" id="mSaved"></span><button class="btn danger" id="mDel">Borrar partida</button></div>`;
   $('#modal').classList.remove('hide');
@@ -420,6 +458,9 @@ async function renderSettings() {
       <dl class="kv"><dt>Estado</dt><dd>${st.ok ? 'Activa' : esc(st.why || '—')}</dd><dt>Conectado como</dt><dd>${esc(st.me || '—')}</dd>
       <dt>Combates abiertos</dt><dd>${st.open ?? 0}</dd><dt>Guardadas en esta sesión</dt><dd>${st.saved ?? 0}</dd>
       <dt>Última comprobación</dt><dd>${st.lastCheck ? new Date(st.lastCheck).toLocaleTimeString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES')) : '—'}</dd></dl></div>
+    <div class="card"><h2>Tutorial</h2>
+      <p class="note" style="margin-bottom:10px">Un recorrido por la app, parte por parte: para qué sirve cada pantalla y los atajos.</p>
+      <button class="btn primary" data-tourstart="1">Ver el tutorial</button></div>
     <div class="card"><h2>Language · Idioma</h2>
       <p class="note" style="margin-bottom:10px">El idioma de toda la app. Al cambiarlo, la app se recarga.</p>
       <div class="seg nolang"><button data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button data-lang="es" aria-pressed="${I18N.lang === 'es'}">Español</button></div></div>
@@ -485,7 +526,7 @@ async function renderSettings() {
 api.onChanged(d => {
   // Al volver a la ventana (o si otro ordenador cambió algo) se relee todo.
   if (d && d.focus) { DB.clear(); Calc.reloadTeams(); if (VIEWS[VIEW]) VIEWS[VIEW](); }
-  load();
+  load().then(() => { if (d && d.id && d.result) askMarks(d); });
 });
 load();
 pollStatus();

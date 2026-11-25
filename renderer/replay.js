@@ -60,7 +60,14 @@ const Viewer = (() => {
       body = x.sheet.map(m => {
         const brought = (x.brought || []).some(b => P.toID(P.baseSpecies(b)) === P.toID(P.baseSpecies(m.species)));
         const ab = /^[01H]$/.test(m.ability) ? '' : P.nameOf('abilities', m.ability);
-        return `<div class="otsmon${brought ? '' : ' out'}">${spr(m.species, 'sm')}<div><b>${esc(m.species)}</b><span>${esc(P.nameOf('items', m.item) || '—')}${ab ? ` · ${esc(ab)}` : ''}${m.nature ? ` · ${esc(m.nature)}` : ''}</span><small>${m.moves.map(v => { const d = P.moveOf(P.nameOf('moves', v)); return `<i class="otsmv t-${esc(d ? d.type : '')}"></i>${esc(P.nameOf('moves', v))}`; }).join(' ')}</small></div></div>`;
+        const it = P.nameOf('items', m.item), ii = it && P.itemInfo(it);
+        const nat = m.nature && P.NAT[m.nature], natTxt = nat && nat.plus && nat.plus !== nat.minus ? `<span class="up">+${P.SL[nat.plus]}</span> <span class="dn">−${P.SL[nat.minus]}</span>` : (m.nature ? `<span class="note">${tt('neutra', 'neutral')}</span>` : '');
+        return `<div class="otscard${brought ? '' : ' out'}">
+          <div class="otsch">${spr(m.species)}<div><b class="nolang">${esc(m.species)}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div><em class="${brought ? 'in' : ''}">${brought ? tt('Jugó', 'Played') : tt('No salió', 'Benched')}</em></div>
+          <div class="otsrow"><span class="k">${tt('Objeto', 'Item')}</span><span class="v nolang">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}${esc(it || '—')}</span></div>
+          <div class="otsrow"><span class="k">${tt('Habilidad', 'Ability')}</span><span class="v nolang">${esc(ab || '—')}</span></div>
+          <div class="otsrow"><span class="k">${tt('Naturaleza', 'Nature')}</span><span class="v"><span class="nolang">${esc(m.nature || '—')}</span> ${natTxt}</span></div>
+          <div class="otsmoves">${[0, 1, 2, 3].map(k => P.moveTile(m.moves[k] ? P.nameOf('moves', m.moves[k]) : '')).join('')}</div></div>`;
       }).join('');
     } else {
       const seen = x.moves || {};
@@ -70,7 +77,8 @@ const Viewer = (() => {
         return `<div class="otsmon${brought ? '' : ' out'}">${spr(n, 'sm')}<div><b>${esc(n)}</b><small>${k && seen[k].length ? seen[k].map(esc).join(' · ') : tt('sin movimientos vistos', 'no moves seen')}</small></div></div>`;
       }).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
     }
-    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}</div><div class="otsgrid nolang">${body}</div>`;
+    const open = V.otsOpen !== false;
+    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? (x.sheet && x.sheet.length ? `<div class="otsgrid big">${body}</div>` : `<div class="otsgrid nolang">${body}</div>`) : ''}`;
   }
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
@@ -271,7 +279,7 @@ const Viewer = (() => {
     if (V) close();
     let tx = [];
     try { tx = Transcript.parse(m.log); } catch (e) { tx = []; }
-    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx };
+    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })() };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -308,6 +316,7 @@ const Viewer = (() => {
     else if (d.rv === 'side') run('Replays.battle.switchViewpoint()');
     else if (d.rvturn != null) run(`Replays.battle.seekTurn(${+d.rvturn})`).then(poll);
     else if (d.rv === 'mute') { muted = !muted; applyMute(); }
+    else if (d.rvotsopen) { V.otsOpen = V.otsOpen === false; try { localStorage.setItem('msRvOts', V.otsOpen ? '1' : '0'); } catch (e) { /* nada */ } document.querySelector('#rvOts').innerHTML = otsHTML(); }
     else if (d.rvots) { V.otsSide = d.rvots; document.querySelector('#rvOts').innerHTML = otsHTML(); }
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
     else if (b.id === 'rvMark') mark();

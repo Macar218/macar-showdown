@@ -43,9 +43,9 @@
       <div class="sdcol">
         <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
         <div class="notesbar" id="notesBar">
-          <div class="nbtop"><button class="nbhead" id="nbToggle" title="Mostrar u ocultar las notas"><b>Notas de la partida</b><span id="nbWho">Abre un combate para tomar notas</span><span class="nbsaved" id="nbSaved"></span><i aria-hidden="true">▾</i></button>
-            <button class="btn sm primary" id="nbMark" title="Empieza una línea con el turno de ahora ([T5]) para apuntar algo de ese turno" disabled>+ Nota del turno</button></div>
-          <textarea id="nbText" placeholder="Apunta mientras juegas: qué ha traído, qué ha hecho, sets que has visto, errores… Se guarda con la partida." disabled></textarea>
+          <div class="nbtop"><button class="nbhead" id="nbToggle" title="Mostrar u ocultar las notas"><b>Notas de la partida</b><span id="nbWho">Abre un combate para tomar notas</span><span class="nbsaved" id="nbSaved"></span><i aria-hidden="true">▾</i></button></div>
+          <div class="nbbody"><textarea id="nbText" placeholder="Apunta mientras juegas: qué ha traído, qué ha hecho, sets que has visto, errores… Se guarda con la partida." disabled></textarea>
+            <div class="nbside"><button class="btn primary" id="nbMark" title="Empieza una línea con el turno de ahora ([T5]) para apuntar algo de ese turno" disabled>+ Nota del turno</button><span class="note">La línea empieza por [T5] y sale en amarillo.</span></div></div>
         </div>
       </div>
       <button class="calctab" id="calcToggle" title="Abrir o cerrar la calculadora (Ctrl+K)"><span>Calculadora</span></button>
@@ -72,6 +72,7 @@
 <script src="app.js"></script>
 <script src="items-data.js"></script>
 <script src="poke.js"></script>
+<script src="undo.js"></script>
 <script src="multicalc.js"></script>
 <script src="calc.js"></script>
 <script src="team.js"></script>
@@ -86,5 +87,6 @@
 <script src="dash.js"></script>
 <script src="myteam.js"></script>
 <script src="start.js"></script>
+<script src="tour.js"></script>
 </body>
 </html>

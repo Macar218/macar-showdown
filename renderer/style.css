@@ -153,6 +153,19 @@ body.resizing .calc{transition:none}
 .mchip.sel{background:var(--accent-soft);border-color:var(--accent);box-shadow:0 0 10px rgba(56,212,255,.45)}
 .mchip.fnt .spr{opacity:.3;filter:grayscale(1)}
 .mchip.add{font-size:20px;color:var(--muted);border-style:dashed;padding:0}
+/* Cada equipo en una fila de 6, con nombre y PS (0.12). */
+.strip .chips{flex:1;min-width:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.strip .chips:has(.mchip.add){grid-template-columns:repeat(6,minmax(0,1fr)) 34px}
+.strip .chips > .note{grid-column:1 / -1}
+.strip .mchip{width:auto;height:auto;min-width:0;padding:4px 3px 5px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.strip .mchip .spr{width:40px;height:40px}
+.strip .mchip .mcn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:700;color:var(--ink)}
+.strip .mchip .hpbar{position:static;width:86%;height:4px;margin-top:2px}
+.strip .mchip .mchp{font-size:10px;color:var(--muted);line-height:1}
+.strip .mchip .mcact{position:absolute;top:3px;right:5px;font-style:normal;font-size:9px;color:var(--gold)}
+.strip .mchip.add{height:auto;align-self:stretch}
+.strip.foe .mchip.sel{background:rgba(255,92,122,.16);border-color:#ff5c7a;box-shadow:0 0 10px rgba(255,92,122,.4)}
+.strip .lbl{width:60px}
 .hpbar{position:absolute;left:5px;right:5px;bottom:3px;height:3px;border-radius:2px;background:rgba(0,0,0,.4);overflow:hidden}
 .hpbar i,.hpline i{display:block;height:100%;background:var(--good)}
 .hpbar i.y,.hpline i.y{background:var(--warn)}.hpbar i.r,.hpline i.r{background:var(--bad)}
@@ -1320,6 +1333,23 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .otsmon small{color:var(--ink);line-height:1.35}
 .otsmv{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 3px 1px 0;vertical-align:middle;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
 .otsnone{grid-column:1/-1;margin:2px 0 0}
+/* Hoja de equipo del visor, clara (0.12): una ficha por Pokémon con objeto, habilidad, naturaleza y los 4 movimientos. */
+.rvots{max-height:46vh;overflow:auto}
+.otsgrid.big{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.otscard{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px;min-width:0}
+.otscard.out{opacity:.6}
+.otsch{display:flex;align-items:center;gap:8px}
+.otsch>div{flex:1;min-width:0}
+.otsch b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.otsch em{flex:none;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--muted)}
+.otsch em.in{background:rgba(70,214,140,.16);color:var(--good)}
+.otsrow{display:flex;align-items:center;gap:8px;font-size:12.5px;min-width:0}
+.otsrow .k{flex:none;width:72px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.otsrow .v{flex:1;min-width:0;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);font-weight:600}
+.otsrow .v img{width:24px;height:24px;flex:none}
+.otsrow .up{color:var(--good);font-size:11px}.otsrow .dn{color:var(--bad);font-size:11px}
+.otsmoves{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:2px}
+.otsmoves .tbmv{min-width:0}
 @media (max-width:1300px){.otsgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* Notas con marcas de turno en amarillo */
 .nhl{position:relative;display:flex;flex-direction:column;min-height:0;background:#081639;border-radius:10px}
@@ -1337,6 +1367,12 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .notesbar .nhl{border-radius:0;border-top:1px solid var(--line)}
 .notesbar textarea{height:120px;font-size:14px;line-height:1.5;border-top:0}
 .notesbar.closed .nhl{display:none}
+.nbbody{display:flex;min-height:0;border-top:1px solid var(--line)}
+.nbbody .nhl{flex:1;min-width:0;border-top:0}
+.nbside{flex:none;width:170px;display:flex;flex-direction:column;gap:6px;padding:10px;background:#081639;border-left:1px solid var(--line)}
+.nbside .btn{width:100%;justify-content:center}
+.nbside .note{font-size:11px}
+.notesbar.closed .nbbody{display:none}
 .tbmv.mvt{flex-direction:column;align-items:stretch;justify-content:center;gap:4px;min-width:0;overflow:hidden}
 .mvt b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mvt .mvtm{justify-content:space-between;min-width:0}
@@ -1349,3 +1385,41 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .sdzoom{display:inline-flex;gap:2px;align-items:center}
 .sdzoom .btn{min-width:30px;padding:4px 8px}
 #sdZoomVal{font-family:var(--mono);min-width:54px}
+/* Marcas de cada partida (0.12): cómo fue y para analizar. */
+.mkrow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0 8px}
+.mklbl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mkseg button{padding:4px 12px;font-size:12px}
+.mkseg .mk-good[aria-pressed="true"]{background:rgba(70,214,140,.22);color:var(--good);border-color:var(--good)}
+.mkseg .mk-meh[aria-pressed="true"]{background:rgba(255,255,255,.12);color:var(--ink)}
+.mkseg .mk-bad[aria-pressed="true"]{background:rgba(255,92,122,.2);color:var(--bad);border-color:var(--bad)}
+.mka.on{background:rgba(255,196,64,.18);border-color:var(--gold);color:var(--gold)}
+.mkask{display:flex;flex-direction:column;gap:2px;margin:-4px 0 12px;padding:10px 12px;border:1px solid var(--gold);border-radius:10px;background:rgba(255,196,64,.1)}
+.mkask b{font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--gold);font-size:13px}
+.mkask span{color:var(--ink);font-size:13px}
+.mktags{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.mktag{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.08);color:var(--muted)}
+.mktag.mk-good{background:rgba(70,214,140,.16);color:var(--good)}
+.mktag.mk-bad{background:rgba(255,92,122,.16);color:var(--bad)}
+.mktag.mk-a{background:rgba(255,196,64,.16);color:var(--gold)}
+/* × para borrar en Mi PC y aviso de deshacer (0.12). */
+.pcx{position:absolute;top:4px;right:4px;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;font-size:15px;line-height:1;color:var(--muted);background:rgba(4,12,36,.7);opacity:0;transition:opacity .12s}
+.pcslot:hover .pcx,.pcslot.on .pcx{opacity:1}
+.pcx:hover{color:#fff;background:var(--bad)}
+.undotoast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:300;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;border:1px solid var(--accent);background:#0b1d52;color:var(--ink);font-size:13px;box-shadow:0 10px 28px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+.undotoast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+/* Calculadora de estudio: tu equipo o los Pokémon que tú elijas (0.12). */
+.cmode{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.cmode .seg button{padding:4px 12px;font-size:12px}
+/* Tutorial (0.12): lo demás se oscurece y una ficha explica la parte resaltada. */
+.tour{position:fixed;inset:0;z-index:400}
+.tour.center{background:rgba(2,8,26,.72)}
+.tourhole{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(2,8,26,.72),0 0 0 2px var(--accent),0 0 24px rgba(56,212,255,.5);pointer-events:none;transition:all .25s ease}
+.tourcard{position:fixed;width:min(380px,calc(100vw - 24px));padding:16px 16px 12px;border-radius:14px;border:1px solid var(--accent);background:linear-gradient(180deg,#0e2463,#081845);box-shadow:0 18px 40px rgba(0,0,0,.55);color:var(--ink);transition:left .25s ease,top .25s ease}
+.tour.center .tourcard{left:50%!important;top:50%!important;transform:translate(-50%,-50%)}
+.tourcard small{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.tourcard h3{margin:4px 0 6px;font-family:var(--display);font-size:18px;letter-spacing:.04em;color:var(--gold)}
+.tourcard p{margin:0 0 12px;font-size:13.5px;line-height:1.5}
+.tourbtns{display:flex;align-items:center;gap:6px}
+.sttour{margin-top:4px;color:var(--accent)}
+.otsmoves .mvt small{display:none}
+.otsmoves .mvt b{white-space:normal;line-height:1.2}

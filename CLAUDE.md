@@ -13,14 +13,14 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `main.js` | Proceso principal: ventana, webview de Showdown, IPC, carpeta de datos (OneDrive), PDF, replays (protocolo `msreplay://`), Pokepaste, torneos, actualización. Modo pruebas con variables `MACAR_*` |
 | `preload.js` | Puente seguro (`window.macar`). Nada de Node en la página |
 | `src/parser.js` | Lector de registros de Showdown → resumen de partida |
-| `src/store.js` | Guardado: una partida por archivo + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`, `sesiones`, `bo3Notes`) y ajustes (`sessionId` = sesión abierta) |
+| `src/store.js` | Guardado: una partida por archivo (con `notes`, `replay`, `session` y `mark` = {r: good/meh/bad, a: analizar}) + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`, `sesiones`, `bo3Notes`) y ajustes (`sessionId` = sesión abierta) |
 | `src/capture.js` | Captura: guarda cada combate al terminar |
 | `src/sdapp.js` | Los dos clientes de Showdown: el de siempre (`window.app`) y el nuevo (`window.PS`, con `/newclient` o la cookie `preactalpha`). `SDAPP` devuelve el cargado con la forma del de siempre; captura, notas, calculadora, replay y «Mandar mi equipo» leen siempre a través de él |
 | `src/live.js` | Lee el combate abierto para la calculadora en directo (también la hoja de equipo, línea showteam, de cada lado) |
 | `src/media.js` | Combate actual (notas y grabación) y subida de replays (`/savereplay`) |
 | `src/usage.js` | Sets más usados de Smogon (chaos, 1760+), en caché en `<datos>/uso` |
 | `src/extensions.js` | Extensiones de Chrome para la sesión de Showdown (Chrome Web Store, .crx/.zip, carpeta), en `<userData>/extensiones` |
-| `src/macardex.js` | Datos de la Macar Dex (https://macar218.github.io/macar-dex/: moves, sets, items, meta, es), en `<datos>/macardex`, renovados como mucho una vez al día. Se leen con `vm` (solo `window`) |
+| `src/macardex.js` | Datos de la Macar Dex (https://macar218.github.io/macar-dex/: moves, sets, items, meta, es, data = habilidades), en `<datos>/macardex`, renovados como mucho una vez al día. Se leen con `vm` (solo `window`) |
 | `src/tournaments.js` | Torneos online de Limitless (API pública, M-C, 30 días, ≥16 jugadores): sets de torneo y equipos del top 8, en `<datos>/torneos.json` |
 | `renderer/app.js` | Navegación, filtros (`F`) y qué partidas cuentan (sesión, equipo o todas), panel de partida (notas y notas finales), importar, Ajustes |
 | `renderer/dash.js` | Dashboard: Resumen, Partidas, Rivales, Tu equipo y Hábitos con los mismos filtros |
@@ -31,6 +31,8 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `renderer/calc.js` / `multicalc.js` | Dos calculadoras independientes de `makeCalc`: `CalcLive` (cajón de Jugar: sigue el combate, hoja de equipo del rival, se vacía al acabar) y `CalcStudy` (página Calculadora: equipos, Mi PC, rivales de partidas). `Calc` reparte las llamadas de fuera. Pestañas Daño (estilo Showdown), Multicalc y Árbol; la Multicalc guarda su estado en cada calculadora (`S.multi`) |
 | `renderer/team.js` | Teambuilder: pestañas de los 6 y editor en la página (puntos estilo Showdown primero; el editor completo en «Más opciones») |
 | `renderer/pc.js`, `optimizer.js`, `doc.js`, `play.js`, `sessions.js` | Mi PC, Optimizador SP, Documento, Jugar (notas, sonido, buscar partida, aviso de versión), Sesiones (abrir, guardar) |
+| `renderer/undo.js` | Deshacer (Ctrl+Z o «Deshacer» del aviso): copia de `pc` o `equipos` antes de borrar o cambiar algo en Mi PC y el Teambuilder (`Undo.snap`) |
+| `renderer/tour.js` | Tutorial: recorrido paso a paso que resalta cada parte. Se abre con `data-tourstart` (inicio y Ajustes) |
 | `renderer/notehl.js` | Notas con la marca de turno `[T5] …:` en amarillo (capa detrás del textarea) en Jugar y en el visor |
 | `renderer/transcript.js` | Transcripción de una partida desde su registro (también en Node para los tests) |
 | `renderer/replay.js` | Visor de replays: la partida guardada en el reproductor oficial de Showdown (`msreplay://r/<id>`, webview en `persist:replay`, sin subirla), con sonido apagado al empezar, leads/reserva y notas con marcas `[T5]` que saltan a ese turno |
@@ -41,6 +43,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 ## Reglas que no se pueden romper
 - Daño: siempre `@smogon/calc` 0.12.0, generación 0 = Champions, nivel 50. Nunca una fórmula propia de daño. El motor no cuenta la Sitrus Berry en los KO: `sitrusKO` (poke.js) lo rehace con sus tiradas.
 - Stats nivel 50: PS = base + 75 + SP; resto = ⌊(base + 20 + SP) × naturaleza⌋. 66 SP en total, 32 como máximo por stat. En los textos de Showdown los SP van en la línea `EVs:`.
+- El motor de daño de Champions solo trae una habilidad por Pokémon: las posibles salen de la Macar Dex (`data.js`, `P.abilitiesOf`), y la más usada de sus sets (`P.topAbility`).
 - Muchos movimientos de estado vienen sin categoría (o ni vienen) en los datos del motor: usar siempre `P.moveOf()`, que los completa (y su prioridad).
 - Con su megapiedra, el Pokémon se calcula en forma Mega con la habilidad de la Mega (`P.megaOf`).
 - Datos del usuario en la carpeta de datos (por defecto `%APPDATA%\Macar Showdown\datos`, o la de OneDrive que elija): formatos compatibles siempre.
@@ -56,7 +59,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 ## Probar
 ```
 npm install            # con npm 11 puede no bajar Electron: node node_modules/electron/install.js
-npm test               # 23 pruebas: lector, transcripción, Sitrus Berry, hoja de equipo, notas, Macar Dex, guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
+npm test               # 25 pruebas: lector, transcripción, Sitrus Berry, hoja de equipo, notas, marcas, Macar Dex (y habilidades), guardado, estadísticas, Dashboard, sesiones, torneos, motor, sintaxis de la interfaz
 npm start
 ```
 Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de Electron aparte: sin tu sesión de Showdown ni tus extensiones), `MACAR_DATOS=<carpeta>` (datos), `MACAR_PDF=<archivo>` (PDF sin diálogo), `MACAR_CAPTURAS=<carpeta>` + `MACAR_PASOS=<pasos.json>` (guion `[{js, wait, shot}]` que guarda capturas y `consola.txt`; la app arranca en la pantalla de inicio: `Start.hide()` para saltarla). Para probar en directo sin jugar: en un paso, `app.send('/cmd roomlist gen9championsvgc2026regmc')` desde el webview y `app.joinRoom(id)` de un combate público (solo mirar; salir con `app.leaveRoom`).
@@ -66,4 +69,4 @@ Pruebas de interfaz sin tocar datos reales: `MACAR_PERFIL=<carpeta>` (perfil de 
 - Sin probar contra el servicio real: «Crear Pokepaste» (POST a pokepast.es/create; los campos del formulario se comprobaron).
 - La primera actualización automática real se verá al publicar la 0.4.1 o posterior.
 - Sin probar con la cuenta del usuario: «Buscar partida (Reg M-C)» (usa `/utm` + `/search`) y añadir una extensión real desde la Chrome Web Store.
-- Fuera a propósito (no son utilidades): mascota y tour, sonidos, idiomas, cuenta y plan de pago, modo del juego real (OCR).
+- Fuera a propósito (no son utilidades): mascota, sonidos, cuenta y plan de pago, modo del juego real (OCR). El tutorial sí está (0.12, a petición del usuario).

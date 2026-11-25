@@ -72,7 +72,22 @@ const P = (() => {
   };
   const natLabel = n => { const x = NAT[n]; return x && x.plus && x.plus !== x.minus ? `${n} (+${SL[x.plus]} −${SL[x.minus]})` : `${n} (neutra)`; };
   const natMult = (n, stat) => { const x = NAT[n]; if (!x || x.plus === x.minus) return 1; return x.plus === stat ? 1.1 : x.minus === stat ? 0.9 : 1; };
-  const abilitiesOf = species => { const s = spOf(species); return s && s.abilities ? Object.values(s.abilities) : []; };
+  /** Habilidades posibles: las de la Macar Dex (todas) y, si aún no ha cargado, las del motor (solo una). */
+  const abilitiesOf = species => {
+    const s = spOf(species);
+    const own = s && s.abilities ? Object.values(s.abilities) : [];
+    let D = null;
+    try { D = DEXD && DEXD.abil; } catch (e) { D = null; }
+    const full = D && s ? D[toID(s.name)] || D[toID(species)] : null;
+    return [...new Set([...(full || []), ...own])];
+  };
+  /** La habilidad más usada de un Pokémon según la Macar Dex ('' si no se sabe). */
+  const topAbility = species => {
+    let S = null;
+    try { S = DEXD && DEXD.sets; } catch (e) { S = null; }
+    const s = spOf(species), x = S && s ? S[toID(s.name)] || S[toID(species)] : null;
+    return x && x.a && x.a[0] ? x.a[0][0] : '';
+  };
   const typesOf = species => { const s = spOf(species); return s ? s.types.slice() : []; };
   const effectiveness = (atkType, defTypes) => defTypes.reduce((m, t) => m * ((G.types.get(toID(atkType)) || { effectiveness: {} }).effectiveness[t] ?? 1), 1);
 
@@ -794,7 +809,7 @@ const P = (() => {
   return {
     pickMon, openInfo, itemInfo,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
-    NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, typesOf, effectiveness,
+    NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
     blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, statBlock, spLine,
