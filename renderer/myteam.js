@@ -18,6 +18,7 @@ const MyTeam = (() => {
   async function render() {
     const el = $('#v-miequipo');
     const { s, team } = await teamOfSession();
+    await P.dex(); // descripciones de los movimientos (Macar Dex)
     const sets = team ? P.parseTeam(team.text).sets : [];
     const name = m => (m.nick && m.nick !== m.species ? `${m.nick} (${m.species})` : m.species);
     el.innerHTML = `<div class="head"><div><h1>Tu <span>equipo</span></h1><p class="note" style="margin-top:4px">El equipo de tu sesión. Con él se reconocen tus Pokémon en cada partida (también por mote) y salen sus estadísticas.</p></div>
@@ -33,7 +34,7 @@ const MyTeam = (() => {
               <div class="mtik"><small>Naturaleza</small><span><b>${esc(P.natLabel(m.nature))}</b></span></div>
             </div>
             ${P.statBlock(m)}
-            <div class="mtmoves">${m.moves.map(x => P.moveTile(x)).join('')}</div></div>`;
+            <div class="mtmoves">${m.moves.map(x => { const info = x && P.moveInfo(x); return `<div class="mtmv">${P.moveTile(x)}${info && info.desc ? `<small class="mtmvd nolang">${esc(info.desc)}</small>` : ''}</div>`; }).join('')}</div></div>`;
         }).join('')}</div>`
         : `<div class="card mtempty"><b>${s ? 'Esta sesión aún no tiene equipo.' : 'No tienes ninguna sesión abierta.'}</b><span class="note">${s ? 'Pega su Pokepaste abajo y queda montado.' : 'Empieza o carga una sesión con tu equipo.'}</span></div>`}
       <div class="mtbottom">
