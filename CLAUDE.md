@@ -15,6 +15,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 | `src/parser.js` | Lector de registros de Showdown → resumen de partida |
 | `src/store.js` | Guardado: una partida por archivo + colecciones (`equipos`, `pc`, `docs`, `partidaTeam`, `liveNotes`, `sesiones`, `bo3Notes`) y ajustes (`sessionId` = sesión abierta) |
 | `src/capture.js` | Captura: guarda cada combate al terminar |
+| `src/sdapp.js` | Los dos clientes de Showdown: el de siempre (`window.app`) y el nuevo (`window.PS`, con `/newclient` o la cookie `preactalpha`). `SDAPP` devuelve el cargado con la forma del de siempre; captura, notas, calculadora, replay y «Mandar mi equipo» leen siempre a través de él |
 | `src/live.js` | Lee el combate abierto para la calculadora en directo (también la hoja de equipo, línea showteam, de cada lado) |
 | `src/media.js` | Combate actual (notas y grabación) y subida de replays (`/savereplay`) |
 | `src/usage.js` | Sets más usados de Smogon (chaos, 1760+), en caché en `<datos>/uso` |
@@ -48,6 +49,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 - Aspecto: estilo propio de la Macar Dex (tiras de datos, tablas y barras). Nada de copiar el aspecto de Flinched (tarjetas grandes con el nombre de fondo, escenarios…). Sprites fijos de Showdown (`gen5`), nunca animados.
 - Estilos nuevos: comprobar que el nombre de clase no existe ya en `style.css` (en la 0.7 chocaron `.dres`, `.mrow`, `.dbar` y `.dteam`).
 - El tamaño de Showdown solo lo cambia el usuario (− / + de Jugar, Ctrl + / − / 0; sin Ctrl + rueda, porque el evento 'zoom-changed' entraba en bucle; se recuerda en `msSdZoom`). Nunca ajustarlo solo: en la 0.11.0 la ampliación automática al empezar el combate, en monitores grandes, dejó a la app sin leer el combate (ni captura, ni notas, ni calculadora). Las lecturas de Showdown van con límite de tiempo (`capture.run`). Las pruebas de interfaz usan una ventana pequeña: lo que dependa del tamaño de pantalla hay que probarlo también con la ventana grande.
+- Showdown puede abrir su cliente nuevo: nunca leer `window.app` directamente, siempre `SDAPP` (src/sdapp.js). En la 0.11.3 la app no capturaba nada con el cliente nuevo.
 - Nada de `prompt()` (Electron no lo tiene): formularios propios. `confirm()` sí funciona (y se traduce).
 - Idioma: cada texto nuevo de la interfaz necesita su traducción en `renderer/i18n.js`. No traducir trozos de una sola palabra corriente (cambiarían nombres puestos por el usuario).
 

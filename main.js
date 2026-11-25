@@ -8,6 +8,7 @@ const capture = require('./src/capture');
 const { LIVE } = require('./src/live');
 const { Usage } = require('./src/usage');
 const { CURRENT, uploadReplay } = require('./src/media');
+const { SDAPP } = require('./src/sdapp');
 const { Tournaments } = require('./src/tournaments');
 const { Extensions } = require('./src/extensions');
 const { MacarDex } = require('./src/macardex');
@@ -353,16 +354,31 @@ function registerIpc() {
   // Llevar un equipo al teambuilder de Showdown (carpeta «Macar Showdown»; si ya estaba con ese nombre, se actualiza)
   // y, si se pide, buscar partida con él en el ladder.
   const SD_TEAM = (name, text, format, search) => `(() => { try {
-      const S = window.Storage, a = window.app;
-      if (!S || !S.importTeam || !S.packTeam || !S.teams || !a) return { ok: false, why: 'Showdown aún no ha cargado' };
-      const team = S.importTeam(${JSON.stringify(String(text || '').slice(0, 20000))});
-      if (!team || !team.length) return { ok: false, why: 'El equipo está vacío' };
-      const packed = S.packTeam(team), name = ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format = ${JSON.stringify(String(format || 'gen9championsvgc2026regmc'))};
-      const old = S.teams.find(t => t.folder === 'Macar Showdown' && t.name === name);
-      if (old) { old.team = packed; old.format = format; old.iconCache = ''; }
-      else S.teams.unshift({ name, format, team: packed, folder: 'Macar Showdown', iconCache: '' });
-      S.saveTeams();
-      try { a.user.trigger('saveteams'); } catch (e) {}
+      const a = ${SDAPP};
+      const S = window.Storage, P = window.PS, T = window.Teams;
+      const text = ${JSON.stringify(String(text || '').slice(0, 20000))}, name = ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format = ${JSON.stringify(String(format || 'gen9championsvgc2026regmc'))};
+      let packed;
+      if (a && a.ps) {
+        // Cliente nuevo de Showdown: equipos en PS.teams, importar y empaquetar con Teams.
+        if (!P.teams || !T || !T.import || !T.pack) return { ok: false, why: 'Showdown aún no ha cargado' };
+        const team = T.import(text);
+        if (!team || !team.length) return { ok: false, why: 'El equipo está vacío' };
+        packed = T.pack(team);
+        const old = P.teams.list.find(t => t.folder === 'Macar Showdown' && t.name === name);
+        if (old) { old.packedTeam = packed; old.format = format; old.iconCache = null; }
+        else P.teams.unshift({ name, format, packedTeam: packed, folder: 'Macar Showdown', iconCache: null, isBox: false });
+        P.teams.save();
+      } else {
+        if (!S || !S.importTeam || !S.packTeam || !S.teams || !a) return { ok: false, why: 'Showdown aún no ha cargado' };
+        const team = S.importTeam(text);
+        if (!team || !team.length) return { ok: false, why: 'El equipo está vacío' };
+        packed = S.packTeam(team);
+        const old = S.teams.find(t => t.folder === 'Macar Showdown' && t.name === name);
+        if (old) { old.team = packed; old.format = format; old.iconCache = ''; }
+        else S.teams.unshift({ name, format, team: packed, folder: 'Macar Showdown', iconCache: '' });
+        S.saveTeams();
+        try { a.user.trigger('saveteams'); } catch (e) {}
+      }
       if (${search ? 'true' : 'false'}) {
         if (!a.user || !a.user.get('named')) return { ok: false, why: 'Inicia sesión en Showdown para buscar partida' };
         a.send('/utm ' + packed);
@@ -380,7 +396,7 @@ function registerIpc() {
   });
   ipcMain.handle('ms:sdCancelSearch', async () => {
     if (!sdContents || sdContents.isDestroyed()) return false;
-    try { await sdContents.executeJavaScript("window.app && window.app.send('/cancelsearch'), true", false); return true; } catch (e) { return false; }
+    try { await sdContents.executeJavaScript(`(() => { const a = ${SDAPP}; if (a) a.send('/cancelsearch'); return true; })()`, false); return true; } catch (e) { return false; }
   });
   ipcMain.handle('ms:fetchPaste', async (_e, url) => {
     let u;

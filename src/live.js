@@ -1,4 +1,5 @@
 'use strict';
+const { SDAPP } = require('./sdapp');
 /*
  * Macar Showdown · combate en directo.
  * Lee del cliente de Showdown (la página del webview) el estado del combate que tienes delante:
@@ -9,7 +10,7 @@
 
 const LIVE = `(() => {
   try {
-    const a = window.app;
+    const a = ${SDAPP};
     if (!a || !a.rooms) return { ok: false, why: 'Showdown aún no ha cargado' };
     const isBattle = r => r && r.battle && Array.isArray(r.battle.stepQueue);
     let room = [a.curRoom, a.curSideRoom].find(isBattle);

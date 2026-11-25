@@ -1,4 +1,5 @@
 'use strict';
+const { SDAPP } = require('./sdapp');
 /*
  * Macar Showdown · captura automática.
  * Cada pocos segundos se pregunta al cliente de Showdown (la página cargada en el webview) qué combates
@@ -8,7 +9,7 @@
 
 const PROBE = `(() => {
   try {
-    const a = window.app;
+    const a = ${SDAPP};
     if (!a || !a.rooms) return { ok: false, why: 'Showdown aún no ha cargado' };
     const rooms = [];
     for (const id in a.rooms) {
@@ -26,7 +27,7 @@ const PROBE = `(() => {
 })()`;
 
 const GET = id => `(() => {
-  const r = window.app && window.app.rooms && window.app.rooms[${JSON.stringify(id)}];
+  const a = ${SDAPP}, r = a && a.rooms && a.rooms[${JSON.stringify(id)}];
   return r && r.battle && Array.isArray(r.battle.stepQueue) ? r.battle.stepQueue.join('\\n') : null;
 })()`;
 

@@ -1,4 +1,5 @@
 'use strict';
+const { SDAPP } = require('./sdapp');
 /*
  * Macar Showdown · replays y vídeo.
  * - Al acabar un combate en el que juegas tú, pide a Showdown que suba la replay (/savereplay) y comprueba
@@ -9,7 +10,7 @@
 /** Combate que tienes delante: id de la sala, turno, si ha acabado y si juegas tú. */
 const CURRENT = `(() => {
   try {
-    const a = window.app;
+    const a = ${SDAPP};
     if (!a || !a.rooms) return null;
     const isBattle = r => r && r.battle && Array.isArray(r.battle.stepQueue);
     let room = [a.curRoom, a.curSideRoom].find(isBattle);
@@ -29,7 +30,7 @@ const CURRENT = `(() => {
 })()`;
 
 const SAVE_REPLAY = id => `(() => {
-  const a = window.app;
+  const a = ${SDAPP};
   if (!a || !a.rooms || !a.rooms[${JSON.stringify(id)}]) return false;
   a.send('/savereplay', ${JSON.stringify(id)});
   return true;
