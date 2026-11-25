@@ -69,7 +69,7 @@ function show(v) {
 }
 $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.v); });
 document.addEventListener('keydown', e => {
-  const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
+  const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'mu', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
   if (e.key === 'Escape') closeModal();
 });

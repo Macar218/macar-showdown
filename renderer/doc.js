@@ -33,12 +33,13 @@ const Doc = (() => {
     const [U, T] = await Promise.all([P.usage(''), P.tour()]);
     const ms = Stats.usable(M).filter(s => teamOf(s) === team.id);
     const r = Stats.compute(ms);
+    const MU = typeof Matchups !== 'undefined' ? await Matchups.forDoc(team.id) : { paste: '', code: '', rows: [] };
     const pages = [];
 
     // 1. Portada: tu equipo
     pages.push(page([
       block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · Reg M-C · ${new Date().toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
-      block('kv', `<p><b>Pokepaste del equipo:</b> ${fill('pega aquí el enlace')}</p><p><b>Código de alquiler:</b> ${fill('—')}</p>${ms.length ? `<p><b>Récord con Macar Showdown:</b> ${pctTxt(r.w, r.n)} en ${r.n} partidas${r.eloNow ? ` · ELO ${r.eloNow}` : ''}</p>` : ''}`),
+      block('kv', `<p><b>Pokepaste del equipo:</b> ${MU.paste ? `<a href="${esc(MU.paste)}">${esc(MU.paste)}</a>` : fill('pega aquí el enlace')}</p><p><b>Código de alquiler:</b> ${MU.code ? esc(MU.code) : fill('—')}</p>${ms.length ? `<p><b>Récord con Macar Showdown:</b> ${pctTxt(r.w, r.n)} en ${r.n} partidas${r.eloNow ? ` · ELO ${r.eloNow}` : ''}</p>` : ''}`),
       block('h', '<h2>Mi equipo</h2>'),
       block('team', teamHTML(sets)),
       block('box', `<h3>Historia y concepto del equipo</h3>
@@ -61,14 +62,18 @@ const Doc = (() => {
     });
 
     // 3. Guía de matchups
-    const mu = [block('h', '<h2>Guía de matchups</h2>')];
+    const mu = [block('h', '<h2>Guía de matchups</h2>', { mu: true })];
     if (r.oppPreview.length) {
       mu.push(block('p', `<p><b>Lo más jugado.</b> Lo que más te encuentras: ${r.oppPreview.slice(0, 8).map(x => `${esc(x.key)} (${x.n})`).join(', ')}. Cómo te suelen abrir: ${r.oppLeads.slice(0, 3).map(x => `${esc(x.key)} (${x.n})`).join(' · ') || '—'}.</p>`));
     }
-    const rivals = (await P.teams()).filter(t => t.side === 'foe');
-    let n = 0;
-    for (const t of rivals.slice(0, 8)) { mu.push(block('match', rivalTeamHTML(t, ms))); n++; }
-    for (const x of r.oppPreview.slice(0, Math.max(0, 6 - n))) mu.push(block('match', rivalMonHTML(x.key, ms)));
+    // Tus matchups (pantalla Matchups) mandan; si no tienes, los rivales del Team Box y lo que más te encuentras.
+    if (MU.rows.length) for (const x of MU.rows) mu.push(block('match', muHTML(x), { mu: true }));
+    else {
+      const rivals = (await P.teams()).filter(t => t.side === 'foe');
+      let n = 0;
+      for (const t of rivals.slice(0, 8)) { mu.push(block('match', rivalTeamHTML(t, ms))); n++; }
+      for (const x of r.oppPreview.slice(0, Math.max(0, 6 - n))) mu.push(block('match', rivalMonHTML(x.key, ms)));
+    }
     if (mu.length === 1) mu.push(block('box', `<h3>Equipo rival</h3><p>${fill('Añade equipos rivales en Mi PC → Team Box (o juega partidas con este equipo) y aquí salen sus matchups con tu récord, con qué ganas y sus replays.')}</p>`));
     mu.push(block('box', `<h3>Notas</h3><p>${fill('Escribe aquí…')}</p>`));
     pages.push(page(mu));
@@ -113,10 +118,41 @@ const Doc = (() => {
       <p><b>Claves para ganar el matchup.</b> ${fill('La idea clave.')}</p>
       <p class="drep"><b>Replays ganadas:</b> ${rep('win') || '—'}</p><p class="drep"><b>Replays perdidas:</b> ${rep('loss') || '—'}</p>`;
   }
+  /** Un matchup de la pantalla Matchups: el rival, su arquetipo, Plan A, qué tener en cuenta y Plan B, y tu récord. */
+  function muHTML(x) {
+    const plan = L => { const k = L.filter(Boolean); return k.length ? `<div class="drow">${L.slice(0, 2).filter(Boolean).map(n => spr(n, 'sm')).join('')}<span class="dsep">|</span>${L.slice(2).filter(Boolean).map(n => spr(n, 'sm')).join('')}</div><p class="dsub">${L.slice(0, 2).filter(Boolean).map(esc).join(' + ') || '—'} · atrás: ${L.slice(2).filter(Boolean).map(esc).join(' + ') || '—'}</p>` : `<p>${fill('2 leads y 2 atrás')}</p>`; };
+    return `<h3>${esc(x.name || 'Matchup')}${x.arch ? ` <span class="darch">${esc(x.arch)}</span>` : ''}</h3>
+      <div class="drow">${x.mons.filter(Boolean).map(n => spr(n, 'sm')).join('')}</div>
+      ${x.paste || x.code ? `<p class="dsub">${x.paste ? `Pokepaste: <a href="${esc(x.paste)}">${esc(x.paste)}</a>` : ''}${x.paste && x.code ? ' · ' : ''}${x.code ? `Código: ${esc(x.code)}` : ''}</p>` : ''}
+      <div class="dmuplan"><div><b>Plan A</b>${plan(x.a)}</div><div><b>A tener en cuenta</b><p>${x.notes ? esc(x.notes).split('\n').join('<br>') : fill('Qué vigilar en este matchup.')}</p></div><div><b>Plan B</b>${plan(x.b)}</div></div>
+      ${matchupBody(x.games || [])}`;
+  }
+  /** La guía de matchups de la pantalla Matchups, al documento: sustituye la que hubiera o va en una hoja nueva. */
+  async function putMatchups(teamId) {
+    const team = await P.teamById(teamId);
+    if (!team) return;
+    let doc = await getDoc(teamId);
+    if (!doc) { doc = await generate(team); await saveDoc(doc); V.teamId = teamId; return; }
+    const MU = await Matchups.forDoc(teamId);
+    let fresh = [block('h', '<h2>Guía de matchups</h2>', { mu: true }), ...MU.rows.map(x => block('match', muHTML(x), { mu: true }))];
+    if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') fresh = fresh.map(b => ({ ...b, html: I18N.trHTML(b.html) }));
+    let at = null;
+    for (const p of doc.pages) {
+      const i = p.blocks.findIndex(b => b.mu || (b.type === 'h' && /Guía de matchups|Matchup guide/.test(b.html)));
+      if (i >= 0 && !at) at = { p, i };
+      p.blocks = p.blocks.filter(b => !b.mu && !(b.type === 'h' && /Guía de matchups|Matchup guide/.test(b.html)));
+    }
+    if (at) at.p.blocks.splice(Math.min(at.i, at.p.blocks.length), 0, ...fresh);
+    else doc.pages.push(page(fresh));
+    doc.pages = doc.pages.filter(p => p.blocks.length);
+    await saveDoc(doc);
+    V.teamId = teamId;
+  }
   function rivalTeamHTML(t, ms) {
     const S = P.parseTeam(t.text).sets;
     const ids = S.map(m => P.toID(P.baseSpecies(m.species)));
-    return `<h3>Equipo rival: ${esc(t.name)}</h3><div class="drow">${S.map(m => spr(m.species, 'sm')).join('')}</div>${matchupBody(vsTeam(ms, ids))}`;
+    const arch = P.archetypeOf(S);
+    return `<h3>Equipo rival: ${esc(t.name)}${arch ? ` <span class="darch">${esc(arch)}</span>` : ''}</h3><div class="drow">${S.map(m => spr(m.species, 'sm')).join('')}</div>${matchupBody(vsTeam(ms, ids))}`;
   }
   function rivalMonHTML(name, ms) {
     return `<h3>${spr(name, 'sm')} ${esc(name)}</h3>${matchupBody(ms.filter(s => Stats.theirs(s).preview.includes(name)))}`;
@@ -544,5 +580,5 @@ const Doc = (() => {
   }
 
   VIEWS.doc = render;
-  return { render, generate };
+  return { render, generate, putMatchups };
 })();

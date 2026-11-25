@@ -208,6 +208,6 @@ class Store {
   }
 }
 
-Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes', 'sesiones', 'bo3Notes'];
+Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes', 'sesiones', 'bo3Notes', 'matchups'];
 
 module.exports = { Store, matchId };

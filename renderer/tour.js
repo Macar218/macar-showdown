@@ -18,6 +18,7 @@ const Tour = (() => {
     { v: 'dash', sel: '#v-dash', t: 'Marcar partidas', d: 'Al acabar un Bo3 sale un aviso para marcar cada partida como buena, indiferente o mala y si hay que analizarla. También lo puedes hacer después, al abrir la partida.' },
     { v: 'miequipo', sel: '#v-miequipo', t: 'Tu equipo', d: 'La ficha de cada Pokémon del equipo de tu sesión: stats, objeto, habilidad y movimientos.' },
     { v: 'equipo', sel: '#v-equipo', t: 'Teambuilder', d: 'Crea y cambia equipos: puntos (SP), objeto, habilidad y movimientos. «Llevar mi equipo a Showdown» lo deja en su teambuilder.' },
+    { v: 'mu', sel: '#v-mu', t: 'Matchups', d: 'Tu plan contra cada equipo rival: sus 6 y su arquetipo, Plan A y Plan B (2 leads y 2 atrás de tus 6) y qué tener en cuenta, con tu récord contra él. «Llevar al documento» lo pone en tu documento de preparación.' },
     { v: 'pc', sel: '#v-pc', t: 'Mi PC', d: 'Tus sets y los de rivales, en cajas. La × encima de un Pokémon lo borra; si te equivocas, Ctrl+Z (o «Deshacer») lo devuelve. Doble clic en el nombre para cambiarlo.' },
     { v: 'calc', sel: '#v-calc', t: 'Calculadora de estudio', d: 'Para preparar: con tu equipo o con los Pokémon que tú elijas, contra equipos rivales, Mi PC o los rivales de tus partidas. Daño, Multicalc y Árbol de jugadas.' },
     { v: 'opt', sel: '#v-opt', t: 'Optimizador SP y Documento', d: 'El optimizador reparte los puntos para sobrevivir o ganar en velocidad a lo que elijas. El documento monta tu preparación y lo puedes sacar en PDF.' },

@@ -81,6 +81,31 @@ const P = (() => {
     const full = D && s ? D[toID(s.name)] || D[toID(species)] : null;
     return [...new Set([...(full || []), ...own])];
   };
+  /**
+   * Arquetipo de un equipo (Sun, Rain, Sand, Snow, Trick Room, Tailwind, Perish Trap, terrenos): por la habilidad
+   * (la de su Mega si lleva la piedra, si no la más usada) y los movimientos (los suyos o los más usados, ≥ 30 %).
+   * mons: [{ species, item?, ability?, moves? }] o nombres.
+   */
+  function archetypeOf(mons) {
+    let S = null;
+    try { S = DEXD && DEXD.sets; } catch (e) { S = null; }
+    const tags = new Set();
+    const AB = { drought: 'Sun', orichalcumpulse: 'Sun', drizzle: 'Rain', sandstream: 'Sand', snowwarning: 'Snow', psychicsurge: 'Psychic Terrain', electricsurge: 'Electric Terrain', grassysurge: 'Grassy Terrain', mistysurge: 'Misty Terrain', hadronengine: 'Electric Terrain' };
+    const MV = { trickroom: 'Trick Room', tailwind: 'Tailwind', perishsong: 'Perish Trap', sunnyday: 'Sun', raindance: 'Rain' };
+    for (const x of mons || []) {
+      const m = typeof x === 'string' ? { species: x } : x;
+      if (!m || !m.species) continue;
+      const sp = m.item ? megaOf(m) : m.species, s = spOf(sp);
+      const set = S && s ? S[toID(s.name)] || S[toID(baseSpecies(s.name))] : null;
+      const abs = sp !== m.species ? abilitiesOf(sp).slice(0, 1) : m.ability ? [m.ability] : set && set.a && set.a[0] ? [set.a[0][0]] : abilitiesOf(sp).slice(0, 1);
+      for (const a of abs) if (AB[toID(a)]) tags.add(AB[toID(a)]);
+      const mvs = m.moves && m.moves.some(Boolean) ? m.moves : set && set.m ? set.m.filter(y => y[1] >= 30).map(y => y[0]) : [];
+      for (const v of mvs) if (MV[toID(v)]) tags.add(MV[toID(v)]);
+    }
+    const order = ['Sun', 'Rain', 'Sand', 'Snow', 'Trick Room', 'Tailwind', 'Perish Trap', 'Psychic Terrain', 'Electric Terrain', 'Grassy Terrain', 'Misty Terrain'];
+    return order.filter(t => tags.has(t)).slice(0, 3).join(' · ');
+  }
+  const ARCHETYPES = ['Sun', 'Rain', 'Sand', 'Snow', 'Trick Room', 'Tailwind', 'Perish Trap', 'Psychic Terrain', 'Electric Terrain', 'Grassy Terrain', 'Misty Terrain', 'Hyper Offense', 'Balance', 'Bulky Offense', 'Hard Trick Room', 'Dual Mode'];
   /** La habilidad más usada de un Pokémon según la Macar Dex ('' si no se sabe). */
   const topAbility = species => {
     let S = null;
@@ -809,7 +834,7 @@ const P = (() => {
   return {
     pickMon, openInfo, itemInfo,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
-    NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, typesOf, effectiveness,
+    NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, archetypeOf, ARCHETYPES, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
     blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
     pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, statBlock, spLine,
