@@ -588,7 +588,8 @@ const P = (() => {
   }
 
   const CAT = { Physical: 'Físico', Special: 'Especial', Status: 'Estado' };
-  function movePanel(species, U, T, q, current = []) {
+  /** now: el movimiento que vas a cambiar; se queda fijo arriba con lo que hace, y debajo los que lo pueden sustituir. */
+  function movePanel(species, U, T, q, current = [], now) {
     const ql = (q || '').trim().toLowerCase();
     const learn = species ? learnOf(species) : null;
     const pool = learn ? learn.map(k => (DEXD.moves[k] ? DEXD.moves[k].n : null)).filter(Boolean) : MOVES;
@@ -614,7 +615,9 @@ const P = (() => {
       body = `${top.length ? `<div class="itsec">Los que más lleva ${esc(species)}</div>${top.map(([n, pc]) => row(n, pc)).join('')}` : ''}
         ${learn ? `<div class="itsec">Todos los que aprende (${rest.length})</div>${rest.map(n => row(n)).join('')}` : '<p class="note">Escribe arriba para buscar entre todos los movimientos.</p>'}`;
     }
-    return `<div class="mvpanel"><div class="row-btns" style="margin-top:0"><input type="search" id="mvQ" placeholder="Buscar movimiento…" value="${esc(q || '')}" style="flex:1" autocomplete="off"><button class="btn sm" data-pickmove="">Sin movimiento</button><button class="btn sm" data-mvclose="1">Cerrar</button></div>
+    const nd = now && moveOf(now), nx = now && moveInfo(now);
+    const nowBox = now !== undefined ? `<div class="mvnow"><span class="mvnowl">Ahora</span>${now ? `<div class="mvnowt">${nd ? typeBadge(nd.type) : ''}<b class="nolang">${esc(now)}</b><span class="mvcat ${toID((nd && nd.category) || '')}">${esc(CAT[nd && nd.category] || '')}</span><span>${nd && nd.basePower ? `Pot. ${nd.basePower}` : ''}</span><span>${nx && nx.a ? `Prec. ${nx.a}%` : ''}</span></div><p class="nolang">${esc(nx ? nx.desc : '')}</p>` : '<p class="note">Hueco vacío: elige uno abajo.</p>'}</div>` : '';
+    return `<div class="mvpanel${now !== undefined ? ' withnow' : ''}">${nowBox}<div class="row-btns" style="margin-top:0"><input type="search" id="mvQ" placeholder="Buscar movimiento…" value="${esc(q || '')}" style="flex:1" autocomplete="off"><button class="btn sm" data-pickmove="">Sin movimiento</button><button class="btn sm" data-mvclose="1">Cerrar</button></div>
       <div class="mvhead"><span>Tipo</span><span>Movimiento</span><span>Cat.</span><span>Pot.</span><span>Prec.</span><span>Prio.</span><span>Uso</span></div>
       <div class="mvplist">${body}</div></div>`;
   }
@@ -664,12 +667,12 @@ const P = (() => {
         <div class="flabel" style="margin-top:12px">Puntos (SP) · <span class="${tot > SP_TOTAL ? 'errmsg' : ''}">${tot}/${SP_TOTAL}</span> · máximo ${SP_MAX} por característica</div>
         <div class="sps">${STATS.map((s, i) => `<label><small>${SL[s]}</small><input type="number" min="0" max="${SP_MAX}" value="${m.sp[i]}" data-sp="${i}"></label>`).join('')}<button class="btn sm" id="eSp0">A 0</button></div>
         <div class="statl">${m.species ? statTiles(m) : ''}</div>
-        <div class="flabel" style="margin-top:12px">Movimientos</div>
-        <div class="ed mvs">${m.moves.map((x, i) => `<input list="dlMoves" data-mv="${i}" value="${esc(x)}" autocomplete="off" placeholder="Movimiento ${i + 1}">`).join('')}</div>
+        <div class="flabel" style="margin-top:12px">Movimientos <span class="note">· × quita uno; pulsa abajo uno de los más usados para ponerlo en el primer hueco (otra vez, para quitarlo)</span></div>
+        <div class="ed mvs">${m.moves.map((x, i) => `<span class="emv"><input list="dlMoves" data-mv="${i}" value="${esc(x)}" autocomplete="off" placeholder="Movimiento ${i + 1}">${x ? `<button class="btn sm ibtn" data-mvx="${i}" title="Quitar este movimiento">×</button>` : ''}</span>`).join('')}</div>
         ${opts.live ? `<div class="ed" style="margin-top:12px">
           <label class="field">Estado<select id="eSt">${STATUS.map(([k, l]) => `<option value="${k}"${k === m.status ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
           <label class="field">PS (%)<input type="number" id="eHp" min="0" max="100" value="${Math.round(m.hp)}"></label></div>` : ''}
-        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
+        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn${attr === 'umove' && m.moves.includes(table ? nameOf(table, k) : k) ? ' on' : ''}" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
           <div><small>Objetos</small>${ch(t.items, 'uitem', 'items')}</div>
           <div><small>Habilidades</small>${ch(t.abilities, 'uab', 'abilities')}</div>
           <div><small>Naturalezas</small>${ch(t.natures, 'unat', null)}</div>
@@ -679,7 +682,7 @@ const P = (() => {
           <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn" data-spread="${i}">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', DEC())}%</em></button>`).join('')}</div>
           <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
           <div><small>Habilidades</small>${u.abilities.map(([k, pc]) => `<button class="chipbtn" data-uab="${esc(nameOf('abilities', k))}">${esc(nameOf('abilities', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
-          <div><small>Movimientos</small>${u.moves.map(([k, pc]) => `<button class="chipbtn" data-umove="${esc(nameOf('moves', k))}">${esc(nameOf('moves', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div></div>` : ''}
+          <div><small>Movimientos</small>${u.moves.map(([k, pc]) => `<button class="chipbtn${m.moves.includes(nameOf('moves', k)) ? ' on' : ''}" data-umove="${esc(nameOf('moves', k))}">${esc(nameOf('moves', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div></div>` : ''}
         ${mine.length ? `<div class="flabel" style="margin-top:14px">En Mi PC</div><div class="pcpick">${mine.slice(0, 30).map(x => { const s = parseSet(x.text) || {}; return `<button class="chipbtn" data-pc="${esc(x.id)}" title="${esc(x.notes || '')}">${s.species ? spr(s.species, 'xs') : ''}${esc(x.name || s.species || '')}</button>`; }).join('')}</div>` : ''}
         <details class="pastebox"><summary>Pegar o copiar el set (formato Showdown)</summary>
           <textarea id="ePaste" rows="5" placeholder="Pega aquí un Pokémon exportado de Showdown">${esc(m.species ? exportSet(m) : '')}</textarea>
@@ -725,7 +728,15 @@ const P = (() => {
       else if (t.dataset.uab != null) { readForm(); m.ability = t.dataset.uab; draw(); }
       else if (t.dataset.unat != null) { readForm(); if (NAT[t.dataset.unat]) m.nature = t.dataset.unat; draw(); }
       else if (t.dataset.tourset != null) { readForm(); const s = tourSet(T, U, m.species); if (s) Object.assign(m, { item: s.item, ability: s.ability, nature: s.nature, moves: s.moves, sp: s.sp }); draw(); }
-      else if (t.dataset.umove != null) { readForm(); if (!m.moves.includes(t.dataset.umove)) { const i = m.moves.indexOf(''); m.moves[i >= 0 ? i : 3] = t.dataset.umove; } draw(); }
+      else if (t.dataset.umove != null) {
+        // Ya lo lleva: se quita. Si no, va al primer hueco libre; con los 4 puestos, primero quita uno con ×.
+        readForm();
+        const v = t.dataset.umove, k = m.moves.indexOf(v);
+        if (k >= 0) { m.moves[k] = ''; msg = ''; }
+        else { const i = m.moves.indexOf(''); if (i >= 0) { m.moves[i] = v; msg = ''; } else msg = 'Ya lleva 4 movimientos: quita uno con × para poner este.'; }
+        draw();
+      }
+      else if (t.dataset.mvx != null) { readForm(); m.moves[+t.dataset.mvx] = ''; msg = ''; draw(); }
       else if (t.dataset.pc != null) { const x = PC.find(y => y.id === t.dataset.pc); const s = x && parseSet(x.text); if (s && !s.bad) { Object.assign(m, s, { hp: m.hp, status: m.status, boosts: m.boosts, src: 'pc' }); msg = `Cargado de Mi PC: ${x.name || s.species}`; draw(); } }
       else if (t.id === 'eSp0') { readForm(); m.sp = [0, 0, 0, 0, 0, 0]; draw(); }
       else if (t.id === 'ePasteGo') {
@@ -751,6 +762,7 @@ const P = (() => {
       }
     };
     $('#modal').classList.remove('hide');
+    $('#modal').dataset.sticky = '1'; // solo se cierra con Cerrar, Guardar o Quitar
     $('#modalBox').scrollTop = 0;
     if (!m.species) $('#eSp').focus();
   }

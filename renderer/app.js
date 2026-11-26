@@ -71,7 +71,7 @@ $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'
 document.addEventListener('keydown', e => {
   const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'mu', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape' && !$('#modal').dataset.sticky) closeModal();
 });
 
 async function load() {
@@ -240,7 +240,7 @@ const MARKS = [['good', 'Buena'], ['meh', 'Indiferente'], ['bad', 'Mala']];
 function markHTML(s) {
   const mk = s.mark || {};
   return `<div class="mkrow" data-mkid="${esc(s.id)}"><span class="mklbl">Cómo fue</span><div class="seg mkseg">${MARKS.map(([k, l]) => `<button data-mk="${k}" class="mk-${k}" aria-pressed="${mk.r === k}">${l}</button>`).join('')}</div>
-    <button class="btn sm mka${mk.a ? ' on' : ''}" data-mka="1" aria-pressed="${!!mk.a}" title="Apúntala para analizarla más tarde">${mk.a ? '✓ Para analizar' : '+ Para analizar'}</button></div>`;
+    <button class="btn sm mka${mk.a === 'done' ? ' done' : mk.a ? ' on' : ''}" data-mka="1" aria-pressed="${!!mk.a}" title="Pulsa para pasar de «Por analizar» a «Analizada» (y otra vez para quitarlo)">${mk.a === 'done' ? '✓ Analizada' : mk.a ? '🔍 Por analizar' : '+ Para analizar'}</button></div>`;
 }
 /** Pulsar una marca: se guarda al momento en la partida. */
 document.addEventListener('click', async e => {
@@ -249,7 +249,8 @@ document.addEventListener('click', async e => {
   const row = b.closest('.mkrow'), id = row.dataset.mkid;
   const x = M.find(y => y.id === id) || {};
   const mk = { r: '', a: false, ...(x.mark || {}) };
-  if (b.dataset.mk) mk.r = mk.r === b.dataset.mk ? '' : b.dataset.mk; else mk.a = !mk.a;
+  // Analizar: + Para analizar → Por analizar (amarillo) → Analizada (verde) → sin marca.
+  if (b.dataset.mk) mk.r = mk.r === b.dataset.mk ? '' : b.dataset.mk; else mk.a = mk.a === true ? 'done' : mk.a === 'done' ? false : true;
   x.mark = mk.r || mk.a ? mk : null;
   row.outerHTML = markHTML({ id, mark: x.mark });
   await api.setMark(id, x.mark);
@@ -427,8 +428,9 @@ async function openDetail(id) {
     await api.remove(id); closeModal(); load();
   };
 }
-function closeModal() { $('#modal').classList.add('hide'); $('#modalBox').onclick = $('#modalBox').onchange = null; if (VIEW === 'dash') Dash.render(); }
-$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+function closeModal() { delete $('#modal').dataset.sticky; $('#modal').classList.add('hide'); $('#modalBox').onclick = $('#modalBox').onchange = null; if (VIEW === 'dash') Dash.render(); }
+// Un clic fuera cierra la ventana, salvo en el editor de un Pokémon (sticky): ese solo con sus botones.
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('#modal').dataset.sticky) closeModal(); });
 
 /* ---------- Macar Dex dentro de la app (se carga la primera vez que se abre) ---------- */
 VIEWS.dex = () => {

@@ -231,6 +231,16 @@ const I18N = (() => {
     '# guardado en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', '# guardados en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', 'Ya estaba en Mi PC.': 'It was already in My PC.', '✓ En Mi PC': '✓ In My PC',
     'Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…': 'Click “+ Note” or a transcript line to write a note at that replay turn…',
     '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
+    // 0.14 calculadora, editor y marcas
+    'Quitarlo (luego añade otro con +)': 'Remove it (then add another with +)', 'Guardar este Pokémon, tal cual está, en Mi PC con el nombre que quieras': 'Save this Pokémon, as it is, to My PC with the name you want', '→ Mi PC': '→ My PC',
+    'Nombre en Mi PC': 'Name in My PC', 'Cancelar': 'Cancel', 'Forma Mega:': 'Mega form:', 'Puntos (SP)': 'Points (SP)', 'Puntos:': 'Points:', 'completo': 'complete', 'Todos los puntos a 0': 'All points to 0', 'A 0': 'To 0',
+    '−1 (Mayús: −4)': '−1 (Shift: −4)', '+1 (Mayús: +4)': '+1 (Shift: +4)', 'Bajar un nivel': 'Lower one stage', 'Subir un nivel': 'Raise one stage', 'Cambiar el movimiento': 'Change the move',
+    'Cálculo a Mi PC:': 'Calc to My PC:', 'Lo guarda en Mi PC, en este Pokémon (si no está, lo guarda primero)': 'Saves it to My PC, on this Pokémon (if it is not there, it saves it first)',
+    'Ahora': 'Now', 'Hueco vacío: elige uno abajo.': 'Empty slot: pick one below.',
+    '· × quita uno; pulsa abajo uno de los más usados para ponerlo en el primer hueco (otra vez, para quitarlo)': '· × removes one; click one of the most used below to put it in the first free slot (again, to remove it)', 'Quitar este movimiento': 'Remove this move',
+    'Ya lleva 4 movimientos: quita uno con × para poner este.': 'It already has 4 moves: remove one with × to add this one.',
+    '✓ Analizada': '✓ Analysed', '🔍 Por analizar': '🔍 To analyse', 'Pulsa para pasar de «Por analizar» a «Analizada» (y otra vez para quitarlo)': 'Click to go from «To analyse» to «Analysed» (and again to clear it)',
+    'Por analizar': 'To analyse', 'Ya analizadas': 'Analysed', '✎ Notas': '✎ Notes',
     // 0.13 Matchups
     'Tu plan contra cada equipo: Plan A, Plan B (2 leads + 2 atrás) y qué tener en cuenta. Va al documento.': 'Your plan against each team: Plan A, Plan B (2 leads + 2 back) and things to consider. It goes into the document.',
     'Llevar al documento': 'Send to the document', 'Pone la guía de matchups en el documento de este equipo (la sustituye si ya estaba)': 'Puts the matchup guide into this team\'s document (replacing it if it was there)',
@@ -457,6 +467,9 @@ const I18N = (() => {
   const RX = [
     [/\(ganas ([\d.,]+)% en (\d+)\)/g, '(you win $1% in $2)'],
     [/^(.+) ya está en el equipo: cada Pokémon solo puede ir una vez\.$/, '$1 is already in the team: each Pokémon can only be in it once.'],
+    [/^Ya estaba en Mi PC: ahora se llama (.+).$/, 'It was already in My PC: now it is called $1.'],
+    [/^· te pasas (\d+)$/, '· $1 over'], [/^· te quedan (\d+)$/, '· $1 left'], [/^· máximo (\d+) por stat$/, '· max $1 per stat'], [/^Guardado en Mi PC: (.+)\.$/, 'Saved to My PC: $1.'], [/^Guardado en Mi PC: (.+) \((\d+) sets\)\.$/, 'Saved to My PC: $1 ($2 sets).'], [/^Movimiento (\d)$/, 'Move $1'], [/^Pot\. (\d+)$/, 'BP $1'], [/^Prec\. (\d+)%$/, 'Acc. $1%'],
+    [/^· habilidad (.+)$/, '· ability $1'], [/^Guardado en Mi PC\.$/, 'Saved to My PC.'], [/^Guardado en Mi PC: ([^.]+)$/, 'Saved to My PC: $1'],
     [/^Matchup añadido: (.*)\.$/, 'Matchup added: $1.'], [/^Matchup «(.*)» borrado$/, 'Matchup «$1» deleted'], [/^Arquetipo: Sun, Rain, Trick Room, Tailwind…(?: Detectado: (.+))?$/, (m, d) => `Archetype: Sun, Rain, Trick Room, Tailwind…${d ? ` Detected: ${d}` : ''}`], [/ · atrás: /g, ' · back: '], [/^Código: (.+)$/, 'Code: $1'],
     [/^(.+) borrado de Mi PC$/, '$1 deleted from My PC'], [/^Equipo «(.*)» borrado$/, 'Team «$1» deleted'], [/^(.+) quitado del equipo$/, '$1 removed from the team'],
     [/(\d+) partidas\b/g, '$1 matches'], [/(\d+) partida\b/g, '$1 match'], [/\ben (\d+) (matches|match)\b/g, 'in $1 $2'], [/(\d+) turnos\b/g, '$1 turns'], [/(\d+) equipos\b/g, '$1 teams'],

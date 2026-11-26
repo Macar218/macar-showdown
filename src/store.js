@@ -160,12 +160,12 @@ class Store {
     return true;
   }
 
-  /** Marca de la partida: r = 'good' | 'meh' | 'bad' | '' (cómo fue) y a = para analizar. */
+  /** Marca de la partida: r = 'good' | 'meh' | 'bad' | '' (cómo fue) y a = true (por analizar) o 'done' (ya analizada). */
   setMark(id, mark) {
     const m = this.get(id);
     if (!m) return false;
     const r = ['good', 'meh', 'bad'].includes(mark && mark.r) ? mark.r : '';
-    const a = !!(mark && mark.a);
+    const a = mark && mark.a === 'done' ? 'done' : !!(mark && mark.a);
     m.mark = r || a ? { r, a } : null;
     m.summary.mark = m.mark;
     this.writeMatch(id, m);

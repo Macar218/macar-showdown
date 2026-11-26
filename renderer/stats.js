@@ -37,7 +37,7 @@
       // Marcas: con notas, para analizar, buena, indiferente o mala.
       if (f.mark) {
         const mk = s.mark || {};
-        if (f.mark === 'notes' ? !String(s.notes || '').trim() : f.mark === 'analyze' ? !mk.a : f.mark === 'none' ? !!(mk.r || mk.a) : mk.r !== f.mark) return false;
+        if (f.mark === 'notes' ? !String(s.notes || '').trim() : f.mark === 'analyze' ? mk.a !== true : f.mark === 'analyzed' ? mk.a !== 'done' : f.mark === 'none' ? !!(mk.r || mk.a) : mk.r !== f.mark) return false;
       }
       return true;
     });

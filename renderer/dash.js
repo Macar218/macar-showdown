@@ -44,7 +44,7 @@ const Dash = (() => {
     const seg = (key, list) => `<div class="seg" role="group">${list.map(([v, l]) => `<button data-f="${key}" data-val="${v}" aria-pressed="${String(F[key]) === String(v)}">${l}</button>`).join('')}</div>`;
     const dstr = t => (t ? new Date(t).toISOString().slice(0, 10) : '');
     const any = F.result !== 'all' || F.days || F.lead || F.back || F.rival || F.oppLead || F.minElo || F.mark;
-    const MK = [['', 'Cualquiera'], ['notes', 'Con notas'], ['analyze', 'Para analizar'], ['good', 'Buenas'], ['meh', 'Indiferentes'], ['bad', 'Malas'], ['none', 'Sin marcar']];
+    const MK = [['', 'Cualquiera'], ['notes', 'Con notas'], ['analyze', 'Por analizar'], ['analyzed', 'Ya analizadas'], ['good', 'Buenas'], ['meh', 'Indiferentes'], ['bad', 'Malas'], ['none', 'Sin marcar']];
     return `<div class="filters dfil">
       <div class="field">Resultado${seg('result', [['all', 'Todas'], ['win', 'Victorias'], ['loss', 'Derrotas']])}</div>
       <div class="field">Fechas<div class="dfdates">${seg('days', [[0, 'Todo'], [1, 'Hoy'], [7, '7 días'], [30, '30 días']])}<button class="btn ibtn${F.days === -1 ? ' on' : ''}" data-dcal="1" title="Elegir fechas"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg></button></div></div>
@@ -126,8 +126,11 @@ const Dash = (() => {
   /** Las marcas de las partidas de una fila: buena / indiferente / mala y «analizar». */
   function markTags(games) {
     const L = { good: 'Buena', meh: 'Indiferente', bad: 'Mala' };
-    const t = games.map((y, i) => { const mk = y.mark || {}; const pre = games.length > 1 ? `G${i + 1} ` : ''; return [mk.r ? `<i class="mktag mk-${mk.r}">${pre}<span>${L[mk.r]}</span></i>` : '', mk.a ? `<i class="mktag mk-a">${pre}<span>Analizar</span></i>` : ''].join(''); }).join('');
-    return t ? `<span class="mktags">${t}</span>` : '';
+    const t = games.map((y, i) => { const mk = y.mark || {}; const pre = games.length > 1 ? `G${i + 1} ` : ''; const note = String(y.notes || '').trim();
+      return [mk.r ? `<i class="mktag mk-${mk.r}">${pre}<span>${L[mk.r]}</span></i>` : '',
+        mk.a === 'done' ? `<i class="mktag mk-done">${pre}<span>✓ Analizada</span></i>` : mk.a ? `<i class="mktag mk-a">${pre}<span>🔍 Por analizar</span></i>` : '',
+        note ? `<i class="mktag mk-n" title="${esc(note.slice(0, 300))}">${pre}<span>✎ Notas</span></i>` : ''].join(''); }).join('');
+    return `<span class="mkcol">${t}</span>`;
   }
   function partidas(ms) {
     const a = Stats.advanced(ms);
@@ -143,10 +146,12 @@ const Dash = (() => {
     const row = g => {
       const f = g.games[0], me = Stats.mine(f), op = Stats.theirs(f), x = res(g);
       const bo3 = /bo3/.test(f.formatId || '');
-      return `<div class="match dmatch" data-set="${esc(g.games.map(y => y.id).join(','))}" tabindex="0">
+      const mks = g.games.map(y => y.mark || {}), pend = mks.some(x => x.a === true), done = !pend && mks.some(x => x.a === 'done');
+      return `<div class="match dmatch${pend ? ' mk-pend' : done ? ' mk-donerow' : ''}" data-set="${esc(g.games.map(y => y.id).join(','))}" tabindex="0">
         <span class="d">${hhmm(f.endedAt)}</span>
         <span class="pill ${x.r}">${bo3 ? `Bo3 ${x.w}–${x.l}` : (x.r === 'win' ? 'Victoria' : x.r === 'loss' ? 'Derrota' : 'Empate')}</span>
-        <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}${g.games.some(y => y.notes) ? ' · ✎' : ''}</small>${markTags(g.games)}</span>
+        <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}</small></span>
+        ${markTags(g.games)}
         <span class="mons" title="Tu lead">${me.leads.map(n => spr(n, 'sm')).join('')}</span>
         <span class="mons" title="Equipo rival (en gris, los que no salieron)">${op.preview.map(n => spr(n, `sm${op.brought.includes(n) ? '' : ' dim'}`)).join('')}</span>
         <span class="bo3g">${g.games.map((y, i) => `<button class="gbtn ${y.result || ''}" data-view="${esc(y.id)}" title="Ver la replay de G${i + 1}">▶ G${i + 1}</button>`).join('')}</span>

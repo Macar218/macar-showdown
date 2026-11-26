@@ -1484,3 +1484,84 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .dmuplan b{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:2px}
 .dmuplan p{margin:2px 0}
 .dsep{margin:0 6px;opacity:.5;align-self:center}
+/* Calculadora 0.14: filas de 6 con ×, arena y velocidad | ataques, cálculo a todo el ancho, Pokémon · campo · Pokémon. */
+.strip .chips:has(.mchip.add){grid-template-columns:repeat(6,minmax(0,1fr))}
+.strip .mchip.add{min-height:66px;font-size:22px}
+.strip .mchip{min-height:66px}
+.mcx{position:absolute;top:2px;left:3px;width:18px;height:18px;display:grid;place-items:center;border-radius:5px;font-size:13px;line-height:1;color:var(--muted);background:rgba(4,12,36,.75);opacity:0;transition:opacity .12s}
+.mchip:hover .mcx,.mchip.sel .mcx{opacity:1}
+.mcx:hover{color:#fff;background:var(--bad)}
+.c2{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.c2top{display:grid;grid-template-columns:1fr;gap:10px}
+@container (min-width:820px){.c2top{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start}}
+.c2arena{display:flex;flex-direction:column;gap:6px;min-width:0}
+.c2moves-col{min-width:0}
+.c2moves-col .sdres{margin:0}
+.c2res .sdmain{border-color:var(--accent);box-shadow:0 6px 16px rgba(2,8,30,.45)}
+.c2panels{display:grid;grid-template-columns:1fr;gap:10px}
+.c2field{order:3}
+@container (min-width:1000px){.c2panels{grid-template-columns:minmax(0,1fr) minmax(210px,.75fr) minmax(0,1fr);align-items:start}.c2field{order:0}}
+.c2field .sdfield{margin-top:0}
+.cforme{margin:-2px 0 4px;font-size:12px}
+.cpcrow{display:flex;gap:6px;align-items:center;margin:2px 0 6px}
+.cpcrow input{flex:1;min-width:0}
+.cpcmsg{margin:0 0 6px;font-size:12px}
+.c2stats td,.c2stats th{vertical-align:middle}
+.cstep{display:inline-flex;align-items:center;gap:2px}
+.cstep button{width:24px;height:26px;display:grid;place-items:center;padding:0;border-radius:7px;border:1px solid var(--line);background:#0b1d52;color:var(--ink);font-size:15px;font-weight:700;line-height:1;cursor:pointer}
+.cstep button:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.cstep button:disabled{opacity:.3;cursor:default}
+.cstep input{width:40px!important;text-align:center;padding:4px 2px!important;-moz-appearance:textfield}
+.cstep input::-webkit-inner-spin-button,.cstep input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.cstep input.set{border-color:rgba(56,212,255,.55)!important;color:var(--accent)}
+.cstep input.max{border-color:var(--gold)!important;color:var(--gold)}
+.cboost button{font-size:10px;width:22px}
+.cboost span{min-width:26px;text-align:center;font-family:var(--mono);font-weight:700;color:var(--muted)}
+.cboost span.up{color:var(--good)}.cboost span.dn{color:var(--bad)}
+.cspsum{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding-top:4px;font-size:12.5px}
+.cspsum .bad{color:var(--bad)}.cspsum .warn{color:var(--gold)}.cspsum .ok{color:var(--good)}
+.cspsum .btn{margin-left:auto}
+.c2moves{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:6px}
+.c2mv{display:grid;grid-template-columns:1fr auto;grid-template-areas:"n n" "t c";align-items:center;gap:3px 6px;min-height:48px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);border-left:4px solid var(--tc,var(--line));background:var(--surface);color:var(--ink);text-align:left;cursor:pointer}
+.c2mv b{grid-area:n;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c2mv .tyb{grid-area:t;justify-self:start}
+.c2mv .c2cat{font-size:11px;color:var(--muted)}
+.c2mv .c2bp{font-family:var(--mono);font-size:12px;color:var(--ink)}
+.c2mv{grid-template-areas:"n n n" "t c p";grid-template-columns:auto 1fr auto}
+.c2mv .c2cat{grid-area:c}.c2mv .c2bp{grid-area:p}
+.c2mv:hover{border-color:var(--accent)}
+.c2mv.on{box-shadow:0 0 0 2px var(--gold)}
+.c2mv.empty{border-style:dashed;border-left-width:1px}
+.mvpanel.withnow{position:relative}
+.mvnow{margin:0 0 8px;padding:8px 10px;border-radius:10px;border:1px solid var(--gold);background:rgba(255,196,64,.08)}
+.mvnowl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.mvnowt{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:3px 0}
+.mvnowt b{font-size:14px}
+.mvnowt span{font-size:12px;color:var(--muted)}
+.mvnow p{margin:2px 0 0;font-size:12.5px;line-height:1.4}
+.c2mv.t-Fire{--tc:#ff7a3d}.c2mv.t-Water{--tc:#4a9dff}.c2mv.t-Grass{--tc:#5fd068}.c2mv.t-Electric{--tc:#ffd23f}.c2mv.t-Ice{--tc:#7fe3ff}.c2mv.t-Fighting{--tc:#e0553d}.c2mv.t-Poison{--tc:#b55dd6}.c2mv.t-Ground{--tc:#d9a94a}.c2mv.t-Flying{--tc:#9fb4ff}.c2mv.t-Psychic{--tc:#ff5c9a}.c2mv.t-Bug{--tc:#a8c23a}.c2mv.t-Rock{--tc:#b8a05a}.c2mv.t-Ghost{--tc:#8a7be0}.c2mv.t-Dragon{--tc:#7a6cff}.c2mv.t-Dark{--tc:#8a7466}.c2mv.t-Steel{--tc:#9fb3c8}.c2mv.t-Fairy{--tc:#ff9fe0}.c2mv.t-Normal{--tc:#b9b39c}
+.c2mv[class*=" t-"]{background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 22%,#0b1a46),#0b1a46 80%)}
+/* Editor: cada movimiento con su × y los más usados marcados si ya los lleva (0.14). */
+.emv{display:flex;align-items:center;gap:4px;min-width:0}
+.emv input{flex:1;min-width:0}
+.uset .chipbtn.on{border-color:var(--good);background:rgba(70,214,140,.16);color:var(--good)}
+/* Partidas: marcas en su columna, más visibles (0.14). Por analizar en amarillo, analizada en verde, notas en azul. */
+.dmatch{grid-template-columns:52px 92px minmax(140px,1fr) minmax(120px,auto) minmax(70px,.5fr) minmax(190px,1.1fr) auto}
+.mkcol{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-width:0}
+.mkcol .mktag{font-size:11.5px;padding:3px 8px;border-radius:7px;border:1px solid transparent;white-space:nowrap}
+.mktag.mk-good{border-color:rgba(70,214,140,.45)}
+.mktag.mk-bad{border-color:rgba(255,92,122,.45)}
+.mktag.mk-meh{background:rgba(255,255,255,.1);color:var(--ink);border-color:rgba(255,255,255,.2)}
+.mktag.mk-a{background:rgba(255,196,64,.2);color:var(--gold);border-color:rgba(255,196,64,.55)}
+.mktag.mk-done{background:rgba(70,214,140,.2);color:var(--good);border-color:rgba(70,214,140,.55)}
+.mktag.mk-n{background:rgba(56,212,255,.16);color:var(--accent);border-color:rgba(56,212,255,.5);cursor:help}
+.dmatch.mk-pend{box-shadow:inset 4px 0 0 var(--gold)}
+.dmatch.mk-donerow{box-shadow:inset 4px 0 0 var(--good)}
+.mka.done{background:rgba(70,214,140,.18);border-color:var(--good);color:var(--good)}
+/* Lista de movimientos dentro del panel estrecho: el nombre entero en su línea, los datos debajo. */
+.c2poke .mvhead{display:none}
+.c2poke .mvrow{grid-template-columns:72px auto auto auto auto minmax(0,1fr);column-gap:10px}
+.c2poke .mvrow b{grid-column:2 / -1;white-space:normal}
+.c2poke .mvrow .mvcat{grid-column:1;font-size:11px}
+.c2poke .mvrow em{text-align:left}
+.c2poke .mvrow .mvdesc{grid-column:1 / -1}

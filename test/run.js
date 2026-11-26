@@ -301,6 +301,11 @@ t('marcas de cada partida (buena, mala, analizar) y su filtro', () => {
   assert.strictEqual(ids('bad'), '');
   assert.strictEqual(ids('notes'), '2');
   assert.strictEqual(ids('none'), '2');
+  // Analizada: deja de estar «por analizar» y pasa a «ya analizadas».
+  st.setMark('gen9championsvgc2026regmc-1', { r: 'good', a: 'done' });
+  const L2 = new Store(dir).list().map(x => ({ ...x, me: 'p2', result: 'win' }));
+  assert.strictEqual(Stats.filter(L2, { mark: 'analyze' }).length, 0);
+  assert.strictEqual(Stats.filter(L2, { mark: 'analyzed' }).map(x => x.id.slice(-1)).join(','), '1');
 });
 
 t('Macar Dex: habilidades posibles de cada Pokémon (data.js)', () => {

@@ -1,7 +1,7 @@
 {
   "name": "macar-showdown",
   "productName": "Macar Showdown",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Juega en Pokémon Showdown y guarda tus partidas de VGC con estadísticas.",
   "main": "main.js",
   "author": "Macar",

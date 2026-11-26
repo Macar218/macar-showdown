@@ -53,7 +53,8 @@ function makeCalc(cfg) {
     meMode: 'team',                   // estudio: 'team' = tu equipo (el de la sesión por defecto) · 'free' = los Pokémon que tú pongas
     battleId: null, format: '', turn: 0, spectator: false,
     edits: { me: {}, foe: {} },       // cambios a mano sobre lo que viene del combate o del equipo
-    manual: { me: [], foe: [] }       // Pokémon añadidos a mano
+    manual: { me: [], foe: [] },      // Pokémon añadidos a mano
+    hide: { me: [], foe: [] }         // estudio: Pokémon de un equipo quitados con ×
   };
   let TEAMS = [];
   let U = null, usageFor = null, usageMsg = '', TT = null;
@@ -63,8 +64,9 @@ function makeCalc(cfg) {
   if (LIVE) { S.manual = { me: [], foe: [] }; S.teamFoe = ''; S.meMode = 'team'; }
   const freeMe = () => !LIVE && S.meMode === 'free';
   if (!S.field || !S.field.me) S.field = P.blankField();
+  if (!S.hide || !Array.isArray(S.hide.me) || !Array.isArray(S.hide.foe)) S.hide = { me: [], foe: [] };
   const persist = () => {
-    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, field: S.field })); } catch (e) { /* nada */ }
+    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, hide: LIVE ? { me: [], foe: [] } : S.hide, field: S.field })); } catch (e) { /* nada */ }
   };
 
   /* ---------- sets ---------- */
@@ -171,10 +173,10 @@ function makeCalc(cfg) {
     if (!LIVE && TEAMS.length && S.teamFoe && !teamById(S.teamFoe)) S.teamFoe = '';
     if (LIVE && S.battleId) { S.edits = { me: {}, foe: {} }; S.selMove = null; S.field = P.blankField(); }
     S.battleId = null; S.format = ''; S.turn = 0; S.spectator = false; S.sheet = false;
-    const fromTeam = (id, extra) => { const t = teamById(id); return [...(t ? P.parseTeam(t.text).sets : []), ...extra.map(x => ({ ...x }))]; };
-    S.me = withEdits('me', fromTeam(freeMe() ? '' : S.teamMe, LIVE ? [] : S.manual.me).map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
+    const fromTeam = (id, extra, side) => { const t = teamById(id); const hid = LIVE ? [] : S.hide[side] || []; return [...(t ? P.parseTeam(t.text).sets.filter(m => !hid.includes(m.species)) : []), ...extra.map(x => ({ ...x }))]; };
+    S.me = withEdits('me', fromTeam(freeMe() ? '' : S.teamMe, LIVE ? [] : S.manual.me, 'me').map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     // En Jugar, sin combate no hay rival: los del combate se van al terminar.
-    S.foe = LIVE ? [] : withEdits('foe', fromTeam(S.teamFoe, S.manual.foe).map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
+    S.foe = LIVE ? [] : withEdits('foe', fromTeam(S.teamFoe, S.manual.foe, 'foe').map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     S.meActive = S.meActive && S.meActive.length && S.meActive.every(i => S.me[i]) ? S.meActive : S.me.slice(0, 2).map((_, i) => i);
     S.foeActive = S.foeActive && S.foeActive.length && S.foeActive.every(i => S.foe[i]) ? S.foeActive : S.foe.slice(0, 2).map((_, i) => i);
     autoWeather();
@@ -207,7 +209,7 @@ function makeCalc(cfg) {
     const act = (side === 'me' ? S.meActive : S.foeActive).includes(i);
     const sel = (side === 'me' ? S.selMe : S.selFoe) === i;
     const hp = Math.max(0, Math.min(100, m.hp));
-    return `<button class="mchip${sel ? ' sel' : ''}${act ? ' act' : ''}${m.fainted ? ' fnt' : ''}" data-pick="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ''}${S.battleId ? '' : ' · clic derecho: sacarlo al campo o retirarlo'}">${spr(m.species, 'sm')}<span class="mcn nolang">${esc(P.baseSpecies(m.species))}</span><i class="hpbar"><i style="width:${hp}%" class="${hpCls(m.hp)}"></i></i><small class="mchp">${m.fainted ? 'KO' : `${Math.round(hp)}%`}</small>${act ? '<em class="mcact" title="En el campo">●</em>' : ''}</button>`;
+    return `<button class="mchip${sel ? ' sel' : ''}${act ? ' act' : ''}${m.fainted ? ' fnt' : ''}" data-pick="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ''}${S.battleId ? '' : ' · clic derecho: sacarlo al campo o retirarlo'}">${spr(m.species, 'sm')}<span class="mcn nolang">${esc(P.baseSpecies(m.species))}</span><i class="hpbar"><i style="width:${hp}%" class="${hpCls(m.hp)}"></i></i><small class="mchp">${m.fainted ? 'KO' : `${Math.round(hp)}%`}</small>${act ? '<em class="mcact" title="En el campo">●</em>' : ''}${LIVE ? '' : `<span class="mcx" data-cx="${side}:${i}" role="button" title="Quitarlo (luego añade otro con +)">×</span>`}</button>`;
   }
   function strip(side) {
     const canAdd = !LIVE;
@@ -295,9 +297,9 @@ function makeCalc(cfg) {
     return `<div class="sdmain"><p class="sddesc nolang">${esc(S.lastDesc)}</p>
       <div class="sdko"><b class="${P.koClass(r.ko)}">${esc(P.koEs(r.ko)) || 'Sin KO'}</b>${P.bar(r)}<span>${P.pct(r.pLo)} - ${P.pct(r.pHi)}% · ${r.lo}-${r.hi} de ${r.cur}/${r.max} PS</span></div>
       <p class="sdrolls"><span class="note">Posibles daños:</span> <span class="nolang">(${rolls.join(', ')})</span></p>
-      <div class="row-btns"><button class="btn sm" data-sdroll="1">${S.showRolls ? 'Ocultar tiradas' : 'Cómo sale el daño'}</button><button class="btn sm" data-sdkeep="1" title="Guarda este cálculo en las notas de estos Pokémon en Mi PC">Guardar en Mi PC</button><span class="note sdkeepmsg">${esc(S.keepMsg || '')}</span></div>${S.showRolls ? detail() : ''}</div>`;
+      <div class="row-btns"><button class="btn sm" data-sdroll="1">${S.showRolls ? 'Ocultar tiradas' : 'Cómo sale el daño'}</button><span class="note">Cálculo a Mi PC:</span><button class="btn sm" data-sdkeep="${side}" title="Lo guarda en Mi PC, en este Pokémon (si no está, lo guarda primero)"><span class="nolang">${esc(P.baseSpecies(att.species))}</span></button><button class="btn sm" data-sdkeep="${side === 'me' ? 'foe' : 'me'}" title="Lo guarda en Mi PC, en este Pokémon (si no está, lo guarda primero)"><span class="nolang">${esc(P.baseSpecies(def.species))}</span></button><span class="note sdkeepmsg">${esc(S.keepMsg || '')}</span></div>${S.showRolls ? detail() : ''}</div>`;
   }
-  /** Un Pokémon, editable aquí mismo como en Showdown. */
+  /** Un Pokémon, editable aquí mismo como en la calculadora de Showdown: datos, puntos con flechas, PS y ataques. */
   function pokePanel(side) {
     const m = cur(side);
     if (!m) return `<div class="sdpoke ${side} empty"><p class="note">${side === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'}${LIVE ? '' : ' o añade uno con +'}.</p></div>`;
@@ -306,23 +308,30 @@ function makeCalc(cfg) {
     const q = on => (side === 'foe' && on ? ' <em title="Aún no se ha visto: es lo más probable">?</em>' : '');
     const opt = (list, v) => list.map(([k, l]) => `<option value="${esc(k)}"${k === v ? ' selected' : ''}>${l}</option>`).join('');
     const spGuess = side === 'foe' && (m.src === 'hoja' || m.live);
-    return `<div class="sdpoke ${side}">
-      <div class="sdph">${spr(m.species)}<div class="sdpn"><b class="nolang">${esc(m.species)}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div><span class="src ${toID(m.src)}">${esc(SRC[m.src] || m.src || '')}</span></div>
-        <span style="flex:1"></span><button class="btn sm ibtn" data-info="${esc(m.species)}" title="Info Pokémon: stats, tipos, velocidad y lo que lleva en torneos">i</button><button class="btn sm" data-edit="${side}" title="Editor completo: sets más usados, Mi PC, pegar el set">Editar</button></div>
+    const mega = P.megaOf(m), tot = m.sp.reduce((a, b) => a + (+b || 0), 0), left = P.SP_TOTAL - tot;
+    const sum = left < 0 ? `<b class="bad">${tot}/${P.SP_TOTAL}</b> · te pasas ${-left}` : left > 0 ? `<b class="warn">${tot}/${P.SP_TOTAL}</b> · te quedan ${left}` : `<b class="ok">${tot}/${P.SP_TOTAL}</b> · completo`;
+    const pcOpen = S.pcName === side;
+    const mvOpen = S.mvPick && S.mvPick[0] === side;
+    return `<div class="sdpoke ${side} c2poke">
+      <div class="sdph">${spr(mega)}<div class="sdpn"><b class="nolang">${esc(m.nick && m.nick !== m.species ? `${m.nick} (${m.species})` : m.species)}</b><div class="tytags">${P.typesOf(mega).map(P.typeBadge).join('')}</div><span class="src ${toID(m.src)}">${esc(SRC[m.src] || m.src || '')}</span></div>
+        <span style="flex:1"></span><button class="btn sm" data-edit="${side}" title="Editor completo: sets más usados, Mi PC, pegar el set">Editar</button><button class="btn sm${pcOpen ? ' on' : ''}" data-cpc="${side}" title="Guardar este Pokémon, tal cual está, en Mi PC con el nombre que quieras">→ Mi PC</button></div>
+      ${pcOpen ? `<div class="cpcrow"><input id="cPcName-${side}" maxlength="80" placeholder="Nombre en Mi PC" value="${esc(m.nick && m.nick !== m.species ? m.nick : `${P.baseSpecies(m.species)} · ${m.item || 'sin objeto'}`)}"><button class="btn sm primary" data-cpcok="${side}">Guardar</button><button class="btn sm" data-cpc="${side}">Cancelar</button></div>` : ''}
+      ${S.pcMsg && S.pcMsg[0] === side ? `<p class="okmsg cpcmsg">${esc(S.pcMsg[1])}</p>` : ''}
+      ${mega !== m.species ? `<p class="note cforme">Forma Mega: <b class="nolang">${esc(mega)}</b> · habilidad ${esc(P.abilitiesOf(mega)[0] || '')}</p>` : ''}
       <div class="sdgrid">
         <label class="field">Objeto${q(m.item && !rv.item && m.live)}<input list="dlItems" data-ce="${side}:item" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"></label>
         <label class="field">Habilidad${q(m.ability && !rv.ability && m.live)}<select data-ce="${side}:ability">${[...new Set([m.ability, ...P.abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
         <label class="field">Naturaleza<select data-ce="${side}:nature">${P.NATURES.map(n => `<option value="${n.name}"${n.name === m.nature ? ' selected' : ''}>${esc(P.natLabel(n.name))}</option>`).join('')}</select></label>
         <label class="field">Estado<select data-ce="${side}:status">${opt(P.STATUS, m.status || '')}</select></label>
       </div>
-      <table class="sdstats"><thead><tr><th></th><th>Base</th><th>SP${spGuess ? ' <em title="El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.">?</em>' : ''}</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
-        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}</th><td>${sp ? sp.baseStats[k] : ''}</td>
-          <td><input type="number" min="0" max="${P.SP_MAX}" value="${m.sp[i] || 0}" data-ce="${side}:sp:${i}"></td><td><b>${st[k] ?? ''}</b></td>
-          <td>${i ? `<select data-ce="${side}:boost:${k}" class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${[6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6].map(v => `<option value="${v}"${v === b ? ' selected' : ''}>${v > 0 ? `+${v}` : v}</option>`).join('')}</select>` : ''}</td></tr>`; }).join('')}
-      </tbody></table>
-      <div class="sdhp"><span>PS</span><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div><label><input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label></div>
-      <div class="sdmoves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || ''; const on = S.mvPick && S.mvPick[0] === side && S.mvPick[1] === i; return P.moveTile(x, `data-cmv="${side}:${i}" title="Cambiar el movimiento"`, on ? 'on' : '', `Movimiento ${i + 1}`); }).join('')}</div>
-      ${S.mvPick && S.mvPick[0] === side ? P.movePanel(m.species, U, TT, S.mvQ || '', m.moves) : ''}
+      <table class="sdstats c2stats"><thead><tr><th></th><th>Base</th><th>Puntos (SP)${spGuess ? ' <em title="El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.">?</em>' : ''}</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
+        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0, v = m.sp[i] || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}${nm > 1 ? ' ▲' : nm < 1 ? ' ▼' : ''}</th><td>${sp ? sp.baseStats[k] : ''}</td>
+          <td><div class="cstep"><button data-csp="${side}:${i}:-1" title="−1 (Mayús: −4)"${v <= 0 ? ' disabled' : ''}>−</button><input type="number" min="0" max="${P.SP_MAX}" value="${v}" data-ce="${side}:sp:${i}" class="${v >= P.SP_MAX ? 'max' : v ? 'set' : ''}"><button data-csp="${side}:${i}:1" title="+1 (Mayús: +4)"${v >= P.SP_MAX || left <= 0 ? ' disabled' : ''}>+</button></div></td><td><b>${st[k] ?? ''}</b></td>
+          <td>${i ? `<div class="cstep cboost"><button data-cbo="${side}:${k}:-1" title="Bajar un nivel"${b <= -6 ? ' disabled' : ''}>▼</button><span class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${b > 0 ? `+${b}` : b}</span><button data-cbo="${side}:${k}:1" title="Subir un nivel"${b >= 6 ? ' disabled' : ''}>▲</button></div>` : ''}</td></tr>`; }).join('')}
+      </tbody><tfoot><tr><td colspan="5"><div class="cspsum">Puntos: ${sum}<span class="note"> · máximo ${P.SP_MAX} por stat</span>${tot ? `<button class="btn sm" data-csp0="${side}" title="Todos los puntos a 0">A 0</button>` : ''}</div></td></tr></tfoot></table>
+      <div class="sdhp"><span>PS</span><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div><label><input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label><span class="note">${st.hp ? `${Math.round((st.hp * m.hp) / 100)}/${st.hp}` : ''}</span></div>
+      <div class="c2moves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || '', d = x && P.moveOf(x), on = mvOpen && S.mvPick[1] === i; return `<button class="c2mv${d ? ` t-${esc(d.type)}` : ' empty'}${on ? ' on' : ''}" data-cmv="${side}:${i}" title="Cambiar el movimiento">${x ? `<b class="nolang">${esc(x)}</b>${d ? P.typeBadge(d.type) : ''}<span class="c2cat">${d ? (d.category === 'Status' ? 'Estado' : d.category === 'Physical' ? 'Físico' : 'Especial') : ''}</span><span class="c2bp">${d && d.basePower ? d.basePower : '—'}</span>` : `<span class="note">Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div>
+      ${mvOpen ? P.movePanel(m.species, U, TT, S.mvQ || '', m.moves, m.moves[S.mvPick[1]] || '') : ''}
     </div>`;
   }
   function arena() {
@@ -392,13 +401,10 @@ function makeCalc(cfg) {
       ${strip('me')}${strip('foe')}
       <div class="ctabbar">${back}<div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button><button data-ctab="tree" aria-pressed="${S.tab === 'tree'}" title="Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno">Árbol</button></div></div>
       <div class="ctabbody">${S.tab === 'multi' ? Multi.render(api_state()) : S.tab === 'tree' ? Multi.renderTree(api_state()) : `
-        <div class="sdlayout">
-          <div class="sdl-arena">${arena()}</div>
-          <div class="sdl-res">${mainResult()}</div>
-          <div class="sdl-moves"><div class="sdres">${moveCol('me')}${moveCol('foe')}</div>${speedLine()}</div>
-          <div class="sdl-me">${pokePanel('me')}</div>
-          <div class="sdl-foe">${pokePanel('foe')}</div>
-          <div class="sdl-field">${fieldPanel()}</div>
+        <div class="c2">
+          <div class="c2top"><div class="c2arena">${arena()}${speedLine()}</div><div class="c2moves-col"><div class="sdres">${moveCol('me')}${moveCol('foe')}</div></div></div>
+          <div class="c2res">${mainResult()}</div>
+          <div class="c2panels"><div class="c2me">${pokePanel('me')}</div><div class="c2field">${fieldPanel()}</div><div class="c2foe">${pokePanel('foe')}</div></div>
         </div>`}</div>
       ${S.tab === 'dmg' ? '' : fieldBox()}
       <p class="note usage cusage">${esc(usageMsg)}</p>`;
@@ -450,8 +456,12 @@ function makeCalc(cfg) {
     if (!m) return;
     const k = S.manual[side].findIndex(x => x.species === m.species);
     if (k >= 0) S.manual[side].splice(k, 1);
+    else if (!LIVE && !S.hide[side].includes(m.species)) S.hide[side].push(m.species);
     S[side].splice(idx, 1);
-    persist(); render();
+    const sel = side === 'me' ? 'selMe' : 'selFoe', act = side === 'me' ? 'meActive' : 'foeActive';
+    S[act] = S[act].filter(i => i !== idx).map(i => (i > idx ? i - 1 : i));
+    if (S[sel] >= S[side].length) S[sel] = Math.max(0, S[side].length - 1);
+    persist(); lastHash = ''; tick(true);
   }
 
   /** Añadir un equipo rival rápido: pegar texto o enlace de Pokepaste. */
@@ -517,39 +527,67 @@ function makeCalc(cfg) {
     };
     $('#modal').classList.remove('hide');
   }
-  /** Guarda el cálculo de ahora en Mi PC, en los sets de los dos Pokémon (si están). */
-  async function keepCalc() {
-    if (!S.lastDesc || !S.lastPair) return;
-    const list = (await P.pcList()).slice();
-    const ids = S.lastPair.map(n => toID(P.baseSpecies(n)));
-    let n = 0;
-    for (const x of list) {
-      const s = P.parseSet(x.text);
-      if (!s || s.bad || !ids.includes(toID(P.baseSpecies(s.species)))) continue;
-      x.calcs = [...(x.calcs || []).filter(c => c.t !== S.lastDesc), { t: S.lastDesc, at: Date.now() }].slice(-40);
-      n++;
+  /** Guarda el cálculo de ahora en Mi PC, en el Pokémon elegido (sus sets de esa especie; si no tiene, lo guarda primero). */
+  async function keepCalc(side) {
+    if (!S.lastDesc) return;
+    const m = cur(side);
+    if (!m) return;
+    const id = toID(P.baseSpecies(m.species));
+    let list = (await P.pcList()).slice();
+    let hits = list.filter(x => { const s = P.parseSet(x.text); return s && !s.bad && toID(P.baseSpecies(s.species)) === id && (x.side || 'me') === side; });
+    if (!hits.length) {
+      const r = await P.pcAdd(P.cleanSet(m), { name: m.nick && m.nick !== m.species ? m.nick : P.baseSpecies(m.species), side, box: side === 'foe' ? 'Rivales' : '' });
+      if (!r.ok) { S.keepMsg = r.why; render(); return; }
+      list = (await P.pcList()).slice();
+      hits = list.filter(x => x.id === r.item.id);
     }
-    if (n) await DB.set('pc', list);
-    S.keepMsg = n ? `Guardado en ${n} set${n > 1 ? 's' : ''} de Mi PC.` : 'Ninguno de los dos está en Mi PC.';
+    for (const x of hits) x.calcs = [...(x.calcs || []).filter(c => c.t !== S.lastDesc), { t: S.lastDesc, at: Date.now() }].slice(-40);
+    await DB.set('pc', list);
+    S.keepMsg = `Guardado en Mi PC: ${P.baseSpecies(m.species)}${hits.length > 1 ? ` (${hits.length} sets)` : ''}.`;
     render();
     setTimeout(() => { S.keepMsg = ''; }, 4000);
+  }
+  /** Este Pokémon, tal cual está en la calculadora, a Mi PC con su nombre. */
+  async function toPC(side) {
+    const m = cur(side), inp = q1(`#cPcName-${side}`);
+    if (!m) return;
+    const name = inp ? inp.value.trim().slice(0, 80) : '';
+    const r = await P.pcAdd(P.cleanSet(m), { name, side, box: side === 'foe' ? 'Rivales' : '' });
+    let msg = r.ok ? `Guardado en Mi PC${name ? `: ${name}` : ''}.` : r.why;
+    // Ese mismo set ya estaba: se le pone el nombre nuevo.
+    if (!r.ok && name) {
+      const text = P.exportSet(P.cleanSet(m)), L = (await P.pcList()).slice(), k = L.findIndex(x => x.text === text && x.side === side);
+      if (k >= 0) { L[k] = { ...L[k], name, up: Date.now() }; await DB.set('pc', L); msg = `Ya estaba en Mi PC: ahora se llama ${name}.`; }
+    }
+    S.pcName = null;
+    S.pcMsg = [side, msg];
+    render();
+    setTimeout(() => { S.pcMsg = null; }, 4000);
   }
 
   /* ---------- eventos ---------- */
   function bind() {
     const el = root();
     el.addEventListener('click', e => {
+      // × en un Pokémon de las filas: se quita (luego puedes añadir otro con +).
+      const x = e.target.closest('[data-cx]');
+      if (x) { e.stopPropagation(); const [side, i] = x.dataset.cx.split(':'); removeMon(side, +i); return; }
       const t = e.target.closest('button');
       if (!t) return;
       if (t.dataset.info) { P.openInfo(t.dataset.info); return; }
       if (t.dataset.dex) { P.openInfo((S.foe[S.selFoe] || S.me[S.selMe] || {}).species || 'Garchomp'); return; }
       if (t.dataset.cwide) { if (window.CalcDrawer) CalcDrawer.toggleWide(); render(); return; }
       if (t.dataset.detx) { S.showRolls = false; render(); return; }
-      if (t.dataset.sdkeep) { keepCalc(); return; }
+      if (t.dataset.sdkeep) { keepCalc(t.dataset.sdkeep); return; }
+      if (t.dataset.cpc) { S.pcName = S.pcName === t.dataset.cpc ? null : t.dataset.cpc; render(); const i = q1(`#cPcName-${t.dataset.cpc}`); if (i) { i.focus(); i.select(); } return; }
+      if (t.dataset.cpcok) { toPC(t.dataset.cpcok); return; }
+      if (t.dataset.csp) { const [side, i, d] = t.dataset.csp.split(':'); const m = cur(side); if (m) { applyEdit(side, 'sp', (m.sp[+i] || 0) + (+d) * (e.shiftKey ? 4 : 1), i); lastHash = ''; render(); } return; }
+      if (t.dataset.csp0) { const side = t.dataset.csp0, m = cur(side); if (m) { for (let i = 0; i < 6; i++) applyEdit(side, 'sp', 0, i); render(); } return; }
+      if (t.dataset.cbo) { const [side, k, d] = t.dataset.cbo.split(':'); const m = cur(side); if (m) { applyEdit(side, 'boost', Math.max(-6, Math.min(6, ((m.boosts || {})[k] || 0) + (+d))), k); render(); } return; }
       if (t.dataset.cmatch) { fromMatch(); return; }
       if (t.dataset.cpaste) { quickRival(); return; }
-      if (t.dataset.cclear === 'me') { S.manual.me = []; S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return; }
-      if (t.dataset.cclear) { S.teamFoe = ''; S.manual.foe = []; S.edits.foe = {}; S.foeActive = []; persist(); lastHash = ''; tick(true); return; }
+      if (t.dataset.cclear === 'me') { S.hide.me = []; S.manual.me = []; S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return; }
+      if (t.dataset.cclear) { S.hide.foe = []; S.teamFoe = ''; S.manual.foe = []; S.edits.foe = {}; S.foeActive = []; persist(); lastHash = ''; tick(true); return; }
       if (t.dataset.cmode) {
         S.meMode = t.dataset.cmode === 'free' ? 'free' : 'team';
         // Con tu equipo, el de la sesión si no habías elegido otro; a mano, empiezas con lo que ya hubieras puesto.
@@ -583,6 +621,7 @@ function makeCalc(cfg) {
       else if (Multi.click(t, api_state())) render();
     });
     el.addEventListener('click', e => { const c = e.target.closest('[data-det]'); if (c) { S.det = c.dataset.det.split('|'); render(); setTimeout(() => { const d = q1('.ddet'); if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 30); } });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' && /^cPcName-/.test(e.target.id || '')) { e.preventDefault(); toPC(e.target.id.split('-')[1]); } });
     el.addEventListener('input', e => {
       if (e.target.id !== 'mvQ') return;
       S.mvQ = e.target.value;
@@ -592,7 +631,7 @@ function makeCalc(cfg) {
         const pnl = q1('.mvpanel'), m = S.mvPick && cur(S.mvPick[0]);
         if (!pnl || !m) return;
         const tmp = document.createElement('div');
-        tmp.innerHTML = P.movePanel(m.species, U, TT, S.mvQ, m.moves);
+        tmp.innerHTML = P.movePanel(m.species, U, TT, S.mvQ, m.moves, m.moves[S.mvPick[1]] || '');
         pnl.querySelector('.mvplist').replaceWith(tmp.querySelector('.mvplist'));
       }, 100);
     });
@@ -609,7 +648,7 @@ function makeCalc(cfg) {
     });
     el.addEventListener('change', e => {
       const t = e.target;
-      if (t.dataset.cteam) { const side = t.dataset.cteam; S[side === 'me' ? 'teamMe' : 'teamFoe'] = t.value; S.edits[side] = {}; S[side === 'me' ? 'meActive' : 'foeActive'] = []; if (side === 'foe') S.manual.foe = []; S.field.userWT = false; persist(); lastHash = ''; tick(true); return; }
+      if (t.dataset.cteam) { const side = t.dataset.cteam; S.hide[side] = []; S[side === 'me' ? 'teamMe' : 'teamFoe'] = t.value; S.edits[side] = {}; S[side === 'me' ? 'meActive' : 'foeActive'] = []; if (side === 'foe') S.manual.foe = []; S.field.userWT = false; persist(); lastHash = ''; tick(true); return; }
       if (t.dataset.hp) {
         const side = t.dataset.hp, m = S[side][side === 'me' ? S.selMe : S.selFoe];
         m.hp = Math.max(0, Math.min(100, +t.value || 0));
@@ -666,7 +705,7 @@ function makeCalc(cfg) {
   return {
     init, tick: () => tick(true), render, load, reloadTeams, state: api_state,
     setOpen(v) { const was = S.open; S.open = v; if (v && !was) { lastHash = ''; tick(true); } },
-    setTeams(me, foe) { if (me !== undefined) S.teamMe = me; if (foe !== undefined && !LIVE) { S.teamFoe = foe; S.manual.foe = []; } S.edits = { me: {}, foe: {} }; persist(); lastHash = ''; tick(true); },
+    setTeams(me, foe) { if (me !== undefined) { S.teamMe = me; S.hide.me = []; } if (foe !== undefined && !LIVE) { S.teamFoe = foe; S.manual.foe = []; S.hide.foe = []; } S.edits = { me: {}, foe: {} }; persist(); lastHash = ''; tick(true); },
     showRivals(sets) { if (LIVE) return; S.teamFoe = ''; S.manual.foe = sets.map(m => ({ ...m, hp: 100, boosts: {} })); S.edits.foe = {}; S.foeActive = []; S.selFoe = 0; persist(); lastHash = ''; tick(true); }
   };
 }
