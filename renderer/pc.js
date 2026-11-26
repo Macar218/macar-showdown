@@ -105,9 +105,9 @@ const PC = (() => {
       <div class="mtmoves">${s.moves.map(m => P.moveTile(m)).join('')}</div>
       <h4 class="pch4">Notas</h4>
       <textarea id="pdNotes" class="pcnotesin" rows="6" placeholder="${foe ? 'Qué hizo en la partida, qué aguanta, cómo ganarle…' : 'Contra qué va bien, de dónde lo sacaste…'}">${esc(x.notes || '')}</textarea>
-      <h4 class="pch4">Cálculos <span class="note">${(x.calcs || []).length || ''}</span></h4>
-      <div class="pccalcs">${(x.calcs || []).length ? x.calcs.slice().reverse().map((c, i) => `<div class="pccalc"><span class="nolang">${esc(c.t)}</span><button class="dbtn" data-pcdel="${x.calcs.length - 1 - i}" title="Quitar">×</button></div>`).join('') : '<p class="note">Sin cálculos. En la Calculadora, «Guardar en Mi PC» guarda el cálculo aquí; o escríbelo abajo.</p>'}</div>
-      <div class="row-btns"><input id="pdCalc" placeholder="Ej.: 32+ Atk Kingambit Kowtow Cleave vs. 0 HP / 0 Def: 45-54%" style="flex:1"><button class="btn sm" data-pcadd="1">Añadir</button></div>
+      ${['off', 'def'].map(k => { const L = (x.calcs || []).map((c, i) => ({ c, i })).filter(o => P.calcRole(o.c, s.species) === k).reverse(); return `<h4 class="pch4 pcck ${k}">${k === 'off' ? 'Cálculos ofensivos clave' : 'Cálculos defensivos clave'} <span class="note">${L.length || ''}</span></h4>
+      <div class="pccalcs">${L.length ? L.map(({ c, i }) => `<div class="pccalc"><span class="nolang">${esc(c.t)}</span><button class="dbtn" data-pcflip="${i}" title="${k === 'off' ? 'Pasarlo a defensivos' : 'Pasarlo a ofensivos'}">⇅</button><button class="dbtn" data-pcdel="${i}" title="Quitar">×</button></div>`).join('') : `<p class="note">${k === 'off' ? 'Ninguno. En la Calculadora, cuando este Pokémon ataca, «Cálculo a Mi PC» lo guarda aquí.' : 'Ninguno. En la Calculadora, cuando este Pokémon recibe el golpe, «Cálculo a Mi PC» lo guarda aquí.'}</p>`}</div>`; }).join('')}
+      <div class="row-btns"><input id="pdCalc" placeholder="Ej.: 32+ Atk Kingambit Kowtow Cleave vs. 0 HP / 0 Def: 45-54%" style="flex:1"><select id="pdCalcK" title="Dónde va"><option value="off">Cálculo ofensivo</option><option value="def">Cálculo defensivo</option></select><button class="btn sm" data-pcadd="1">Añadir</button></div>
       <p class="note" id="pdMsg">${esc(V.msg)}</p>
       ${foe ? '' : `<h4 class="pch4">Añadir a un equipo</h4>
       <div class="pcteamsel" id="pcTeamSel"></div>
@@ -254,11 +254,14 @@ const PC = (() => {
     else if (d.tmonx) { V.tmon = ''; render(); }
     else if (d.psel) { V.sel = V.sel === d.psel ? null : d.psel; V.msg = ''; V.rename = false; render(); }
     else if (d.pcside != null) { V.side = d.pcside; V.page = 0; render(); }
-    else if (d.pcadd || d.pcdel != null) {
+    else if (d.pcadd || d.pcdel != null || d.pcflip != null) {
       const L = list.slice(), i = L.findIndex(x => x.id === V.sel);
       if (i < 0) return;
       const calcs = (L[i].calcs || []).slice();
-      if (d.pcadd) { const v = $('#pdCalc').value.trim(); if (!v) return; calcs.push({ t: v.slice(0, 400), at: Date.now() }); } else calcs.splice(+d.pcdel, 1);
+      const sp = (P.parseSet(L[i].text) || {}).species || '';
+      if (d.pcadd) { const v = $('#pdCalc').value.trim(); if (!v) return; calcs.push({ t: v.slice(0, 400), at: Date.now(), k: $('#pdCalcK').value === 'def' ? 'def' : 'off' }); }
+      else if (d.pcflip != null) { const c = calcs[+d.pcflip]; if (c) calcs[+d.pcflip] = { ...c, k: P.calcRole(c, sp) === 'off' ? 'def' : 'off' }; }
+      else calcs.splice(+d.pcdel, 1);
       L[i] = { ...L[i], calcs }; await DB.set('pc', L); render();
     }
     else if (d.pcbox != null) { const boxes = ['', ...[...new Set(list.map(x => x.box).filter(Boolean))].sort()]; V.box = boxes[+d.pcbox] ?? ''; V.page = 0; render(); }

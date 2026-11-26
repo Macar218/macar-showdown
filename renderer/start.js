@@ -170,8 +170,8 @@ const Start = (() => {
   function hide() { const el = wrap(); if (el) el.classList.add('hide'); V.first = false; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap() && !wrap().classList.contains('hide')) { e.stopPropagation(); hide(); } }, true);
 
-  // Al abrir la app.
-  display('home');
+  // Al abrir la app (en la otra ventana, no: va directa a su sección).
+  if (typeof W2 === 'undefined' || !W2) display('home');
   const refresh = () => { const el = wrap(); if (el && !el.classList.contains('hide') && !V.edit && V.mode !== 'new') paint(); };
   return { show: display, hide, refresh, defName, state: V };
 })();

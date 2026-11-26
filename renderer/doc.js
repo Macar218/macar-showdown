@@ -18,7 +18,8 @@ const Doc = (() => {
     ['table', 'Tabla…', 'Insertar una tabla del tamaño que quieras'],
     ['img', 'Imagen…', 'Una imagen de tu ordenador (también puedes pegarla con Ctrl+V)'],
     ['sprite', 'Sprites…', 'Sprites de Pokémon: en la línea del texto o en una fila'],
-    ['calc', 'Otro cálculo', 'Una línea de cálculo de daño'],
+    ['calc', 'Cálculos…', 'Tus cálculos guardados en Mi PC o uno nuevo'],
+    ['rep', 'Replays…', 'Las replays que elijas de tus partidas con este equipo'],
     ['page', 'Página nueva', 'Lo que sigue, en otra hoja'],
     ['mupage', 'Hoja de matchups', 'Una hoja con 3 matchups en blanco para rellenar']
   ];
@@ -29,7 +30,8 @@ const Doc = (() => {
   const pctTxt = (w, n) => (n ? `${w}–${n - w} (${Math.round((w / n) * 100)}%)` : '—');
 
   /* ================= montar el documento con tus datos ================= */
-  async function generate(team) {
+  /** auto = Auto-build: además de lo tuyo, cálculos contra lo más visto, replays agrupadas y supervivencia. Sin él, nada inventado. */
+  async function generate(team, auto = false) {
     const sets = P.parseTeam(team.text).sets;
     const [U, T] = await Promise.all([P.usage(''), P.tour()]);
     const ms = Stats.usable(M).filter(s => teamOf(s) === team.id);
@@ -37,6 +39,7 @@ const Doc = (() => {
     const MU = typeof Matchups !== 'undefined' ? await Matchups.forDoc(team.id) : { paste: '', code: '', rows: [] };
     const pages = [];
     const foes = threats(U, T, r);
+    const PC = await P.pcList();
 
     // 1. Resumen: tu equipo de un vistazo
     pages.push(page([
@@ -50,26 +53,37 @@ const Doc = (() => {
         <p><b>Gracias a…</b> ${fill('Quién te ha ayudado o de dónde salió la idea.')}</p>`),
       block('hint', '<p><b>Huecos para rellenar:</b> lo que está en gris cursiva no sale en el PDF hasta que lo escribas. Cada parte sale en el PDF: quítala con el ojo (👁) o con × si no la quieres.</p>', { on: false }),
       ...(MU.rows.length ? [block('glance', glanceHTML(MU.rows))] : []),
-      ...(r.oppPreview.length ? [block('p', `<p><b>Lo más jugado.</b> Lo que más te encuentras: ${r.oppPreview.slice(0, 8).map(x => `${esc(x.key)} (${x.n})`).join(', ')}. Cómo te suelen abrir: ${r.oppLeads.slice(0, 3).map(x => `${esc(x.key)} (${x.n})`).join(' · ') || '—'}.</p>`)] : [])
+      ...(auto && r.oppPreview.length ? [block('p', `<p><b>Lo más jugado.</b> Lo que más te encuentras: ${r.oppPreview.slice(0, 8).map(x => `${esc(x.key)} (${x.n})`).join(', ')}. Cómo te suelen abrir: ${r.oppLeads.slice(0, 3).map(x => `${esc(x.key)} (${x.n})`).join(' · ') || '—'}.</p>`)] : [])
     ], 'Resumen'));
 
-    // 2. Una hoja por Pokémon: el Pokémon en grande con sus características y luego sus cálculos.
+    // 2. Una hoja por Pokémon: el Pokémon en grande y sus cálculos (los tuyos de Mi PC; con Auto-build, también los automáticos).
+    //    Si no caben, sigue en otra hoja con el Pokémon pequeño arriba.
     const speedNote = [];
-    if (sets.some(m => m.moves.some(x => P.toID(x) === 'tailwind'))) speedNote.push('Tu equipo lleva Tailwind: la Velocidad cuenta la mitad con él puesto.');
-    if (sets.some(m => m.moves.some(x => P.toID(x) === 'trickroom'))) speedNote.push('Tu equipo lleva Trick Room: los lentos no gastan en Velocidad.');
+    if (auto && sets.some(m => m.moves.some(x => P.toID(x) === 'tailwind'))) speedNote.push('Tu equipo lleva Tailwind: la Velocidad cuenta la mitad con él puesto.');
+    if (auto && sets.some(m => m.moves.some(x => P.toID(x) === 'trickroom'))) speedNote.push('Tu equipo lleva Trick Room: los lentos no gastan en Velocidad.');
     sets.forEach((m, i) => {
-      const bl = [block('h', `<h2>${esc(m.species)} · sets y cálculos clave</h2>`)];
-      if (i === 0 && speedNote.length) bl.push(block('key', `<p>${speedNote.map(esc).join('<br>')}</p>`));
-      bl.push(block('mon', monHTML(m, foes)));
-      bl.push(block('box', `<h3>Notas de ${esc(m.species)}</h3><p>${fill('Cómo se juega, cuándo traerlo y cuándo no.')}</p>`));
-      pages.push(page(bl, `Pokémon ${i + 1} · ${m.species}`));
+      const mine = pcCalcsOf(PC, m.species), au = auto ? autoCalcs(m, foes) : { off: [], def: [] };
+      const items = [...[...mine.off, ...au.off.filter(t => !mine.off.includes(t))].map(t => ({ k: 'off', t })), ...[...mine.def, ...au.def.filter(t => !mine.def.includes(t))].map(t => ({ k: 'def', t }))];
+      const chunks = [items.slice(0, FIRST_CALCS)];
+      for (let k = FIRST_CALCS; k < items.length; k += MORE_CALCS) chunks.push(items.slice(k, k + MORE_CALCS));
+      chunks.forEach((part, c) => {
+        const bl = [];
+        if (!c) {
+          bl.push(block('h', `<h2>${esc(m.species)} · sets y cálculos clave</h2>`));
+          if (i === 0 && speedNote.length) bl.push(block('key', `<p>${speedNote.map(esc).join('<br>')}</p>`));
+          bl.push(block('mon', monHTML(m, foes, auto)));
+        } else bl.push(block('mon', monSmall(m)));
+        bl.push(block('calcs', calcsHTML(part, !c, chunks.length > 1 && c < chunks.length - 1), { calcs: m.species }));
+        if (c === chunks.length - 1) bl.push(block('box', `<h3>Notas de ${esc(m.species)}</h3><p>${fill('Cómo se juega, cuándo traerlo y cuándo no.')}</p>`));
+        pages.push(page(bl, c ? `Pokémon ${i + 1} · ${m.species} (${c + 1})` : `Pokémon ${i + 1} · ${m.species}`));
+      });
     });
 
-    // 3. Guía de matchups (2 por hoja) y 4. replays por matchup: salen de la pantalla Matchups.
-    pages.push(...muPages(MU.rows), repPage(ms));
+    // 3. Guía de matchups (3 por hoja) y 4. replays: las que tú añadas (con Auto-build, agrupadas por equipo rival).
+    pages.push(...muPages(MU.rows), repPage(ms, auto));
 
-    // 5. Otros cálculos importantes: los golpes al límite (supervivencia).
-    pages.push(page([block('h', '<h2>Otros cálculos importantes</h2>'), block('surv', survHTML(sets, foes)), block('box', `<h3>Más cálculos</h3><p>${fill('Añade aquí los cálculos que te importen: qué tienes que aguantar sí o sí, qué KOs necesitas.')}</p>`)], 'Otros cálculos'));
+    // 5. Otros cálculos importantes: los que tú añadas (con Auto-build, también los golpes al límite).
+    pages.push(page([block('h', '<h2>Otros cálculos importantes</h2>'), ...(auto ? [block('surv', survHTML(sets, foes))] : []), block('box', `<h3>Más cálculos</h3><p>${fill('Añade aquí los cálculos que te importen con «+ Cálculo»: qué tienes que aguantar sí o sí, qué KOs necesitas.')}</p>`)], 'Otros cálculos'));
     if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') for (const pg of pages) for (const b of pg.blocks) b.html = I18N.trHTML(b.html);
     return { v: 2, teamId: team.id, style: 'dark', zoom: 1, pages, up: Date.now() };
   }
@@ -82,7 +96,9 @@ const Doc = (() => {
   function teamHTML(sets) {
     return `<div class="dteam">${sets.map(m => { const st = P.stats(m) || {}; return `<div class="dmon">${spr(m.species)}<b>${esc(m.species)}</b><span>${esc(m.item || 'Sin objeto')}</span><span>${esc(m.ability || '')}</span><small>${esc(m.nature)} · ${m.sp.join('/')}</small><small>${P.STATS.map(s => st[s]).join(' / ')}</small><ul>${m.moves.filter(Boolean).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`; }).join('')}</div>`;
   }
-  function monHTML(m, foes) {
+  const FIRST_CALCS = 10, MORE_CALCS = 24;
+  /** Cálculos automáticos (Auto-build): sus mejores golpes y lo que más le hace lo más visto. */
+  function autoCalcs(m, foes) {
     const off = [], def = [];
     for (const f of foes) {
       let best = null, worst = null;
@@ -92,9 +108,35 @@ const Doc = (() => {
       if (worst && worst.pHi >= 40) def.push(worst);
     }
     off.sort((a, b) => b.pHi - a.pHi); def.sort((a, b) => b.pHi - a.pHi);
-    const line = x => `<li class="dcalc">${esc(x.desc)}</li>`;
+    return { off: off.slice(0, 7).map(x => x.desc), def: def.slice(0, 6).map(x => x.desc) };
+  }
+  /** Los cálculos que guardaste en Mi PC para ese Pokémon (los tuyos), separados en ofensivos y defensivos. */
+  function pcCalcsOf(PC, species) {
+    const id = P.toID(P.baseSpecies(species)), out = { off: [], def: [] };
+    for (const x of PC) {
+      if ((x.side || 'me') !== 'me' || !(x.calcs || []).length) continue;
+      const s = P.parseSet(x.text);
+      if (!s || s.bad || P.toID(P.baseSpecies(s.species)) !== id) continue;
+      for (const c of x.calcs) { const k = P.calcRole(c, s.species); if (!out[k].includes(c.t)) out[k].push(c.t); }
+    }
+    return out;
+  }
+  /** Lista de cálculos de una hoja: ofensivos y defensivos; vacía, con su hueco para rellenar. */
+  function calcsHTML(items, first, more) {
+    const off = items.filter(x => x.k === 'off'), def = items.filter(x => x.k === 'def');
+    const li = x => `<li class="dcalc">${esc(x.t)}</li>`;
+    if (!items.length) return `<h3>Cálculos ofensivos clave</h3><ul class="dcl off"></ul><p>${fill('Los tuyos: en la Calculadora, «Cálculo a Mi PC», o aquí con «+ Cálculo».')}</p><h3>Cálculos defensivos clave</h3><ul class="dcl def"></ul><p>${fill('Lo que tiene que aguantar.')}</p>`;
+    return `${off.length || first ? `<h3>Cálculos ofensivos clave${first ? '' : ' (sigue)'}</h3><ul class="dcl off">${off.map(li).join('')}</ul>${off.length ? '' : `<p>${fill('Los tuyos: en la Calculadora, «Cálculo a Mi PC», o aquí con «+ Cálculo».')}</p>`}` : ''}
+      ${def.length || (first && !more) ? `<h3>Cálculos defensivos clave${first || !def.length ? '' : ' (sigue)'}</h3><ul class="dcl def">${def.map(li).join('')}</ul>${def.length ? '' : `<p>${fill('Lo que tiene que aguantar.')}</p>`}` : ''}${more ? '<p class="dsub">Sigue en la hoja siguiente.</p>' : ''}`;
+  }
+  /** El Pokémon pequeño arriba de las hojas que siguen. */
+  function monSmall(m) {
+    const mega = P.megaOf(m), it = m.item && P.itemInfo(m.item);
+    return `<div class="dmonsm">${spr(mega)}<b>${esc(m.species)}</b><span>${it && it.img ? `<img class="ditem" src="${it.img}" alt="">` : ''}${esc(m.item || 'Sin objeto')}</span><span class="dsub">${esc(m.ability || '')} · ${esc(P.natLabel(m.nature))}</span></div>`;
+  }
+  function monHTML(m, foes, auto) {
     const st = P.stats(m) || {}, mega = P.megaOf(m), spe = P.speed(m, P.blankField(), 'me');
-    const faster = foes.filter(f => P.speed(f, P.blankField(), 'foe') < spe).map(f => P.baseSpecies(f.species)), slower = foes.filter(f => P.speed(f, P.blankField(), 'foe') > spe).map(f => P.baseSpecies(f.species));
+    const faster = auto ? foes.filter(f => P.speed(f, P.blankField(), 'foe') < spe).map(f => P.baseSpecies(f.species)) : [], slower = auto ? foes.filter(f => P.speed(f, P.blankField(), 'foe') > spe).map(f => P.baseSpecies(f.species)) : [];
     const it = m.item && P.itemInfo(m.item);
     return `<div class="dmonbig">${spr(mega, 'huge')}<div class="dmonbi"><h3>${esc(m.species)} @ ${esc(m.item || 'Sin objeto')}${mega !== m.species ? ` <span class="darch">${esc(mega)}</span>` : ''}</h3>
         <div class="dtypes">${P.typesOf(mega).map(P.typeBadge).join('')}</div>
@@ -102,11 +144,8 @@ const Doc = (() => {
         <table class="dmstats"><tr>${P.STATS.map(k => `<th>${P.SL[k]}</th>`).join('')}</tr><tr>${P.STATS.map(k => `<td><b>${st[k] ?? ''}</b></td>`).join('')}</tr><tr>${P.STATS.map((k, i) => `<td class="dsp">${m.sp[i] ? `${m.sp[i]} SP` : '—'}</td>`).join('')}</tr></table>
         <p class="dmoves">${m.moves.filter(Boolean).map(x => { const d = P.moveOf(x); return `<span class="dmv${d ? ` t-${esc(d.type)}` : ''}">${esc(x)}</span>`; }).join('')}</p></div></div>
       <p><b>Para qué está pensado este reparto.</b> ${fill('Qué aguanta, a quién supera en velocidad y qué KOs busca.')}</p>
-      <p><b>Velocidad ${spe}.</b> ${faster.length ? `Más rápido que ${faster.slice(0, 6).map(esc).join(', ')}.` : ''} ${slower.length ? `Más lento que ${slower.slice(0, 6).map(esc).join(', ')}.` : ''}</p>
-      ${off.length ? `<p><b>Cálculos ofensivos clave:</b></p><ul>${off.slice(0, 7).map(line).join('')}</ul>` : ''}
-      ${def.length ? `<p><b>Cálculos defensivos clave:</b></p><ul>${def.slice(0, 6).map(line).join('')}</ul>` : ''}`;
+      ${faster.length || slower.length ? `<p><b>Velocidad ${spe}.</b> ${faster.length ? `Más rápido que ${faster.slice(0, 6).map(esc).join(', ')}.` : ''} ${slower.length ? `Más lento que ${slower.slice(0, 6).map(esc).join(', ')}.` : ''}</p>` : ''}`;
   }
-
 
   /** Un matchup de la pantalla Matchups: el rival, su arquetipo, Plan A, qué tener en cuenta y Plan B, y tu récord. */
   function muHTML(x) {
@@ -132,7 +171,7 @@ const Doc = (() => {
     return out;
   }
   /** Replays contra los equipos que has jugado (por equipo, no por Pokémon): se agrupan las partidas con al menos 4 Pokémon iguales. */
-  function repPage(ms) {
+  function repPage(ms, auto) {
     const ids = s => Stats.theirs(s).preview.map(x => P.toID(P.baseSpecies(x)));
     const groups = [];
     for (const s of ms.slice().sort((a, b) => b.endedAt - a.endedAt)) {
@@ -143,16 +182,20 @@ const Doc = (() => {
     }
     groups.sort((a, b) => b.games.length - a.games.length);
     const bl = [block('h', '<h2>Replays contra los equipos que has jugado</h2>')];
-    if (!groups.length) bl.push(block('box', `<h3>Replays</h3><p>${fill('Juega partidas con este equipo y aquí salen sus replays, agrupadas por equipo rival.')}</p>`));
-    for (const g of groups.slice(0, 10)) bl.push(block('reps', repHTML({ name: `vs ${Stats.theirs(g.games[0]).name}${g.games.length > 1 ? ` y otros` : ''}`, arch: P.archetypeOf(g.mons), mons: g.mons, games: g.games })));
+    if (!auto || !groups.length) bl.push(block('reps', `<h3>Replays</h3><ul class="dreps"></ul><p>${fill('Añade las replays que quieras con «+ Replay».')}</p>`));
+    if (auto) for (const g of groups.slice(0, 10)) bl.push(block('reps', repHTML({ name: `vs ${Stats.theirs(g.games[0]).name}${g.games.length > 1 ? ` y otros` : ''}`, arch: P.archetypeOf(g.mons), mons: g.mons, games: g.games })));
     return page(bl, 'Replays por equipo');
   }
   /** Las replays de un matchup: las subidas, con enlace; las demás, para verlas en la app. */
   function repHTML(x) {
     const g = x.games || [];
-    const row = s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<li><b class="${s.result === 'win' ? 'dw' : s.result === 'loss' ? 'dl' : ''}">${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'}</b> ${me.leads.map(n => spr(n, 'xs')).join('')} vs ${op.leads.map(n => spr(n, 'xs')).join('')} · ${esc(op.name)} · ${new Date(s.endedAt).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'short' })}${s.replay ? ` · <a href="${esc(s.replay)}">${esc(s.replay.replace('https://replay.pokemonshowdown.com/', ''))}</a>` : ''}</li>`; };
+    const row = repRow;
     return `<h3>${esc(x.name || 'Matchup')}${x.arch ? ` <span class="darch">${esc(x.arch)}</span>` : ''}</h3><div class="drow">${x.mons.filter(Boolean).map(n => spr(n, 'xs')).join('')}</div>
       ${g.length ? `<ul class="dreps">${g.slice(0, 8).map(row).join('')}</ul>` : `<p>${fill('Aún no hay partidas contra este equipo: pega aquí replays de referencia.')}</p>`}`;
+  }
+  /** Una replay en una línea: resultado, leads, rival, fecha y enlace si está subida. */
+  function repRow(s) {
+    { const me = Stats.mine(s), op = Stats.theirs(s); return `<li><b class="${s.result === 'win' ? 'dw' : s.result === 'loss' ? 'dl' : ''}">${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'}</b> ${me.leads.map(n => spr(n, 'xs')).join('')} vs ${op.leads.map(n => spr(n, 'xs')).join('')} · ${esc(op.name)} · ${new Date(s.endedAt).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'short' })}${s.replay ? ` · <a href="${esc(s.replay)}">${esc(s.replay.replace('https://replay.pokemonshowdown.com/', ''))}</a>` : ''}</li>`; }
   }
   /** Resumen de los matchups en la portada: rival, arquetipo y Plan A. */
   function glanceHTML(rows) {
@@ -243,7 +286,8 @@ const Doc = (() => {
     }
     return `Página ${i + 1}`;
   }
-  const ctl = b => `<div class="dctl"><button class="dbtn" data-bon="${b.id}" title="${b.on ? 'Va en el PDF: pulsa para dejarla fuera' : 'No va en el PDF: pulsa para incluirla'}">${b.on ? '👁' : '🚫'}</button><button class="dbtn" data-bup="${b.id}" title="Subir">▲</button><button class="dbtn" data-bdown="${b.id}" title="Bajar">▼</button><button class="dbtn" data-bdel="${b.id}" title="Quitar">×</button></div>`;
+  const SHORT = new Set(['p', 'box', 'key', 'list', 'calc', 'calcs', 'reps', 'match', 'surv', 'mon', 'kv']);
+  const ctl = b => `<div class="dctl">${SHORT.has(b.type) ? `<button class="dbtn dadd" data-bcalc="${b.id}" title="Añadir aquí los cálculos que quieras">+ Cálculo</button><button class="dbtn dadd" data-brep="${b.id}" title="Añadir aquí las replays que quieras">+ Replay</button>` : ''}<button class="dbtn" data-bon="${b.id}" title="${b.on ? 'Va en el PDF: pulsa para dejarla fuera' : 'No va en el PDF: pulsa para incluirla'}">${b.on ? '👁' : '🚫'}</button><button class="dbtn" data-bup="${b.id}" title="Subir">▲</button><button class="dbtn" data-bdown="${b.id}" title="Bajar">▼</button><button class="dbtn" data-bdel="${b.id}" title="Quitar">×</button></div>`;
   function blockHTML(b, edit) {
     if (b.type === 'hint' && !edit) return '';
     const cls = `dblock d-${b.type}${b.on ? '' : ' off'}${V.sel === b.id ? ' sel' : ''}`;
@@ -277,8 +321,8 @@ const Doc = (() => {
     if (!doc) {
       el.innerHTML = `${head}<div class="card dintro"><h2>Documento de preparación</h2><p>Un prep doc guarda y comparte lo importante de un equipo de VGC. Sirve sobre todo en dos casos:</p>
         <ul><li>Te estás preparando en serio para algo importante: un Regional, una subida en el ladder, una partida decisiva.</li><li>Trabajas el equipo con más gente.</li></ul>
-        <p class="note">Se monta con tus datos: tu equipo, cálculos clave contra lo que más se ve en torneos, tus matchups con récord y replays. Luego lo retocas escribiendo en la hoja.</p>
-        <button class="btn primary" id="dGen">Montar el documento con mis datos</button></div>`;
+        <p class="note">Se monta solo con lo tuyo: tu equipo, los cálculos que guardaste en Mi PC y tus matchups. No se inventa nada: lo demás queda en blanco y lo añades tú (en cada caja tienes «+ Cálculo» y «+ Replay»). Con Auto-build se añaden además cálculos contra lo más visto, replays agrupadas por equipo rival y supervivencia.</p>
+        <div class="row-btns"><button class="btn primary" id="dGen">Montar el documento con mis datos</button><button class="btn" id="dGenAuto">Auto-build</button></div></div>`;
       return;
     }
     const edit = !V.preview;
@@ -290,7 +334,7 @@ const Doc = (() => {
         ${edit ? `<select id="dAdd" title="Añadir a la página"><option value="">Añadir a la página…</option>${ADD.map(([k, l, t]) => `<option value="${k}" title="${esc(t)}">${l}</option>`).join('')}</select>` : ''}
         <div class="dzoom" title="Zoom de la hoja"><button class="dbtn" data-dzoom="-">−</button><span>${Math.round(zoom * 100)}%</span><button class="dbtn" data-dzoom="+">+</button><button class="dbtn" data-dzoom="fit" title="La hoja a todo el ancho">Ancho</button><button class="dbtn" data-dzoom="page" title="La hoja entera en pantalla">Hoja</button></div>
         <span style="flex:1"></span><span class="note" id="dMsg">${esc(V.msg)}</span>
-        <button class="btn${V.regen ? ' danger sure' : ''}" id="dRegen" title="Documento montado otra vez con tus datos de ahora">${V.regen ? 'Pulsa otra vez: se pierden tus cambios' : 'Volver a generar'}</button><button class="btn primary" id="dPdf">Guardar PDF</button>
+        <button class="btn${V.regen === 1 ? ' danger sure' : ''}" id="dRegen" title="Documento montado otra vez con tus datos de ahora (tu equipo, tus cálculos de Mi PC y tus matchups), sin inventar nada">${V.regen === 1 ? 'Pulsa otra vez: se pierden tus cambios' : 'Volver a generar'}</button><button class="btn${V.regen === 2 ? ' danger sure' : ''}" id="dRegenAuto" title="Como «Volver a generar», y además cálculos contra lo más visto, replays agrupadas por equipo rival y supervivencia">${V.regen === 2 ? 'Pulsa otra vez: se pierden tus cambios' : 'Auto-build'}</button><button class="btn primary" id="dPdf">Guardar PDF</button>
         ${edit ? selTools(doc) : ''}</div>
       <div class="dlay"><nav class="dtoc" aria-label="Índice"><b>Índice</b>${doc.pages.map((p, i) => `<button data-dtoc="${p.id}" class="${V.page === p.id ? 'on' : ''}"><small>${i + 1}</small><span>${esc(pageTitle(p, i))}</span></button>`).join('')}</nav>
       <div class="dsheetwrap" id="dWrap"><div class="dpages" style="zoom:${zoom}">${doc.pages.map((p, i) => `<div class="dsheet ${doc.style === 'light' ? 'light' : 'dark'}${edit ? ' editing' : ' preview'}${V.page === p.id ? ' cur' : ''}" data-pid="${p.id}">
@@ -442,13 +486,14 @@ const Doc = (() => {
     const t = e.target.closest('button');
     if (!t) return;
     const d = t.dataset;
-    if (t.id === 'dGen') { const team = await P.teamById(V.teamId); V.msg = 'Montando…'; const doc = await generate(team); await saveDoc(doc); V.msg = 'Recién montado con tus datos'; render(); return; }
-    if (t.id === 'dRegen') {
-      if (!V.regen) { V.regen = 1; render(); setTimeout(() => { if (V.regen) { V.regen = 0; render(); } }, 4000); return; }
+    if (t.id === 'dGen' || t.id === 'dGenAuto') { const team = await P.teamById(V.teamId); V.msg = 'Montando…'; const doc = await generate(team, t.id === 'dGenAuto'); await saveDoc(doc); V.msg = 'Recién montado con tus datos'; render(); return; }
+    if (t.id === 'dRegen' || t.id === 'dRegenAuto') {
+      const want = t.id === 'dRegenAuto' ? 2 : 1;
+      if (V.regen !== want) { V.regen = want; render(); setTimeout(() => { if (V.regen) { V.regen = 0; render(); } }, 4000); return; }
       V.regen = 0;
       const team = await P.teamById(V.teamId);
       const old = await getDoc(team.id);
-      const doc = await generate(team);
+      const doc = await generate(team, want === 2);
       if (old) { doc.style = old.style; doc.zoom = old.zoom; }
       await saveDoc(doc); V.msg = 'Documento montado otra vez con tus datos de ahora'; render(); return;
     }
@@ -458,6 +503,8 @@ const Doc = (() => {
     const doc = await getDoc(V.teamId);
     if (!doc) return;
     harvest(doc);
+    if (d.bcalc) { await saveDoc(doc); calcPicker(doc, d.bcalc); return; }
+    if (d.brep) { await saveDoc(doc); repPicker(doc, d.brep); return; }
     if (d.dstyle) doc.style = d.dstyle;
     else if (d.dzoom) {
       const z = doc.zoom || 1;
@@ -497,7 +544,8 @@ const Doc = (() => {
     await persist();
     const doc = await getDoc(V.teamId);
     if (k === 'img') { $('#dImgFile').click(); return; }
-    if (k === 'calc') { calcLine(doc); return; }
+    if (k === 'calc') { calcPicker(doc, null); return; }
+    if (k === 'rep') { repPicker(doc, null); return; }
     if (k === 'table') { tablePicker(doc); return; }
     if (k === 'sprite') { spritePicker(doc); return; }
     if (k === 'mupage') { const p = page([1, 2, 3].map(() => block('match', muHTML(blankMu()), { mu: true })), 'Guía de matchups'); if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') for (const b of p.blocks) b.html = I18N.trHTML(b.html); const at = doc.pages.findIndex(x => x.id === V.page); doc.pages.splice(at >= 0 ? at + 1 : doc.pages.length, 0, p); V.page = p.id; }
@@ -593,7 +641,7 @@ const Doc = (() => {
     $('#modal').classList.remove('hide');
   }
   /** Una línea de cálculo: uno de tus Pokémon contra un rival (con su set de torneo o de Smogon), en cualquier sentido. */
-  async function calcLine(doc) {
+  async function calcLine(doc, bid) {
     const team = await P.teamById(V.teamId);
     const sets = P.parseTeam(team.text).sets;
     const [U, T] = await Promise.all([P.usage(''), P.tour()]);
@@ -624,10 +672,104 @@ const Doc = (() => {
     box.onclick = async e => {
       if (e.target.id === 'mClose') { $('#modal').classList.add('hide'); box.onclick = box.onchange = null; return; }
       if (e.target.id !== 'clOk') return;
-      insertBlock(doc, block('calc', `<ul><li class="dcalc">${esc(box.dataset.line)}</li></ul>`));
+      const dir = $('#clDir') ? $('#clDir').value : 'off';
+      if (bid && findBlock(doc, bid)) putLines(findBlock(doc, bid), 'dcl', [{ k: dir, t: box.dataset.line }]);
+      else insertBlock(doc, block('calc', `<ul class="dcl"><li class="dcalc">${esc(box.dataset.line)}</li></ul>`));
       await saveDoc(doc);
       $('#modal').classList.add('hide'); box.onclick = box.onchange = null;
       render();
+    };
+    $('#modal').classList.remove('hide');
+  }
+
+  /** Mete líneas en un bloque: en su lista de ofensivos/defensivos (cálculos) o de replays si la tiene; si no, en una lista nueva al final. */
+  function putLines(b, cls, items) {
+    const box = document.createElement('div');
+    box.innerHTML = b.html;
+    const have = new Set([...box.querySelectorAll('li')].map(li => li.textContent.trim()));
+    for (const it of items) {
+      if (it.t && have.has(it.t.trim())) continue; // ya estaba en la hoja
+      let ul = cls === 'dcl' ? box.querySelector(`ul.dcl.${it.k}`) || box.querySelector('ul.dcl:not(.off):not(.def)') : box.querySelector('ul.dreps');
+      if (!ul) { ul = document.createElement('ul'); ul.className = cls === 'dcl' ? 'dcl' : 'dreps'; box.appendChild(ul); }
+      const tmp = document.createElement('ul');
+      const h = it.html || `<li class="dcalc">${esc(it.t)}</li>`;
+      tmp.innerHTML = (typeof I18N !== 'undefined' && I18N.lang === 'en') ? I18N.trHTML(h) : h;
+      ul.appendChild(tmp.firstElementChild);
+      // El hueco «para rellenar» de esa lista ya no hace falta.
+      const nx = ul.nextElementSibling;
+      if (nx && nx.tagName === 'P' && nx.querySelector('.fill') && !nx.textContent.replace(nx.querySelector('.fill').textContent, '').trim()) nx.remove();
+    }
+    b.html = box.innerHTML;
+  }
+  const modalOff = () => { const box = $('#modalBox'); $('#modal').classList.add('hide'); box.onclick = box.onchange = box.oninput = null; };
+  /** Elegir cálculos: los tuyos de Mi PC (por Pokémon, ofensivos y defensivos) o calcular uno nuevo. */
+  async function calcPicker(doc, bid) {
+    const PC = await P.pcList(), b = bid ? findBlock(doc, bid) : null;
+    const pg = bid ? whereBlock(doc, bid) : null;
+    const guess = (b && b.calcs) || ((pg && pg.p.title) || '').replace(/^Pokémon \d+ · /, '').replace(/ \(\d+\)$/, '');
+    const all = [];
+    for (const x of PC) {
+      const s = P.parseSet(x.text);
+      if (!s || s.bad) continue;
+      for (const c of x.calcs || []) all.push({ sp: P.baseSpecies(s.species), side: x.side || 'me', k: P.calcRole(c, s.species), t: c.t });
+    }
+    const uniq = all.filter((o, i) => all.findIndex(z => z.t === o.t && z.sp === o.sp) === i);
+    const species = [...new Set(uniq.map(o => o.sp))];
+    let sel = species.find(x => P.toID(x) === P.toID(P.baseSpecies(guess))) || '';
+    const picked = new Set();
+    const inDoc = new Set();
+    { const tmp = document.createElement('div'); tmp.innerHTML = (b && b.html) || ''; tmp.querySelectorAll('li').forEach(li => inDoc.add(li.textContent.trim())); }
+    const box = $('#modalBox');
+    box.onclick = box.onchange = box.oninput = null;
+    const draw = () => {
+      const L = uniq.filter(o => !sel || o.sp === sel);
+      const grp = k => { const xs = L.filter(o => o.k === k); return xs.length ? `<h4 class="pcck ${k}">${k === 'off' ? 'Cálculos ofensivos clave' : 'Cálculos defensivos clave'}</h4>${xs.map(o => { const i = uniq.indexOf(o); return `<label class="dcpk"><input type="checkbox" data-dcpk="${i}"${picked.has(i) ? ' checked' : ''}>${sel ? '' : `${spr(o.sp, 'xs')}`}<span class="nolang">${esc(o.t)}</span>${o.side === 'foe' ? '<em>rival</em>' : ''}${inDoc.has(o.t.trim()) ? '<small>ya en la hoja</small>' : ''}</label>`; }).join('')}` : ''; };
+      box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Añadir cálculos</h2>
+        <p class="note">Los que guardaste en Mi PC (en la Calculadora, «Cálculo a Mi PC»). Marca los que quieras.</p>
+        <div class="row-btns"><select id="dcpSp"><option value="">Todos los Pokémon</option>${species.map(x => `<option${x === sel ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select><span style="flex:1"></span><button class="btn" id="dcpNew">Calcular uno nuevo…</button></div>
+        <div class="dcplist">${L.length ? grp('off') + grp('def') : '<p class="note">Sin cálculos guardados para este Pokémon. Guárdalos desde la Calculadora o calcula uno nuevo.</p>'}</div>
+        <div class="row-btns"><span style="flex:1"></span><button class="btn primary" id="dcpOk"${picked.size ? '' : ' disabled'}>Añadir (${picked.size})</button></div>`;
+    };
+    draw();
+    box.onchange = e => {
+      if (e.target.id === 'dcpSp') { sel = e.target.value; draw(); return; }
+      if (e.target.dataset.dcpk != null) { const i = +e.target.dataset.dcpk; if (e.target.checked) picked.add(i); else picked.delete(i); const ok = $('#dcpOk'); ok.disabled = !picked.size; ok.textContent = `Añadir (${picked.size})`; }
+    };
+    box.onclick = async e => {
+      if (e.target.id === 'mClose') { modalOff(); return; }
+      if (e.target.id === 'dcpNew') { calcLine(doc, bid); return; }
+      if (e.target.id !== 'dcpOk') return;
+      const items = [...picked].map(i => uniq[i]);
+      if (b) putLines(b, 'dcl', items);
+      else insertBlock(doc, block('calc', `<ul class="dcl">${items.map(o => `<li class="dcalc">${esc(o.t)}</li>`).join('')}</ul>`));
+      await saveDoc(doc); modalOff(); render();
+    };
+    $('#modal').classList.remove('hide');
+  }
+  /** Elegir replays de tus partidas con este equipo. */
+  async function repPicker(doc, bid) {
+    const ms = Stats.usable(M).filter(s => teamOf(s) === V.teamId).sort((a, c) => c.endedAt - a.endedAt);
+    const b = bid ? findBlock(doc, bid) : null;
+    const picked = new Set();
+    let q = '';
+    const box = $('#modalBox');
+    box.onclick = box.onchange = box.oninput = null;
+    const list = () => { const ql = q.trim().toLowerCase(); return ms.filter(s => !ql || `${Stats.theirs(s).name} ${Stats.theirs(s).preview.join(' ')}`.toLowerCase().includes(ql)).slice(0, 80); };
+    const rows = () => list().map(s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<label class="dcpk"><input type="checkbox" data-drpk="${esc(s.id)}"${picked.has(s.id) ? ' checked' : ''}><b class="${s.result === 'win' ? 'okc' : s.result === 'loss' ? 'badc' : ''}">${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'}</b>${me.leads.map(n => spr(n, 'xs')).join('')}<i>vs</i>${op.preview.slice(0, 6).map(n => spr(n, 'xs')).join('')}<span class="nolang">${esc(op.name)}</span><small>${new Date(s.endedAt).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'short' })}${s.replay ? ' · subida' : ''}</small></label>`; }).join('') || '<p class="note">Ninguna partida con este equipo.</p>';
+    box.innerHTML = `<button class="btn x" id="mClose">Cerrar</button><h2>Añadir replays</h2>
+      <p class="note">Tus partidas con este equipo. Marca las que quieras: las subidas llevan su enlace.</p>
+      <div class="row-btns"><input type="search" id="drpQ" placeholder="Buscar rival o Pokémon…" style="flex:1"></div>
+      <div class="dcplist" id="drpList">${rows()}</div>
+      <div class="row-btns"><span style="flex:1"></span><button class="btn primary" id="drpOk" disabled>Añadir (0)</button></div>`;
+    box.oninput = e => { if (e.target.id === 'drpQ') { q = e.target.value; $('#drpList').innerHTML = rows(); } };
+    box.onchange = e => { const id = e.target.dataset.drpk; if (id == null) return; if (e.target.checked) picked.add(id); else picked.delete(id); const ok = $('#drpOk'); ok.disabled = !picked.size; ok.textContent = `Añadir (${picked.size})`; };
+    box.onclick = async e => {
+      if (e.target.id === 'mClose') { modalOff(); return; }
+      if (e.target.id !== 'drpOk') return;
+      const items = ms.filter(s => picked.has(s.id)).map(s => ({ html: repRow(s) }));
+      if (b) putLines(b, 'dreps', items);
+      else { const h = `<h3>Replays</h3><ul class="dreps">${items.map(o => o.html).join('')}</ul>`; insertBlock(doc, block('reps', (typeof I18N !== 'undefined' && I18N.lang === 'en') ? I18N.trHTML(h) : h)); }
+      await saveDoc(doc); modalOff(); render();
     };
     $('#modal').classList.remove('hide');
   }

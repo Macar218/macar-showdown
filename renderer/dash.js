@@ -62,7 +62,10 @@ const Dash = (() => {
   /* ---------- piezas comunes (estilo Macar: filas con barra) ---------- */
   const pick = (attr, key, html) => `<div class="dpick" data-${attr}="${esc(key)}" title="Filtrar el panel">${html}</div>`;
   const rowHead = '<div class="row rowhead"><div></div><div>% de victorias</div><div>de cuántas partidas</div></div>';
-  const rowsCard = (title, list, labelFn, empty, attr, extra = '') => `<div class="card"><h2>${title}</h2>${extra}${list.length ? `<div class="rows">${rowHead}${list.map(x => (attr ? pick(attr, x.key, wrRow(x, labelFn(x))) : wrRow(x, labelFn(x)))).join('')}</div>` : `<p class="note">${empty}</p>`}</div>`;
+  /** Fila del Resumen: sin barra, solo el % de victorias bien claro y de cuántas partidas. */
+  const pRow = (x, label) => { const p = x.n ? Math.round((x.w / x.n) * 100) : 0; return `<div class="row dprow"><div class="who">${label}</div><div class="dpwin ${x.n >= 3 ? (p >= 55 ? 'okc' : p <= 45 ? 'badc' : '') : ''}"><b>${p}%</b> <small class="nolang">${EN() ? 'wins' : 'victorias'}</small></div><div class="num"><small>${x.w}–${x.n - x.w} · ${x.n} partida${x.n === 1 ? '' : 's'}</small></div></div>`; };
+  const rowHeadP = () => `<div class="row rowhead dprow"><div></div><div>% de victorias</div><div class="nolang">${EN() ? 'games' : 'partidas'}</div></div>`;
+  const rowsCard = (title, list, labelFn, empty, attr, extra = '') => `<div class="card"><h2>${title}</h2>${extra}${list.length ? `<div class="rows">${rowHeadP()}${list.map(x => (attr ? pick(attr, x.key, pRow(x, labelFn(x))) : pRow(x, labelFn(x)))).join('')}</div>` : `<p class="note">${empty}</p>`}</div>`;
   const kpi = (label, value, sub = '', c = '') => `<div class="kpi"><small>${label}</small><b class="${c}">${value}</b>${sub ? `<i>${sub}</i>` : ''}</div>`;
   const form = last => `<span class="dform">${last.map(x => `<i class="${x === 'win' ? 'w' : x === 'loss' ? 'l' : 't'}">${x === 'win' ? W() : x === 'loss' ? L() : '='}</i>`).join('')}</span>`;
   const statTile = (label, value, c = '') => `<div class="dtile"><small>${label}</small><b class="${c}">${value}</b></div>`;
@@ -116,11 +119,11 @@ const Dash = (() => {
       <div class="grid dgrid">
         ${rowsCard('Contra lo que más ganas', best, monLabel, 'Hacen falta al menos 2 partidas contra el mismo Pokémon.', 'frival')}
         ${rowsCard('Lo que más te cuesta', worst, monLabel, 'Hacen falta al menos 2 partidas contra el mismo Pokémon.', 'frival')}
-        ${rowsCard('Los rivales que más te encuentras', seen, x => `${spr(x.key, 'sm')}<span>${esc(x.key)} <small class="note">${Math.round((x.n / r.n) * 100)}%</small></span>`, 'Sin datos.', 'frival')}
+        ${rowsCard('Los rivales que más te encuentras', seen, x => `${spr(x.key, 'sm')}<span>${esc(x.key)} <small class="note">· en el ${Math.round((x.n / r.n) * 100)}% de tus partidas</small></span>`, 'Sin datos.', 'frival')}
         ${rowsCard('Tus leads más jugados', r.myLeads.slice(0, 5), pairLabel, 'Sin datos.', 'flead')}
         ${rowsCard('Los leads que mejor te funcionan', leadsBest, pairLabel, 'Hacen falta al menos 2 partidas con el mismo lead.', 'flead')}
       </div>
-      <p class="note dnote2">% = tus victorias en las partidas donde aparece · número = partidas. Pulsa una fila para filtrar todo el panel.</p>`;
+      <p class="note dnote2">El % es tu porcentaje de victorias en las partidas donde aparece. Pulsa una fila para filtrar todo el panel.</p>`;
   }
 
   /* ---------- Partidas ---------- */

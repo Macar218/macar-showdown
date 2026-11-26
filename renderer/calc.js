@@ -94,7 +94,7 @@ function makeCalc(cfg) {
   const sameStats = (m, real) => { const st = P.stats(m); return !!st && !!real && ['atk', 'def', 'spa', 'spd', 'spe'].every(k => st[k] === real[k]); };
 
   /* ---------- del combate a la calculadora ---------- */
-  function fromLiveMine(p) {
+  function fromLiveMine(p, sheetMe = []) {
     const species = P.calcSpecies(p.species);
     if (!species) return null;
     let m = P.blankMon(species);
@@ -109,7 +109,12 @@ function makeCalc(cfg) {
         else m.src = 'combate';
       }
     } else if (saved) m = { ...saved, src: 'equipo' };
-    else { const u = P.usageSet(U, species); if (u) m = u; }
+    else {
+      // Replay de otro equipo: tu hoja de equipo (OTS) si la hay; si no, el set más usado.
+      const hs = sheetMe.find(x => toID(P.baseSpecies(P.calcSpecies(x.species) || x.species)) === toID(P.baseSpecies(species)));
+      const u = hs ? { ...P.sheetSet(hs, U), species } : P.usageSet(U, species);
+      if (u) m = u;
+    }
     if (p.item) m.item = P.nameOf('items', p.item);
     if (p.ability) m.ability = P.nameOf('abilities', p.ability);
     if (p.moves && p.moves.length) m.moves = [...p.moves.map(x => P.nameOf('moves', x)), '', '', '', ''].slice(0, 4);
@@ -141,10 +146,12 @@ function makeCalc(cfg) {
   function applyLive(b) {
     const newBattle = b.id !== S.battleId;
     if (newBattle) { S.battleId = b.id; S.edits = { me: {}, foe: {} }; S.selMove = null; }
+    const newTurn = b.turn !== S.turn;
     S.format = b.format; S.turn = b.turn; S.spectator = b.spectator;
     const sheet = b.foe && b.foe.sheet ? P.unpackSheet(b.foe.sheet) : [];
     S.sheet = sheet.length > 0;
-    S.me = withEdits('me', (b.me ? b.me.team : []).map(fromLiveMine).filter(Boolean));
+    const sheetMe = b.me && b.me.sheet ? P.unpackSheet(b.me.sheet) : [];
+    S.me = withEdits('me', (b.me ? b.me.team : []).map(p => fromLiveMine(p, sheetMe)).filter(Boolean));
     const foes = (b.foe ? b.foe.team : []).map(p => fromLiveFoe(p, sheet)).filter(Boolean);
     // Con hoja de equipo, los 6 del rival aunque aún no se hayan visto.
     for (const x of sheet) {
@@ -155,8 +162,9 @@ function makeCalc(cfg) {
     const act = (side, list) => (side ? side.active : []).filter(i => i >= 0 && list[i]);
     S.meActive = act(b.me, S.me);
     S.foeActive = act(b.foe, S.foe);
-    if (newBattle || !S.me[S.selMe]) S.selMe = S.meActive[0] != null ? S.meActive[0] : 0;
-    if (newBattle || !S.foe[S.selFoe]) S.selFoe = S.foeActive[0] != null ? S.foeActive[0] : 0;
+    // Turno nuevo: si el elegido ya no está en el campo, pasa a uno que sí esté.
+    if (newBattle || !S.me[S.selMe] || (newTurn && S.meActive.length && !S.meActive.includes(S.selMe))) S.selMe = S.meActive[0] != null ? S.meActive[0] : 0;
+    if (newBattle || !S.foe[S.selFoe] || (newTurn && S.foeActive.length && !S.foeActive.includes(S.selFoe))) S.selFoe = S.foeActive[0] != null ? S.foeActive[0] : 0;
     const f = S.field;
     f.weather = WEATHER_MAP[b.weather] || '';
     f.terrain = b.pseudo.map(x => TERRAIN_MAP[x]).find(Boolean) || '';
@@ -300,6 +308,7 @@ function makeCalc(cfg) {
     S.det = [side, side === 'me' ? S.selMe : S.selFoe, side === 'me' ? S.selFoe : S.selMe, mv];
     S.lastDesc = r.desc || `${att.species} ${mv} vs ${def.species}`;
     S.lastPair = [att.species, def.species];
+    S.lastAtt = side;
     return `<div class="sdmain"><p class="sddesc nolang">${esc(S.lastDesc)}</p>
       <div class="sdko"><b class="${P.koClass(r.ko)}">${esc(P.koEs(r.ko)) || 'Sin KO'}</b>${P.bar(r)}<span>${P.pct(r.pLo)} - ${P.pct(r.pHi)}% · ${r.lo}-${r.hi} de ${r.cur}/${r.max} PS</span></div>
       <p class="sdrolls"><span class="note">Posibles daños:</span> <span class="nolang">(${rolls.join(', ')})</span></p>
@@ -318,20 +327,26 @@ function makeCalc(cfg) {
     const sum = left < 0 ? `<b class="bad">${tot}/${P.SP_TOTAL}</b> <span>· te pasas ${-left}</span>` : left > 0 ? `<b class="warn">${tot}/${P.SP_TOTAL}</b> <span>· te quedan ${left}</span>` : `<b class="ok">${tot}/${P.SP_TOTAL}</b> <span>· completo</span>`;
     const pcOpen = S.pcName === side;
     const mvOpen = S.mvPick && S.mvPick[0] === side;
+    const itOpen = S.itPick === side;
+    const ii = m.item && P.itemInfo(m.item);
+    const orig = side === 'me' ? origSet(m) : null;
+    const changed = orig && !sameSet(orig, m);
     return `<div class="sdpoke ${side} c2poke">
       <div class="sdph">${spr(mega)}<div class="sdpn"><b class="nolang">${esc(m.nick && m.nick !== m.species ? `${m.nick} (${m.species})` : m.species)}</b><div class="tytags">${P.typesOf(mega).map(P.typeBadge).join('')}</div><span class="src ${toID(m.src)}">${esc(SRC[m.src] || m.src || '')}</span></div>
         <span style="flex:1"></span><button class="btn sm" data-edit="${side}" title="Editor completo: sets más usados, Mi PC, pegar el set">Editar</button><button class="btn sm${pcOpen ? ' on' : ''}" data-cpc="${side}" title="Guardar este Pokémon, tal cual está, en Mi PC con el nombre que quieras">→ Mi PC</button></div>
       ${pcOpen ? `<div class="cpcrow"><input id="cPcName-${side}" maxlength="80" placeholder="Nombre en Mi PC" value="${esc(m.nick && m.nick !== m.species ? m.nick : `${P.baseSpecies(m.species)} · ${m.item || 'sin objeto'}`)}"><button class="btn sm primary" data-cpcok="${side}">Guardar</button><button class="btn sm" data-cpc="${side}">Cancelar</button></div>` : ''}
       ${S.pcMsg && S.pcMsg[0] === side ? `<p class="okmsg cpcmsg">${esc(S.pcMsg[1])}</p>` : ''}
+      ${changed ? `<div class="cresetrow"><span>Cambiado respecto a tu equipo</span><button class="btn sm" data-creset="${side}" title="Vuelve a dejarlo como está en tu equipo (${esc(orig.team)}): objeto, habilidad, naturaleza, puntos y ataques">↺ Como en tu equipo</button></div>` : ''}
       ${mega !== m.species ? `<p class="note cforme">Forma Mega: <b class="nolang">${esc(mega)}</b> · habilidad ${esc(P.abilitiesOf(mega)[0] || '')}</p>` : ''}
       <div class="sdgrid">
-        <label class="field">Objeto${q(m.item && !rv.item && m.live)}<input list="dlItems" data-ce="${side}:item" value="${esc(m.item)}" autocomplete="off" placeholder="Sin objeto"></label>
+        <div class="field">Objeto${q(m.item && !rv.item && m.live)}<button class="citem${itOpen ? ' on' : ''}" data-citem="${side}" title="Cambiar el objeto aquí mismo">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}<span class="nolang">${esc(m.item || 'Sin objeto')}</span><i>▾</i></button></div>
         <label class="field">Habilidad${q(m.ability && !rv.ability && m.live)}<select data-ce="${side}:ability">${[...new Set([m.ability, ...P.abilitiesOf(m.species)].filter(Boolean))].map(a => `<option${a === m.ability ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></label>
         <label class="field">Naturaleza<select data-ce="${side}:nature">${P.NATURES.map(n => `<option value="${n.name}"${n.name === m.nature ? ' selected' : ''}>${esc(P.natLabel(n.name))}</option>`).join('')}</select></label>
         <label class="field">Estado<select data-ce="${side}:status">${opt(P.STATUS, m.status || '')}</select></label>
       </div>
-      <table class="sdstats c2stats"><thead><tr><th></th><th>Base</th><th>Puntos (SP)${spGuess ? ' <em title="El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.">?</em>' : ''}</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
-        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0, v = m.sp[i] || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}${nm > 1 ? '<span> ▲</span>' : nm < 1 ? '<span> ▼</span>' : ''}</th><td>${sp ? sp.baseStats[k] : ''}</td>
+      ${itOpen ? `<div class="citpanel">${P.itemPanel(m.species, U, TT, S.itTab || 'top', S.itQ || '')}<button class="btn sm" data-citem="${side}">Cerrar</button></div>` : ''}
+      <table class="sdstats c2stats"><thead><tr><th></th><th title="Lo que da la base a nivel 50 sin puntos ni naturaleza (PS: base + 75; el resto: base + 20)">Base nv. 50</th><th>Puntos (SP)${spGuess ? ' <em title="El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.">?</em>' : ''}</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
+        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0, v = m.sp[i] || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}${nm > 1 ? '<span> ▲</span>' : nm < 1 ? '<span> ▼</span>' : ''}</th><td title="${sp ? `Base ${sp.baseStats[k]}` : ''}">${sp ? sp.baseStats[k] + (k === 'hp' ? 75 : 20) : ''}</td>
           <td><div class="cstep"><button data-csp="${side}:${i}:-1" title="−1 (Mayús: −4)"${v <= 0 ? ' disabled' : ''}>−</button><input type="number" min="0" max="${P.SP_MAX}" value="${v}" data-ce="${side}:sp:${i}" class="${v >= P.SP_MAX ? 'max' : v ? 'set' : ''}"><button data-csp="${side}:${i}:1" title="+1 (Mayús: +4)"${v >= P.SP_MAX || left <= 0 ? ' disabled' : ''}>+</button></div></td><td><b>${st[k] ?? ''}</b></td>
           <td>${i ? `<div class="cstep cboost"><button data-cbo="${side}:${k}:-1" title="Bajar un nivel"${b <= -6 ? ' disabled' : ''}>▼</button><span class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${b > 0 ? `+${b}` : b}</span><button data-cbo="${side}:${k}:1" title="Subir un nivel"${b >= 6 ? ' disabled' : ''}>▲</button></div>` : ''}</td></tr>`; }).join('')}
       </tbody><tfoot><tr><td colspan="5"><div class="cspsum">Puntos: ${sum}<span class="note"> · máximo ${P.SP_MAX} por stat</span>${tot ? `<button class="btn sm" data-csp0="${side}" title="Todos los puntos a 0">A 0</button>` : ''}</div></td></tr></tfoot></table>
@@ -345,6 +360,26 @@ function makeCalc(cfg) {
     return arenaHTML({ me: pickAct('me', S.meActive, S.selMe), foe: pickAct('foe', S.foeActive, S.selFoe), sel: { me: S.selMe, foe: S.selFoe }, field: S.field, pick: true });
   }
 
+  /** Tu Pokémon como está en tu equipo (el elegido o el de la sesión), para poder volver a él. */
+  function origSet(m) {
+    for (const id of [S.teamMe, typeof SET !== 'undefined' ? SET.teamId : '']) {
+      if (!id) continue;
+      const s = setFromTeam(id, m.species);
+      if (s) return { ...s, team: (teamById(id) || {}).name || '' };
+    }
+    return null;
+  }
+  const sameSet = (a, b) => toID(a.item) === toID(b.item) && toID(a.ability) === toID(b.ability) && a.nature === b.nature && a.sp.join() === b.sp.join() && a.moves.map(toID).join() === b.moves.map(toID).join();
+  function resetMon(side) {
+    const m = cur(side), o = m && origSet(m);
+    if (!o) return;
+    delete S.edits[side][m.species];
+    const fresh = { ...P.clone(o), species: m.species, src: 'equipo' };
+    delete fresh.team;
+    Object.assign(m, fresh);
+    if (!LIVE) { const k = S.manual[side].findIndex(x => x.species === m.species); if (k >= 0) { S.manual[side][k] = { ...S.manual[side][k], ...fresh }; persist(); } }
+    lastHash = '';
+  }
   /** Cambiar algo del Pokémon desde la calculadora (se recuerda como cambio a mano). */
   function applyEdit(side, key, value, extra) {
     const m = cur(side);
@@ -379,7 +414,7 @@ function makeCalc(cfg) {
     const srcSeg = `<div class="csrc"><span class="note">Sets del rival que no conoces:</span><div class="seg">${[['dex', 'Macar Dex'], ['tour', 'Torneos'], ['smogon', 'Smogon']].map(([k, l]) => `<button data-csrc="${k}" aria-pressed="${(S.setSrc || 'dex') === k}" title="${k === 'dex' ? 'Los sets de tu Macar Dex: habilidad y movimientos de Smogon del mes, objeto y reparto más usados. Se actualiza cada lunes.' : k === 'tour' ? 'Lo más llevado en los torneos online de Limitless de los últimos 30 días (jugadores de torneo).' : 'Lo más usado en el ladder de Showdown este mes (1760+).'}">${l}</button>`).join('')}</div></div>`;
     if (LIVE) {
       const status = S.battleId
-        ? `<span class="pill live">EN DIRECTO</span><span>Turno ${S.turn}${S.spectator ? ' · espectador' : ''}${S.sheet ? ' · con hoja de equipo' : ''}</span>`
+        ? (cfg.source ? `<span class="pill live">REPLAY</span><span>Turno ${S.turn}${S.sheet ? ' · con hoja de equipo' : ''}</span>` : `<span class="pill live">EN DIRECTO</span><span>Turno ${S.turn}${S.spectator ? ' · espectador' : ''}${S.sheet ? ' · con hoja de equipo' : ''}</span>`)
         : '<span class="pill">SIN COMBATE</span><span>Se llena sola al empezar un combate</span>';
       return `<div class="ctop">${status}<span style="flex:1"></span><button class="btn sm" data-cwide="1" title="Abrir la calculadora más ancha o volver a tu ancho">${window.CalcDrawer && CalcDrawer.wide() ? '⇥ Más estrecha' : '⇤ Más ancha'}</button><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
         ${S.battleId ? '' : '<p class="note cnobattle">Aquí salen los Pokémon del combate que juegues y se van al terminar. Para estudiar sets y equipos, usa la página Calculadora.</p>'}
@@ -562,9 +597,11 @@ function makeCalc(cfg) {
       list = (await P.pcList()).slice();
       hits = list.filter(x => x.id === r.item.id);
     }
-    for (const x of hits) x.calcs = [...(x.calcs || []).filter(c => c.t !== S.lastDesc), { t: S.lastDesc, at: Date.now() }].slice(-40);
+    // Ofensivo si este Pokémon es el que ataca; defensivo si es el que recibe.
+    const k = side === S.lastAtt ? 'off' : 'def';
+    for (const x of hits) x.calcs = [...(x.calcs || []).filter(c => c.t !== S.lastDesc), { t: S.lastDesc, at: Date.now(), k }].slice(-60);
     await DB.set('pc', list);
-    S.keepMsg = `Guardado en Mi PC: ${P.baseSpecies(m.species)}${hits.length > 1 ? ` (${hits.length} sets)` : ''}.`;
+    S.keepMsg = `Guardado en Mi PC: ${P.baseSpecies(m.species)}${hits.length > 1 ? ` (${hits.length} sets)` : ''} · ${k === 'off' ? 'cálculo ofensivo' : 'cálculo defensivo'}.`;
     render();
     setTimeout(() => { S.keepMsg = ''; }, 4000);
   }
@@ -618,6 +655,10 @@ function makeCalc(cfg) {
       if (t.dataset.medit) { const [side, i] = t.dataset.medit.split(':'); if (+i >= 0) edit(side, +i, false); return; }
       if (t.dataset.cmv) { const [side, i] = t.dataset.cmv.split(':'); S.mvPick = S.mvPick && S.mvPick[0] === side && S.mvPick[1] === +i ? null : [side, +i]; S.mvQ = ''; render(); setTimeout(() => { const q = q1('#mvQ'); if (q) q.focus(); }, 30); return; }
       if (t.dataset.mvclose) { S.mvPick = null; render(); return; }
+      if (t.dataset.citem) { S.itPick = S.itPick === t.dataset.citem ? null : t.dataset.citem; S.itQ = ''; render(); setTimeout(() => { const q = q1('#itQ'); if (q) q.focus(); }, 30); return; }
+      if (t.dataset.ittab && S.itPick) { S.itTab = t.dataset.ittab; S.itQ = ''; render(); return; }
+      if (t.dataset.pickitem != null && S.itPick) { applyEdit(S.itPick, 'item', t.dataset.pickitem); S.itPick = null; S.itQ = ''; lastHash = ''; render(); return; }
+      if (t.dataset.creset) { resetMon(t.dataset.creset); render(); return; }
       if (t.dataset.pickmove != null && S.mvPick) {
         const [side, i] = S.mvPick;
         const before = cur(side), dup = before && t.dataset.pickmove ? before.moves.findIndex((x, k) => x === t.dataset.pickmove && k !== i) : -1;
@@ -645,6 +686,18 @@ function makeCalc(cfg) {
     el.addEventListener('click', e => { const c = e.target.closest('[data-det]'); if (c) { S.det = c.dataset.det.split('|'); render(); setTimeout(() => { const d = q1('.ddet'); if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 30); } });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' && /^cPcName-/.test(e.target.id || '')) { e.preventDefault(); toPC(e.target.id.split('-')[1]); } });
     el.addEventListener('input', e => {
+      if (e.target.id === 'itQ' && S.itPick) {
+        S.itQ = e.target.value;
+        clearTimeout(S.itT);
+        S.itT = setTimeout(() => {
+          const pnl = q1('.citpanel .itlist'), m = cur(S.itPick);
+          if (!pnl || !m) return;
+          const tmp = document.createElement('div');
+          tmp.innerHTML = P.itemPanel(m.species, U, TT, S.itTab || 'top', S.itQ);
+          pnl.replaceWith(tmp.querySelector('.itlist'));
+        }, 100);
+        return;
+      }
       if (e.target.id !== 'mvQ') return;
       S.mvQ = e.target.value;
       clearTimeout(S.mvT);
@@ -696,7 +749,7 @@ function makeCalc(cfg) {
     busy = true;
     try {
       let b = null;
-      if (LIVE) { const r = await api.live(); b = r && r.ok ? r.battle : null; if (b && b.ended) b = null; }
+      if (LIVE) { const r = cfg.source ? await cfg.source() : await api.live(); b = r && r.ok ? r.battle : null; if (b && b.ended) b = null; }
       const hash = JSON.stringify(b) + S.teamMe + S.meMode + S.teamFoe + (U ? U.month : '') + TEAMS.length + JSON.stringify(S.manual);
       if (!force && hash === lastHash) return;
       lastHash = hash;
@@ -735,10 +788,12 @@ function makeCalc(cfg) {
 /* Las dos calculadoras: la de Jugar (panel, sigue el combate) y la de la página Calculadora (estudio). */
 const CalcLive = makeCalc({ root: $('#calcBody'), key: 'msCalc', live: true });
 const CalcStudy = makeCalc({ root: $('#calcPage'), key: 'msCalcStudy', live: false });
+/** La del visor de replays: sigue el turno que estás viendo (como la de Jugar con el combate). */
+const CalcReplay = makeCalc({ root: $('#rvCalcBody'), key: 'msCalcRv', live: true, source: () => (typeof Viewer !== 'undefined' ? Viewer.battle() : null) });
 const Calc = {
   arena: CalcParts.arenaHTML,
   /** Los equipos han cambiado: las dos se ponen al día. */
-  reloadTeams() { CalcLive.reloadTeams(); CalcStudy.reloadTeams(); },
+  reloadTeams() { CalcLive.reloadTeams(); CalcStudy.reloadTeams(); CalcReplay.reloadTeams(); },
   /** Llevar sets a la calculadora de estudio. */
   load: (side, set) => CalcStudy.load(side, set),
   setTeams(me, foe) { if (me !== undefined) CalcLive.setTeams(me); CalcStudy.setTeams(me, foe); },
@@ -787,5 +842,7 @@ const Calc = {
   CalcStudy.setOpen(onPage());
   CalcLive.init();
   CalcStudy.init();
+  CalcReplay.setOpen(false);
+  CalcReplay.init();
   DB.onChange(key => { if (key === 'equipos') Calc.reloadTeams(); });
 })();

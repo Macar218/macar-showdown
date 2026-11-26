@@ -5,7 +5,7 @@
  * el registro guardado: no hace falta haberla subido). Al lado: leads y reserva de los dos y las notas de la
  * partida, con marcas de turno [T5] que saltan a ese momento. Arranca en silencio (botón del altavoz).
  */
-/* global api, esc, spr, pill, fmtDate, Transcript, P, I18N, NoteHL */
+/* global api, esc, spr, pill, fmtDate, Transcript, P, I18N, NoteHL, CalcReplay, teamOf, SET */
 
 const Viewer = (() => {
   const SPEEDS = [['hyperfast', 'Muy rápida'], ['fast', 'Rápida'], ['normal', 'Normal'], ['slow', 'Lenta']];
@@ -25,14 +25,6 @@ const Viewer = (() => {
     const w = web();
     if (!w || !V || !V.ready) return null;
     try { return await w.executeJavaScript(`(() => { try { return ${js}; } catch (e) { return null; } })()`); } catch (e) { return null; }
-  }
-
-  function monsHTML(x) {
-    const leads = x.leads || [], brought = x.brought || [];
-    const back = brought.filter(p => !leads.includes(p));
-    const out = (x.preview || []).filter(p => !brought.some(b => b.split('-')[0] === p.split('-')[0]));
-    const row = (label, list, cls = '') => `<div class="rvmons"><small>${label}</small><span>${list.length ? list.map(p => spr(p, `sm ${cls}`)).join('') : '<span class="note">—</span>'}</span></div>`;
-    return row('Leads', leads) + row('Reserva', back) + (out.length ? row('No salieron', out, 'dim') : '');
   }
 
   function playerHTML() {
@@ -58,19 +50,24 @@ const Viewer = (() => {
     const sd = V.otsSide === 'me' ? me : opp;
     const x = s[sd] || {};
     const tabs = `<div class="seg rvotstabs">${[['foe', s.me ? 'Rival' : 'Jugador 2'], ['me', s.me ? 'Tú' : 'Jugador 1']].map(([k, l]) => `<button data-rvots="${k}" aria-pressed="${(V.otsSide || 'foe') === k}">${l}</button>`).join('')}</div>`;
+    // Arriba los leads, en medio la reserva y al final los que no salieron.
+    const id = n => P.toID(P.baseSpecies(n));
+    const isLead = n => (x.leads || []).some(b => id(b) === id(n)), isIn = n => (x.brought || []).some(b => id(b) === id(n));
+    const grp = n => (isLead(n) ? 0 : isIn(n) ? 1 : 2);
+    const LBL = [tt('Leads', 'Leads'), tt('Reserva', 'Back'), tt('No salieron', 'Not brought')];
+    const groups = list => [0, 1, 2].map(g => ({ g, list: list.filter(o => grp(o.n) === g) })).filter(o => o.list.length);
     let body;
     if (x.sheet && x.sheet.length) {
-      body = x.sheet.map(m => P.sheetCard(m, { played: (x.brought || []).some(b => P.toID(P.baseSpecies(b)) === P.toID(P.baseSpecies(m.species))) })).join('');
+      body = groups(x.sheet.map(m => ({ n: m.species, m }))).map(({ g, list }) => `<div class="rvgrp g${g}"><small>${LBL[g]}</small><div class="shgrid">${list.map(({ m }) => P.sheetCard(m, { abbr: true, played: g < 2 })).join('')}</div></div>`).join('');
     } else {
       const seen = x.moves || {};
-      body = (x.preview && x.preview.length ? x.preview : x.brought || []).map(n => {
-        const k = Object.keys(seen).find(y => P.toID(P.baseSpecies(y)) === P.toID(P.baseSpecies(n)));
-        const brought = (x.brought || []).includes(n);
-        return `<div class="otsmon${brought ? '' : ' out'}">${spr(n, 'sm')}<div><b>${esc(n)}</b><small>${k && seen[k].length ? seen[k].map(esc).join(' · ') : tt('sin movimientos vistos', 'no moves seen')}</small></div></div>`;
-      }).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
+      body = groups((x.preview && x.preview.length ? x.preview : x.brought || []).map(n => ({ n }))).map(({ g, list }) => `<div class="rvgrp g${g}"><small>${LBL[g]}</small><div class="otsgrid nolang">${list.map(({ n }) => {
+        const k = Object.keys(seen).find(y => id(y) === id(n));
+        return `<div class="otsmon${g < 2 ? '' : ' out'}">${spr(n, 'sm')}<div><b>${esc(n)}</b><small>${k && seen[k].length ? seen[k].map(esc).join(' · ') : tt('sin movimientos vistos', 'no moves seen')}</small></div></div>`;
+      }).join('')}</div></div>`).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
     }
     const open = V.otsOpen !== false;
-    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? (x.sheet && x.sheet.length ? `<div class="shgrid">${body}</div>` : `<div class="otsgrid nolang">${body}</div>`) : ''}`;
+    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? body : ''}`;
   }
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
@@ -128,19 +125,19 @@ const Viewer = (() => {
   }
 
   function draw() {
-    const s = V.s, a = s.me || 'p1', b = s.opp || 'p2';
+    const s = V.s, b = s.opp || 'p2';
     const el = document.querySelector('#rvWrap');
     el.innerHTML = `<div class="rv" role="dialog" aria-label="Replay de la partida">
       <header class="rvhead">${pill(s.result)}<b>${s.me ? `vs <span class="nolang">${esc(s[b].name)}</span>` : `<span class="nolang">${esc(s.p1.name)} vs ${esc(s.p2.name)}</span>`}</b>
         <span class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos</span><span style="flex:1"></span>
+        <button class="btn primary rvcalcbtn" data-rv="calc" id="rvCalcBtn" title="La calculadora con los Pokémon, PS, cambios y clima del turno que estás viendo. Las notas siguen a mano.">Calculadora de este turno</button>
         ${s.replay ? '<button class="btn sm" data-rv="ext">Abrir en el navegador</button>' : ''}<button class="btn" data-rv="close" title="Cerrar la replay">Cerrar</button></header>
       <div class="rvbody">
         <div class="rvplayer">${playerHTML()}</div>
         <aside class="rvside">
-          <div class="rvteam me"><h3>${s.me ? 'Tú' : 'Jugador 1'}</h3>${monsHTML(s[a])}</div>
-          <div class="rvteam foe"><h3>${s.me ? 'Rival' : 'Jugador 2'}</h3>${monsHTML(s[b])}</div>
           <div class="rvots" id="rvOts">${otsHTML()}</div>
         </aside>
+        <aside class="rvcalc"><div class="rvchead"><b>Calculadora</b><span class="note" id="rvCalcTurn"></span><span style="flex:1"></span><button class="btn sm" data-rv="calc">Cerrar calculadora</button></div><div class="rvcbox" id="rvCalcBox"></div></aside>
       </div></div>`;
     NoteHL.wrap(document.querySelector('#rvNotes'));
     hook();
@@ -175,6 +172,7 @@ const Viewer = (() => {
       new ResizeObserver(() => { if (V && V.ready) { clearTimeout(V.fitT); V.fitT = setTimeout(fit, 120); } }).observe(w);
       V.timer = setInterval(poll, 400);
       poll();
+      if (V.calcWant) setCalc(true);
     }, 300);
   }
   /** El combate y su registro, a todo el hueco del reproductor. */
@@ -219,6 +217,26 @@ const Viewer = (() => {
     if (p) p.textContent = paused || end ? '▶ Play' : '⏸ Pausa';
     const m = document.querySelector('#rvMark');
     if (m) m.textContent = `+ Nota en el turno ${V.turn}`;
+    if (V.calc) { const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `· turno ${V.turn}`; if (V.turn !== prev) CalcReplay.tick(); }
+  }
+  /* ---------- calculadora del turno (la misma de Jugar, siguiendo la replay) ---------- */
+  let READER = { side: '', js: '' };
+  async function battle() {
+    if (!V || !V.ready) return null;
+    const side = V.s.me || 'p1';
+    if (READER.side !== side) READER = { side, js: await api.replayReader(side) };
+    const r = await run(READER.js);
+    return r && r.ok && r.battle ? { ok: true, battle: { ...r.battle, id: `rv:${V.id}` } } : null;
+  }
+  function setCalc(on) {
+    const body = document.querySelector('#rvCalcBody'), box = document.querySelector('#rvCalcBox'), hold = document.querySelector('#rvCalcHold');
+    V.calc = on;
+    document.querySelector('#rvWrap .rv').classList.toggle('withcalc', on);
+    const b = document.querySelector('#rvCalcBtn');
+    if (b) { b.classList.toggle('on', on); b.textContent = on ? 'Ocultar la calculadora' : 'Calculadora de este turno'; }
+    if (on) { box.appendChild(body); const t = typeof teamOf === 'function' ? teamOf(V.s) : ''; CalcReplay.setTeams(t || (typeof SET !== 'undefined' && SET.teamId) || ''); CalcReplay.setOpen(true); const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `· turno ${V.turn}`; }
+    else { CalcReplay.setOpen(false); hold.appendChild(body); }
+    try { localStorage.setItem('msRvCalc', on ? '1' : '0'); } catch (e) { /* nada */ }
   }
 
   /** Salta al turno de la línea pulsada ([T5]). */
@@ -268,7 +286,7 @@ const Viewer = (() => {
     if (V) close();
     let tx = [];
     try { tx = Transcript.parse(m.log); } catch (e) { tx = []; }
-    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })() };
+    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })() };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -276,6 +294,8 @@ const Viewer = (() => {
   }
   function close() {
     if (!V) return;
+    if (V.calc) CalcReplay.setOpen(false);
+    { const body = document.querySelector('#rvCalcBody'), hold = document.querySelector('#rvCalcHold'); if (body && hold && body.parentNode !== hold) hold.appendChild(body); }
     clearInterval(V.timer);
     clearTimeout(saveTimer);
     const notes = V.notes, id = V.id;
@@ -297,6 +317,7 @@ const Viewer = (() => {
     const d = b.dataset;
     if (d.rv === 'close') close();
     else if (d.rv === 'ext') api.openExternal(V.s.replay);
+    else if (d.rv === 'calc') { if (V.ready) { setCalc(!V.calc); run('Replays.battle.pause()').then(poll); } }
     else if (d.rv === 'play') run('Replays.battle.paused || Replays.battle.atQueueEnd ? Replays.battle.play() : Replays.battle.pause()').then(poll);
     else if (d.rv === 'prev') run('Replays.battle.seekBy(-1)').then(poll);
     else if (d.rv === 'next') run('Replays.battle.seekBy(1)').then(poll);
@@ -330,5 +351,5 @@ const Viewer = (() => {
   });
   // El visor solo se cierra con «Cerrar» (ni con un clic fuera ni con Esc).
 
-  return { open, close };
+  return { open, close, battle };
 })();

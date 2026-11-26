@@ -16,6 +16,7 @@ const DB = (() => {
     async set(key, value) { cache[key] = value; await api.setData(key, value); subs.forEach(f => f(key)); return value; },
     peek: key => cache[key],
     clear() { for (const k of Object.keys(cache)) delete cache[k]; },
+    drop(key) { delete cache[key]; },
     onChange(f) { subs.add(f); }
   };
 })();
@@ -362,6 +363,10 @@ const P = (() => {
   }
   const typeDot = t => `<span class="ty t-${esc(t || '')}" title="${esc(TYPES_ES[t] || t || '')}"></span>`;
   const typeBadge = t => `<span class="tyb t-${esc(t)}">${esc(TYPES_ES[t] || t)}</span>`;
+  /** Tipo abreviado (3 letras) en el idioma de la app, para cuando son dos y hay poco sitio. */
+  const TY_EN3 = { Normal: 'NOR', Fire: 'FIR', Water: 'WAT', Grass: 'GRA', Electric: 'ELE', Ice: 'ICE', Fighting: 'FIG', Poison: 'POI', Ground: 'GRO', Flying: 'FLY', Psychic: 'PSY', Bug: 'BUG', Rock: 'ROC', Ghost: 'GHO', Dragon: 'DRA', Dark: 'DAR', Steel: 'STE', Fairy: 'FAI' };
+  const TY_ES3 = { Normal: 'NOR', Fire: 'FUE', Water: 'AGU', Grass: 'PLA', Electric: 'ELÉ', Ice: 'HIE', Fighting: 'LUC', Poison: 'VEN', Ground: 'TIE', Flying: 'VOL', Psychic: 'PSÍ', Bug: 'BIC', Rock: 'ROC', Ghost: 'FAN', Dragon: 'DRA', Dark: 'SIN', Steel: 'ACE', Fairy: 'HAD' };
+  const typeShort = t => { const en = typeof I18N !== 'undefined' && I18N.lang === 'en'; return `<span class="tyb t-${esc(t)} nolang" title="${esc(en ? t : TYPES_ES[t] || t)}">${esc((en ? TY_EN3 : TY_ES3)[t] || t)}</span>`; };
   /** Un movimiento como ficha: nombre, tipo (color y etiqueta), categoría y potencia. Con attrs es un botón. */
   const CATS = { Physical: 'Físico', Special: 'Especial', Status: 'Estado' };
   function moveTile(name, attrs = '', cls = '', empty = '—') {
@@ -385,7 +390,7 @@ const P = (() => {
     while (mv.length < 4) mv.push('<span class="shmv empty">—</span>');
     const badge = o.played == null ? '' : `<em class="${o.played ? 'in' : ''}">${o.played ? 'Jugó' : 'No salió'}</em>`;
     return `<div class="shc${o.played === false ? ' out' : ''}">
-      <div class="shh">${spr(m.species, 'sm')}<b class="nolang">${esc(m.species)}</b><span class="shty">${typesOf(m.species).map(o.dots ? typeDot : typeBadge).join('')}</span>${badge}</div>
+      <div class="shh">${spr(m.species, 'sm')}<b class="nolang">${esc(m.species)}</b><span class="shty">${(tl => tl.map(o.dots ? typeDot : o.abbr && tl.length > 1 ? typeShort : typeBadge).join(''))(typesOf(m.species))}</span>${badge}</div>
       <div class="shi nolang" title="${esc(it || '')}">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}<span>${esc(it || '—')}</span></div>${ab ? `<div class="sha nolang" title="${esc(ab)}">${esc(ab)}</div>` : ''}
       ${m.nature ? `<div class="shn"><span class="nolang">${esc(m.nature)}</span>${natTxt}</div>` : ''}
       <div class="shm nolang">${mv.join('')}</div>${o.btn || ''}</div>`;
@@ -535,6 +540,15 @@ const P = (() => {
     return { ok: true, item: v };
   }
 
+  /** ¿Cálculo de este Pokémon atacando (off) o recibiendo (def)? Los guardados antes de la 0.17, por el texto. */
+  function calcRole(c, species) {
+    if (c && (c.k === 'off' || c.k === 'def')) return c.k;
+    const t = String((c && c.t) || ''), b = baseSpecies(species || '').toLowerCase();
+    let i = t.indexOf(' vs. ');
+    if (i < 0) i = t.indexOf(' vs ');
+    if (i < 0 || !b) return 'off';
+    return t.slice(0, i).toLowerCase().includes(b) ? 'off' : 'def';
+  }
   /* ---------- objetos: nombre en español, descripción, grupo e icono ---------- */
   const IDATA = Object.fromEntries((window.ITEMS_DATA || []).map(x => [toID(x.n), x]));
   const itemInfo = name => IDATA[toID(name)] || null;
@@ -865,12 +879,12 @@ const P = (() => {
   }
 
   return {
-    pickMon, openInfo, itemInfo,
+    pickMon, openInfo, itemInfo, calcRole,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, archetypeOf, ARCHETYPES, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
     blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
-    pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, sheetCard, statBlock, spLine,
+    pct, koClass, koEs, bar, cell, typeDot, typeBadge, typeShort, moveTile, sheetCard, statBlock, spLine,
     usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor, unpackSheet, spreadGuess, sheetSet,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
     openEditor, datalists, itemPanel, movePanel, dex, dexSet, moveInfo, learnOf

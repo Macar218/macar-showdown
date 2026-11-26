@@ -8,18 +8,8 @@ const { SDAPP } = require('./sdapp');
  * Solo lee: no toca nada de la página.
  */
 
-const LIVE = `(() => {
-  try {
-    const a = ${SDAPP};
-    if (!a || !a.rooms) return { ok: false, why: 'Showdown aún no ha cargado' };
-    const isBattle = r => r && r.battle && Array.isArray(r.battle.stepQueue);
-    let room = [a.curRoom, a.curSideRoom].find(isBattle);
-    if (!room) {
-      // Si no estás mirando un combate, el último que esté abierto y sin terminar.
-      for (const id in a.rooms) if (isBattle(a.rooms[id]) && !a.rooms[id].battle.ended) room = a.rooms[id];
-    }
-    if (!room) return { ok: true, battle: null };
-    const b = room.battle;
+/** Lee un combate del cliente de Showdown (room puede no tener petición: replays). mineId = 'p1'/'p2' para fijar tu lado. */
+const READ = `(room, b, mineId) => {
     const mon = (p, req) => {
       if (!p) return null;
       const o = {
@@ -73,24 +63,45 @@ const LIVE = `(() => {
       const sl = (b.stepQueue || []).find(l => typeof l === 'string' && l.startsWith(pre));
       return { name: s.name || '', team, active, cond: sc, sheet: sl ? sl.slice(pre.length) : '' };
     };
-    const me = b.mySide || b.nearSide || (b.sides && b.sides[0]);
-    const foe = (me && me.foe) || b.farSide || (b.sides && b.sides[1]);
+    const me = (mineId && b[mineId]) || b.mySide || b.nearSide || (b.sides && b.sides[0]);
+    const foe = (me && me.foe) || (mineId && b[mineId === 'p1' ? 'p2' : 'p1']) || b.farSide || (b.sides && b.sides[1]);
     return {
-      ok: true,
-      battle: {
-        id: room.id,
-        format: b.tier || '',
-        gameType: b.gameType || 'doubles',
-        turn: b.turn || 0,
-        ended: !!b.ended,
-        weather: b.weather || '',
-        pseudo: (b.pseudoWeather || []).map(x => x[0]),
-        spectator: !b.mySide || !reqMons.length,
-        me: side(me, true),
-        foe: side(foe, false)
-      }
+      id: room.id,
+      format: b.tier || '',
+      gameType: b.gameType || 'doubles',
+      turn: b.turn || 0,
+      ended: !!b.ended,
+      weather: b.weather || '',
+      pseudo: (b.pseudoWeather || []).map(x => x[0]),
+      spectator: !b.mySide || !reqMons.length,
+      me: side(me, true),
+      foe: side(foe, false)
     };
+  }`;
+
+const LIVE = `(() => {
+  try {
+    const a = ${SDAPP};
+    if (!a || !a.rooms) return { ok: false, why: 'Showdown aún no ha cargado' };
+    const isBattle = r => r && r.battle && Array.isArray(r.battle.stepQueue);
+    let room = [a.curRoom, a.curSideRoom].find(isBattle);
+    if (!room) {
+      // Si no estás mirando un combate, el último que esté abierto y sin terminar.
+      for (const id in a.rooms) if (isBattle(a.rooms[id]) && !a.rooms[id].battle.ended) room = a.rooms[id];
+    }
+    if (!room) return { ok: true, battle: null };
+    return { ok: true, battle: (${READ})(room, room.battle, '') };
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
 })()`;
 
-module.exports = { LIVE };
+/** Lo mismo en el reproductor de replays (Replays.battle), en el turno que se está viendo. */
+const REPLAY = mineId => `(() => {
+  try {
+    if (typeof Replays === 'undefined' || !Replays.battle) return { ok: false, why: 'La replay aún no ha cargado' };
+    const bt = (${READ})({ id: 'replay', request: null }, Replays.battle, ${JSON.stringify(mineId === 'p2' ? 'p2' : 'p1')});
+    bt.ended = false;
+    return { ok: true, battle: bt };
+  } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+})()`;
+
+module.exports = { LIVE, REPLAY };

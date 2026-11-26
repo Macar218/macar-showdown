@@ -1,11 +1,11 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Store } = require('./src/store');
 const { parseFile } = require('./src/parser');
 const capture = require('./src/capture');
-const { LIVE } = require('./src/live');
+const { LIVE, REPLAY } = require('./src/live');
 const { Usage } = require('./src/usage');
 const { CURRENT, uploadReplay } = require('./src/media');
 const { SDAPP } = require('./src/sdapp');
@@ -25,6 +25,7 @@ const DEX_PARTITION = 'persist:dex'; // la Macar Dex (web del usuario) dentro de
 const DEX_URL = /^https:\/\/macar218\.github\.io\/macar-dex(\/|$)/;
 
 let win = null;
+const extra = new Set(); // otras ventanas (calculadora, Mi PC… en el otro monitor o al lado): sin Showdown
 let store = null;
 let usage = null;
 let tours = null;
@@ -42,11 +43,62 @@ if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 const openExternal = url => { if (/^https:\/\//i.test(String(url))) shell.openExternal(url); };
-const notify = (summary) => { if (win && !win.isDestroyed()) win.webContents.send('ms:changed', summary || null); };
+/** Avisa a todas las ventanas. from = la ventana que hizo el cambio (las demás lo reciben con other: true). */
+const notify = (summary, from) => {
+  for (const w of [win, ...extra]) if (w && !w.isDestroyed()) w.webContents.send('ms:changed', from && w.webContents !== from ? { ...(summary || {}), other: true } : summary || null);
+};
+
+/** Las reglas de seguridad de cada ventana: solo los webviews permitidos y nada de navegar. second = ventana extra, sin Showdown. */
+function guard(w, second) {
+  w.webContents.on('will-attach-webview', (event, prefs, params) => {
+    delete prefs.preload;
+    prefs.nodeIntegration = false;
+    prefs.contextIsolation = true;
+    prefs.sandbox = true;
+    const sd = !second && params.partition === PARTITION && SHOWDOWN.test(params.src);
+    const rp = params.partition === REPLAY_PARTITION && REPLAY_URL.test(params.src);
+    const dx = params.partition === DEX_PARTITION && DEX_URL.test(params.src);
+    if (!sd && !rp && !dx) event.preventDefault();
+  });
+  w.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
+  w.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('file://')) { event.preventDefault(); openExternal(url); } });
+  // Al volver a la ventana se relee la carpeta: si jugaste en otro ordenador (OneDrive), aparece aquí.
+  w.on('focus', () => { if (store) { store.stale = true; w.webContents.send('ms:changed', { focus: true }); } });
+}
+
+/**
+ * Otra ventana de la app (sin Showdown) abierta en una sección. Con dos monitores va al otro, a pantalla completa;
+ * con uno, las dos ventanas se ponen una al lado de la otra.
+ */
+function openExtra(from, view) {
+  const wb = from.getBounds();
+  const here = screen.getDisplayMatching(wb);
+  // Solo pruebas: MACAR_UNAPANTALLA hace como si hubiera un solo monitor.
+  const others = !app.isPackaged && process.env.MACAR_UNAPANTALLA ? [] : screen.getAllDisplays().filter(d => d.id !== here.id);
+  let bounds, max = false;
+  if (others.length) { bounds = others[0].workArea; max = true; }
+  else {
+    const a = here.workArea, mw = Math.max(720, Math.round(a.width * 0.52));
+    if (from.isMaximized()) from.unmaximize();
+    from.setBounds({ x: a.x, y: a.y, width: mw, height: a.height });
+    bounds = { x: a.x + mw, y: a.y, width: Math.max(560, a.width - mw), height: a.height };
+  }
+  const w = new BrowserWindow({
+    ...bounds, minWidth: 560, minHeight: 500,
+    backgroundColor: '#050d24', title: 'Macar Showdown', icon: path.join(__dirname, 'build', 'icon.png'), autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: true, spellcheck: false }
+  });
+  guard(w, true);
+  extra.add(w);
+  w.on('closed', () => extra.delete(w));
+  if (max) w.maximize();
+  w.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { w: '2', view: /^[a-z]+$/.test(String(view)) ? String(view) : 'calc' } });
+  return true;
+}
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 1000, minHeight: 640,
+    width: 1440, height: 900, minWidth: 720, minHeight: 640,
     backgroundColor: '#050d24',
     title: 'Macar Showdown',
     icon: path.join(__dirname, 'build', 'icon.png'),
@@ -61,17 +113,8 @@ function createWindow() {
     }
   });
 
-  // El webview solo puede ser Showdown, sin preload y aislado.
-  win.webContents.on('will-attach-webview', (event, prefs, params) => {
-    delete prefs.preload;
-    prefs.nodeIntegration = false;
-    prefs.contextIsolation = true;
-    prefs.sandbox = true;
-    const sd = params.partition === PARTITION && SHOWDOWN.test(params.src);
-    const rp = params.partition === REPLAY_PARTITION && REPLAY_URL.test(params.src);
-    const dx = params.partition === DEX_PARTITION && DEX_URL.test(params.src);
-    if (!sd && !rp && !dx) event.preventDefault();
-  });
+  // Los webviews solo pueden ser Showdown, las replays o la Macar Dex, sin preload y aislados.
+  guard(win, false);
   win.webContents.on('did-attach-webview', (_e, contents) => {
     if (contents.session === session.fromPartition(DEX_PARTITION)) {
       contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
@@ -113,15 +156,10 @@ function createWindow() {
     });
   });
 
-  // La propia app no navega a ningún sitio; los enlaces externos van al navegador.
-  win.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('file://')) { event.preventDefault(); openExternal(url); } });
-
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   if (!app.isPackaged && process.env.MACAR_CAPTURAS) win.webContents.once('did-finish-load', () => capturas(process.env.MACAR_CAPTURAS));
-  win.on('closed', () => { win = null; });
-  // Al volver a la ventana se relee la carpeta: si jugaste en otro ordenador (OneDrive), aparece aquí.
-  win.on('focus', () => { if (store) { store.stale = true; notify({ focus: true }); } });
+  // Al cerrar la ventana principal se cierran también las otras.
+  win.on('closed', () => { win = null; for (const w of [...extra]) if (!w.isDestroyed()) w.close(); });
 }
 
 /**
@@ -145,6 +183,7 @@ async function capturas(dir) {
   await wait(2500);
   for (const st of steps) {
     try {
+      if (st.size) { if (win.isMaximized()) win.unmaximize(); win.setSize(st.size[0], st.size[1]); }
       if (st.js) { const r = await win.webContents.executeJavaScript(st.js); if (r !== undefined) fs.appendFileSync(log, `[js] ${JSON.stringify(r).slice(0, 4000)}
 `); }
     } catch (e) { fs.appendFileSync(log, `[paso] ${e.message}
@@ -211,7 +250,7 @@ function registerIpc() {
   ipcMain.handle('ms:list', () => store.list());
   ipcMain.handle('ms:get', (_e, id) => store.get(String(id)));
   ipcMain.handle('ms:delete', (_e, id) => { store.remove(String(id)); notify(); return true; });
-  ipcMain.handle('ms:notes', (_e, id, text) => store.setNotes(String(id), String(text || '')));
+  ipcMain.handle('ms:notes', (e, id, text) => { const r = store.setNotes(String(id), String(text || '')); for (const w of [win, ...extra]) if (w && !w.isDestroyed() && w.webContents !== e.sender) w.webContents.send('ms:changed', { notes: String(id), other: true }); return r; });
   ipcMain.handle('ms:settings', () => ({ ...store.settings(), dataDir: store.dir, version: app.getVersion() }));
   ipcMain.handle('ms:setSettings', (_e, patch) => {
     const clean = {};
@@ -330,7 +369,9 @@ function registerIpc() {
     try { return { ok: true, ...(await usage.get(String(tier || ''))) }; } catch (e) { return { ok: false, why: e.message }; }
   });
   ipcMain.handle('ms:data', (_e, key) => store.data(String(key)));
-  ipcMain.handle('ms:setData', (_e, key, value) => { const r = store.setData(String(key), value); notify({ data: String(key) }); return r; });
+  ipcMain.handle('ms:setData', (e, key, value) => { const r = store.setData(String(key), value); notify({ data: String(key) }, e.sender); return r; });
+  ipcMain.handle('ms:newWindow', (e, view) => { const from = BrowserWindow.fromWebContents(e.sender); return from ? openExtra(from, view) : false; });
+  ipcMain.handle('ms:replayReader', (_e, mine) => REPLAY(String(mine || 'p1')));
   ipcMain.handle('ms:matchLog', (_e, id) => { const m = store.get(String(id)); return m ? m.log : null; });
 
   // Carpeta de datos (para tenerlo todo igual en todos tus ordenadores, por ejemplo en OneDrive).

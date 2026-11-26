@@ -9,6 +9,14 @@ const { toID, leadKey } = Stats;
 let M = [];          // resúmenes de partidas
 let SET = {};        // ajustes
 let VIEW = 'jugar';
+/** Otra ventana (en el otro monitor o al lado): la misma app sin Showdown, abierta en una sección. */
+const QS = new URLSearchParams(location.search);
+const W2 = QS.get('w') === '2';
+if (W2) {
+  document.body.classList.add('w2');
+  const sd = document.querySelector('#sd');
+  if (sd) { const d = document.createElement('div'); d.id = 'sd'; d.className = 'sdoff'; sd.replaceWith(d); }
+}
 /** Filtros del Dashboard. scope: qué partidas cuentan (la sesión abierta, todo su equipo o todas). */
 const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', scope: 'session' };
 const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '' };
@@ -61,6 +69,7 @@ const pairLabel = x => `${x.key.split(' + ').map(n => spr(n, 'sm')).join('')}<sp
 /** Pantallas que pintan otros archivos (Teambuilder, Mi PC, Optimizador, Documento): VIEWS[nombre] = función. */
 const VIEWS = {};
 function show(v) {
+  if (W2 && v === 'jugar') v = 'dash'; // Showdown solo en la ventana principal
   VIEW = v;
   $$('.nav [data-v]').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
   $$('.view').forEach(x => x.classList.toggle('on', x.id === `v-${v}`));
@@ -85,7 +94,7 @@ async function load() {
 function render(force = true) {
   if (VIEW === 'dash') Dash.render();
   else if (VIEW === 'ajustes' && force) renderSettings(); // no se repinta mientras escribes
-  else if (VIEWS[VIEW] && force) VIEWS[VIEW]();
+  else if (VIEWS[VIEW] && force) Promise.resolve(VIEWS[VIEW]()).catch(e => console.error('[vista]', VIEW, e && e.stack ? e.stack : e));
 }
 
 /* ---------- Jugar ---------- */
@@ -286,11 +295,13 @@ async function openSet(ids, opts) {
   $('#modalBox').innerHTML = `${opts && opts.ask ? `<div class="mkask"><b>${bo3 ? 'Bo3 terminado' : 'Partida terminada'}</b><span>Marca cómo fue cada partida y si quieres analizarla. Luego puedes filtrarlas en Dashboard → Partidas.</span></div>` : ''}<div class="head"><div><h1 style="font-size:22px">${bo3 ? 'Bo3 ' : ''}vs <span class="nolang">${esc(s0[opSd].name)}</span> ${bo3 ? `<span class="pill ${w > l ? 'win' : l > w ? 'loss' : 'tie'}">${w}–${l}</span>` : pill(s0.result)}</h1>
       <p class="note">${fmtDate(s0.endedAt)} · ${esc(s0.format)}</p></div><button class="btn" id="mClose">Cerrar</button></div>
     <div class="rounds">${games.map((g, i) => { const s = g.summary; return `<div class="round">
-      <div class="rhead"><b>G${i + 1}</b>${pill(s.result)}<span class="note">${s.turns} turnos</span><button class="btn sm primary" data-view="${esc(s.id)}">▶ Ver replay</button><button class="btn sm" data-open="${esc(s.id)}">Detalles</button></div>
+      <div class="rhead"><b>G${i + 1}</b>${pill(s.result)}<span class="note">${s.turns} turnos</span><span style="flex:1"></span><button class="btn sm" data-open="${esc(s.id)}">Detalles</button></div>
+      <button class="btn rwatch ${s.result || ''}" data-view="${esc(s.id)}">▶ Ver replay · ${s.result === 'win' ? 'Victoria' : s.result === 'loss' ? 'Derrota' : 'Empate'}</button>
       ${markHTML(s)}
-      <div class="rgrid"><span>Tus leads</span><span>${s[meSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Tu reserva</span><span>${back(meSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
-        <span>Sus leads</span><span>${s[opSd].leads.map(n => spr(n, 'sm')).join('')}</span><span>Su reserva</span><span>${back(opSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span>
-        <span>Mega rival</span><span>${s[opSd].megas.map(n => `${spr(n, 'sm')}${esc(n)}`).join(' ') || '—'}</span></div>
+      <div class="rface"><div class="rfside"><small>Tú</small><span class="rfl" title="Leads">${s[meSd].leads.map(n => spr(n, 'big')).join('')}</span><span class="rfb" title="Reserva">${back(meSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span></div>
+        <b class="rfvs">vs</b>
+        <div class="rfside op"><small>Rival</small><span class="rfl" title="Leads">${s[opSd].leads.map(n => spr(n, 'big')).join('')}</span><span class="rfb" title="Reserva">${back(opSd, s).map(n => spr(n, 'sm')).join('') || '—'}</span></div></div>
+      <div class="rfleg"><span>Arriba, leads · abajo, reserva</span>${s[opSd].megas.length ? `<span>Mega rival: ${s[opSd].megas.map(n => `${spr(n, 'xs')}<span class="nolang">${esc(n)}</span>`).join(' ')}</span>` : ''}</div>
       <label class="field">Notas de la partida<textarea data-rnote="${esc(s.id)}" rows="${Math.min(8, Math.max(2, String(g.notes || '').split('\n').length))}" placeholder="Las notas que tomaste jugando o viendo la replay…">${esc(g.notes || '')}</textarea></label>
     </div>`; }).join('')}</div>
     ${sheet ? `<h3 style="margin:14px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(sheet)}` : ''}
@@ -314,7 +325,7 @@ async function openSet(ids, opts) {
 /** Hoja de equipo abierta → sus sets, con botón para llevar cada uno a Mi PC y el equipo a la calculadora. */
 function sheetHTML(sheet) {
   return `<div class="shgrid shwide">${sheet.map((x, i) => P.sheetCard(x, { btn: `<button class="btn sm shpc" data-sheetpc="${i}" title="Guardarlo en Mi PC, en «Sets de rivales» (sin reparto: no se ve)">→ Mi PC</button>` })).join('')}</div>
-    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button><button class="btn sm" data-sheetpcall="1">Todos a Mi PC</button><button class="btn sm primary" data-sheetteam="1" title="Guarda los 6 como un equipo de rival en Mi PC → Team Box (con el reparto más común)">Equipo a Mi PC (Team Box)</button><span class="note sheetmsg"></span></div>`;
+    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button><button class="btn sm" data-sheetpcall="1">Todos los sets a Mi PC</button><button class="btn sm primary" data-sheetteam="1" title="Guarda los 6 como un equipo de rival en Mi PC → Team Box (con el reparto más común)">Equipo a Mi PC (Team Box)</button><span class="note sheetmsg"></span></div>`;
 }
 /** La hoja entera como equipo de rival en el Team Box (reparto más común, que no se ve). */
 async function sheetToTeam(sheet, meta) {
@@ -548,7 +559,19 @@ async function renderSettings() {
 api.onChanged(d => {
   // Al volver a la ventana (o si otro ordenador cambió algo) se relee todo.
   if (d && d.focus) { DB.clear(); Calc.reloadTeams(); if (VIEWS[VIEW]) VIEWS[VIEW](); }
+  // Lo ha cambiado la otra ventana: se relee eso y se repinta (salvo si estás escribiendo aquí).
+  if (d && d.other && d.data) {
+    DB.drop(d.data);
+    if (d.data === 'equipos') Calc.reloadTeams();
+    const a = document.activeElement;
+    if (!(a && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) && VIEWS[VIEW]) VIEWS[VIEW]();
+  }
+  if (d && d.other && d.notes) { const x = M.find(y => y.id === d.notes); if (x) api.get(d.notes).then(m => { if (m) x.notes = m.notes; }); }
   load().then(() => { if (d && d.id && d.result) askMarks(d); });
 });
-load();
+if (W2) VIEW = /^[a-z]+$/.test(QS.get('view') || '') && QS.get('view') !== 'jugar' ? QS.get('view') : 'calc';
+// En la otra ventana, su sección cuando ya están los datos y todas las pantallas (los otros archivos se cargan después).
+Promise.all([load(), new Promise(r => (document.readyState === 'complete' ? r() : window.addEventListener('load', r)))]).then(() => { if (W2) show(VIEW); });
 pollStatus();
+/** Otra ventana: con dos monitores, en el otro; con uno, las dos una al lado de la otra. */
+document.addEventListener('click', e => { if (e.target.closest('#winNew')) api.newWindow(VIEW === 'jugar' ? 'calc' : VIEW); });

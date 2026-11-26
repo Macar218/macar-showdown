@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('macar', {
   openData: () => ipcRenderer.invoke('ms:openData'),
   openExternal: url => ipcRenderer.invoke('ms:openExternal', url),
   live: () => ipcRenderer.invoke('ms:live'),
+  replayReader: mine => ipcRenderer.invoke('ms:replayReader', mine),
+  newWindow: view => ipcRenderer.invoke('ms:newWindow', view),
   usage: tier => ipcRenderer.invoke('ms:usage', tier),
   data: key => ipcRenderer.invoke('ms:data', key),
   setData: (key, value) => ipcRenderer.invoke('ms:setData', key, value),
