@@ -18,7 +18,7 @@ const CalcParts = (() => {
   function arenaHTML(opts) {
     const f = opts.field || {};
     const W = { Sun: '☀️', 'Harsh Sunshine': '☀️', Rain: '🌧️', 'Heavy Rain': '🌧️', Sand: '🌪️', Snow: '❄️' };
-    const tags = [f.weather && `${W[f.weather] || ''} ${esc((WEATHERS.find(w => w[0] === f.weather) || [])[1] || f.weather)}`, f.terrain && esc(`Campo ${(TERRAINS.find(t => t[0] === f.terrain) || [])[1] || f.terrain}`), f.tr && 'Espacio Raro', f.me && f.me.tw && 'Viento Afín tuyo', f.foe && f.foe.tw && 'Viento Afín rival'].filter(Boolean);
+    const tags = [f.weather && `${W[f.weather] || ''} <em>${esc((WEATHERS.find(w => w[0] === f.weather) || [])[1] || f.weather)}</em>`, f.terrain && esc(`Campo ${(TERRAINS.find(t => t[0] === f.terrain) || [])[1] || f.terrain}`), f.tr && 'Espacio Raro', f.me && f.me.tw && 'Viento Afín tuyo', f.foe && f.foe.tw && 'Viento Afín rival'].filter(Boolean);
     const mon = (x, side) => {
       if (!x || !x.m) return '<div class="armon empty"><span class="arfig"></span></div>';
       const hp = Math.max(0, Math.min(100, x.hp != null ? x.hp : x.m.hp));
@@ -214,7 +214,7 @@ function makeCalc(cfg) {
   function strip(side) {
     const canAdd = !LIVE;
     const empty = !S[side].length ? `<span class="note">${LIVE ? (side === 'me' ? 'Elige tu equipo en la sesión.' : 'Aparecen al empezar un combate.') : 'Ninguno: añade con +'}</span>` : '';
-    return `<div class="strip ${side}"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}${empty}${canAdd ? `<button class="mchip add" data-add="${side}" title="Añadir un Pokémon a mano">+</button>` : ''}</div></div>`;
+    return `<div class="strip ${side}"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}${canAdd ? `<button class="cadd" data-add="${side}" title="Añadir un Pokémon a mano">+ Añadir</button>` : ''}</span><div class="chips">${S[side].map((m, i) => monChip(m, i, side)).join('')}${empty}</div></div>`;
   }
   const SRC = { dex: 'Macar Dex', exacto: 'exacto', uso: 'Smogon', torneo: 'de torneo', pegado: 'pegado', equipo: 'de tu equipo', manual: 'a mano', combate: 'combate', 'sin datos': 'sin datos', pc: 'Mi PC', hoja: 'hoja de equipo' };
   /** Cómo sale el daño del movimiento marcado: las 16 tiradas, PS que le quedan y qué lo cambia. */
@@ -266,7 +266,7 @@ function makeCalc(cfg) {
     const att = cur(attSide), def = cur(attSide === 'me' ? 'foe' : 'me');
     if (!att) return `<div class="sdmvs ${attSide}"><p class="note">${attSide === 'me' ? 'Elige tu Pokémon' : 'Elige el rival'}${LIVE ? '' : ' o añade uno con +'}.</p></div>`;
     const seen = att.seenMoves || [];
-    return `<div class="sdmvs ${attSide}"><h4>${spr(att.species, 'xs')}<span class="nolang">${esc(att.species)}</span></h4>${att.moves.map(mv => {
+    return `<div class="sdmvs ${attSide}"><h4 class="c2who">${spr(att.species, 'sm')}<span class="nolang">${esc(P.baseSpecies(att.species))}</span>${def ? `<small>→ <span class="nolang">${esc(P.baseSpecies(def.species))}</span></small>` : ''}</h4>${att.moves.map(mv => {
       if (!mv) return '<span class="sdmv empty">—</span>';
       const d = P.moveOf(mv), r = def ? P.damage(att, def, mv, S.field, attSide) : null;
       const on = S.selMove && S.selMove[0] === attSide && S.selMove[1] === mv;
@@ -309,7 +309,7 @@ function makeCalc(cfg) {
     const opt = (list, v) => list.map(([k, l]) => `<option value="${esc(k)}"${k === v ? ' selected' : ''}>${l}</option>`).join('');
     const spGuess = side === 'foe' && (m.src === 'hoja' || m.live);
     const mega = P.megaOf(m), tot = m.sp.reduce((a, b) => a + (+b || 0), 0), left = P.SP_TOTAL - tot;
-    const sum = left < 0 ? `<b class="bad">${tot}/${P.SP_TOTAL}</b> · te pasas ${-left}` : left > 0 ? `<b class="warn">${tot}/${P.SP_TOTAL}</b> · te quedan ${left}` : `<b class="ok">${tot}/${P.SP_TOTAL}</b> · completo`;
+    const sum = left < 0 ? `<b class="bad">${tot}/${P.SP_TOTAL}</b> <span>· te pasas ${-left}</span>` : left > 0 ? `<b class="warn">${tot}/${P.SP_TOTAL}</b> <span>· te quedan ${left}</span>` : `<b class="ok">${tot}/${P.SP_TOTAL}</b> <span>· completo</span>`;
     const pcOpen = S.pcName === side;
     const mvOpen = S.mvPick && S.mvPick[0] === side;
     return `<div class="sdpoke ${side} c2poke">
@@ -325,7 +325,7 @@ function makeCalc(cfg) {
         <label class="field">Estado<select data-ce="${side}:status">${opt(P.STATUS, m.status || '')}</select></label>
       </div>
       <table class="sdstats c2stats"><thead><tr><th></th><th>Base</th><th>Puntos (SP)${spGuess ? ' <em title="El reparto del rival no se ve: es el más común. Cámbialo si sabes otro.">?</em>' : ''}</th><th>Stat</th><th>Nivel</th></tr></thead><tbody>
-        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0, v = m.sp[i] || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}${nm > 1 ? ' ▲' : nm < 1 ? ' ▼' : ''}</th><td>${sp ? sp.baseStats[k] : ''}</td>
+        ${STATS.map((k, i) => { const nm = P.natMult(m.nature, k), b = (m.boosts && m.boosts[k]) || 0, v = m.sp[i] || 0; return `<tr class="${nm > 1 ? 'up' : nm < 1 ? 'dn' : ''}"><th>${SL[k]}${nm > 1 ? '<span> ▲</span>' : nm < 1 ? '<span> ▼</span>' : ''}</th><td>${sp ? sp.baseStats[k] : ''}</td>
           <td><div class="cstep"><button data-csp="${side}:${i}:-1" title="−1 (Mayús: −4)"${v <= 0 ? ' disabled' : ''}>−</button><input type="number" min="0" max="${P.SP_MAX}" value="${v}" data-ce="${side}:sp:${i}" class="${v >= P.SP_MAX ? 'max' : v ? 'set' : ''}"><button data-csp="${side}:${i}:1" title="+1 (Mayús: +4)"${v >= P.SP_MAX || left <= 0 ? ' disabled' : ''}>+</button></div></td><td><b>${st[k] ?? ''}</b></td>
           <td>${i ? `<div class="cstep cboost"><button data-cbo="${side}:${k}:-1" title="Bajar un nivel"${b <= -6 ? ' disabled' : ''}>▼</button><span class="${b > 0 ? 'up' : b < 0 ? 'dn' : ''}">${b > 0 ? `+${b}` : b}</span><button data-cbo="${side}:${k}:1" title="Subir un nivel"${b >= 6 ? ' disabled' : ''}>▲</button></div>` : ''}</td></tr>`; }).join('')}
       </tbody><tfoot><tr><td colspan="5"><div class="cspsum">Puntos: ${sum}<span class="note"> · máximo ${P.SP_MAX} por stat</span>${tot ? `<button class="btn sm" data-csp0="${side}" title="Todos los puntos a 0">A 0</button>` : ''}</div></td></tr></tfoot></table>
@@ -359,12 +359,13 @@ function makeCalc(cfg) {
   function fieldPanel() {
     const f = S.field;
     const b = (attr, val, label, on) => `<button class="${on ? 'on' : ''}" data-${attr}="${esc(val)}">${label}</button>`;
-    const sideRow = side => `<div class="sdfrow"><span class="lbl">${side === 'me' ? 'Tu lado' : 'Su lado'}</span><div class="sdbtns">${SIDE_FX.map(([k, l]) => b('cfs', `${side}.${k}`, l, f[side][k])).join('')}</div></div>`;
-    return `<div class="sdfield"><h4>Campo</h4>
-      <div class="sdfrow"><span class="lbl">Clima</span><div class="sdbtns">${WEATHERS.map(([k, l]) => b('cfw', k, l, f.weather === k)).join('')}</div></div>
-      <div class="sdfrow"><span class="lbl">Campo</span><div class="sdbtns">${TERRAINS.map(([k, l]) => b('cft', k, l, f.terrain === k)).join('')}</div></div>
-      <div class="sdfrow"><span class="lbl">Otros</span><div class="sdbtns">${b('cfo', 'tr', 'Espacio Raro', f.tr)}${b('cfo', 'grav', 'Gravedad', f.grav)}${b('cfo', 'crit', 'Golpe crítico', f.crit)}</div></div>
-      ${sideRow('me')}${sideRow('foe')}
+    // Ordenado: clima, campo y otros en rejilla; pantallas y apoyos en una tabla con tu lado y el suyo.
+    const sides = `<table class="c2fside"><thead><tr><th></th><th>Tu lado</th><th>Su lado</th></tr></thead><tbody>${SIDE_FX.map(([k, l]) => `<tr><th>${l}</th>${['me', 'foe'].map(s => `<td><button class="${f[s][k] ? 'on' : ''}" data-cfs="${s}.${k}" title="${l} · ${s === 'me' ? 'tu lado' : 'su lado'}">${f[s][k] ? '✓' : ''}</button></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    return `<div class="sdfield c2fld"><h4>Campo</h4>
+      <div class="sdfrow"><span class="lbl">Clima</span><div class="sdbtns g3">${WEATHERS.map(([k, l]) => b('cfw', k, l, f.weather === k)).join('')}</div></div>
+      <div class="sdfrow"><span class="lbl">Campo</span><div class="sdbtns g3">${TERRAINS.map(([k, l]) => b('cft', k, l, f.terrain === k)).join('')}</div></div>
+      <div class="sdfrow"><span class="lbl">Otros</span><div class="sdbtns g3">${b('cfo', 'tr', 'Espacio Raro', f.tr)}${b('cfo', 'grav', 'Gravedad', f.grav)}${b('cfo', 'crit', 'Golpe crítico', f.crit)}</div></div>
+      ${sides}
       ${S.battleId ? '<p class="note">Clima, campo, pantallas y Viento Afín se copian del combate en cada turno.</p>' : ''}</div>`;
   }
 

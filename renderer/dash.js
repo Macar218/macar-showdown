@@ -87,12 +87,11 @@ const Dash = (() => {
     const leadsBest = r.myLeads.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 5);
     const seen = r.oppPreview.slice(0, 6).map(x => ({ ...x }));
     const winP = r.n ? Math.round((r.w / r.n) * 100) : 0;
-    return `<div class="dkpis2">
-        <div class="kpi dkw">${donut(winP, cls(r))}<div><small>Victorias</small><b class="${cls(r)}">${r.w}–${r.l}</b><i>${r.n} partida${r.n === 1 ? '' : 's'}</i></div></div>
+    return `<div class="dkpis3">
+        <div class="kpi dkw dkmain">${donut(winP, cls(r))}<div><small>Porcentaje de victorias</small><b class="${cls(r)}">${r.n ? `${winP}%` : '—'}</b><i>${r.w}–${r.l} · ${r.n} partida${r.n === 1 ? '' : 's'}</i></div></div>
+        <div class="kpi"><small>Sets Bo3</small><b class="${a.bo3.n ? cls(a.bo3) : ''}">${a.bo3.n ? `${wrp(a.bo3)}%` : '—'}</b><i>${a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w} en sets` : 'sin sets'}</i></div>
         <div class="kpi"><small>Forma</small>${form(ov.last)}<i>Últimas ${ov.last.length} partidas</i></div>
-        ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
-        <div class="kpi"><small>Hojas de equipo</small>${minibar(ov.ots, 'OTS')}${minibar(ov.cts, 'CTS')}</div>
-        <div class="kpi"><small>Sets Bo3</small><b>${a.bo3.n ? `${wrp(a.bo3)}%` : '—'}</b><i>${a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w}` : 'sin sets'}</i></div>
+        ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', st > 0 ? 'ganando' : st < 0 ? 'perdiendo' : '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
         <div class="kpi"><small>ELO</small><b>${r.eloNow ?? '—'}</b>${spark(r.elo)}</div>
         <div class="kpi"><small>GXE</small><b>${gxe}</b><i>ladder de Showdown</i></div>
       </div>
@@ -132,6 +131,14 @@ const Dash = (() => {
         note ? `<i class="mktag mk-n" title="${esc(note.slice(0, 300))}">${pre}<span>✎ Notas</span></i>` : ''].join(''); }).join('');
     return `<span class="mkcol">${t}</span>`;
   }
+  /** Un equipo en su fila: siempre 6 huecos fijos; los leads con raya amarilla y los que salieron detrás, azul. */
+  function teamLine(label, x) {
+    const base = n => Stats.toID(P.baseSpecies(n));
+    const list = (x.preview && x.preview.length ? x.preview : x.brought || []).slice(0, 6);
+    const isLead = n => (x.leads || []).some(y => base(y) === base(n)), isIn = n => (x.brought || []).some(y => base(y) === base(n));
+    const cells = Array.from({ length: 6 }, (_, i) => { const n = list[i]; if (!n) return '<i class="dts"></i>'; const k = isLead(n) ? 'ld' : isIn(n) ? 'in' : ''; return `<i class="dts ${k}" title="${esc(n)}${k === 'ld' ? ' · lead' : k === 'in' ? ' · salió' : ''}">${spr(n, 'sm')}</i>`; }).join('');
+    return `<span class="dtl"><small>${label}</small>${cells}</span>`;
+  }
   function partidas(ms) {
     const a = Stats.advanced(ms);
     const groups = groupBo3(ms);
@@ -152,13 +159,12 @@ const Dash = (() => {
         <span class="pill ${x.r}">${bo3 ? `Bo3 ${x.w}–${x.l}` : (x.r === 'win' ? 'Victoria' : x.r === 'loss' ? 'Derrota' : 'Empate')}</span>
         <span class="vs"><b class="nolang">vs ${esc(op.name)}</b><small>${op.rating ? `${op.rating} ELO · ` : ''}${esc(shortFormat(f.format))}</small></span>
         ${markTags(g.games)}
-        <span class="mons" title="Tu lead">${me.leads.map(n => spr(n, 'sm')).join('')}</span>
-        <span class="mons" title="Equipo rival (en gris, los que no salieron)">${op.preview.map(n => spr(n, `sm${op.brought.includes(n) ? '' : ' dim'}`)).join('')}</span>
+        <span class="dteams2">${teamLine('Tú', me)}${teamLine('Rival', op)}</span>
         <span class="bo3g">${g.games.map((y, i) => `<button class="gbtn ${y.result || ''}" data-view="${esc(y.id)}" title="Ver la replay de G${i + 1}">▶ G${i + 1}</button>`).join('')}</span>
       </div>`;
     };
     return `<div class="kpis dk">${kp('Sets ganados (Bo3)', a.bo3)}${kp('Ganas el G1', a.bo3.g1)}${kp('Cierras tras ganar el G1', a.bo3.closeAfterG1)}${kp('Remontas tras perder el G1', a.bo3.comeback)}${kpi('Sets incompletos', a.bo3.incomplete || 0)}</div>
-      <div class="row-btns dgbtns"><span class="note">Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.</span><span style="flex:1"></span><button class="btn" id="dImport">Importar replays</button><button class="btn" id="dCsv">Exportar CSV</button></div>
+      <div class="row-btns dgbtns"><span class="note">Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.</span><span class="dleg"><i class="dts ld"></i><span>Lead</span><i class="dts in"></i><span>Salió detrás</span></span><span style="flex:1"></span><button class="btn" id="dImport">Importar replays</button><button class="btn" id="dCsv">Exportar CSV</button></div>
       ${days.map(d => { const w = d.groups.filter(g => res(g).r === 'win').length, l = d.groups.filter(g => res(g).r === 'loss').length; return `<h3 class="dsec dday">${esc(dayLabel(d.t))} <span class="note">${w}–${l}</span></h3><div class="mlist">${d.groups.map(row).join('')}</div>`; }).join('') || '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>'}`;
   }
   function csv(ms) {

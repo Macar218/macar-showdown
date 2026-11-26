@@ -1291,7 +1291,7 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .pcslot .spr.pcspr{width:min(78%,150px);height:auto;aspect-ratio:1}
 .pcslot small{font-size:clamp(11px,.85vw,15px);font-weight:600;color:var(--ink)}
 .pcfoe{position:absolute;top:5px;right:6px;font-style:normal;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#ff9d9d;background:rgba(66,14,26,.85);border-radius:5px;padding:1px 5px}
-.pcdetail{gap:10px;padding:14px 16px;font-size:14px;max-height:calc(100vh - 40px);overflow:auto}
+.pcdetail{gap:10px;padding:14px 16px;font-size:14px;max-height:calc(100vh - 160px);overflow:auto}
 .pcdh{display:flex;align-items:center;gap:12px}
 .pcdh .spr.huge{width:144px;height:144px;margin:-12px -8px -12px -12px;background:radial-gradient(circle at 50% 60%,rgba(56,212,255,.2),transparent 66%);border-radius:50%}
 .pcdhn{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
@@ -1565,3 +1565,195 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .c2poke .mvrow .mvcat{grid-column:1;font-size:11px}
 .c2poke .mvrow em{text-align:left}
 .c2poke .mvrow .mvdesc{grid-column:1 / -1}
+
+/* ---------- 0.15 · Dashboard: 6 cajas grandes (3 + 3) y filas de partidas por columnas ---------- */
+.dkpis3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.dkpis3 .kpi{padding:16px 20px;min-width:0;min-height:112px;display:flex;flex-direction:column;justify-content:center}
+.dkpis3 .kpi small{font-size:12.5px}
+.dkpis3 .kpi b{font-size:36px;line-height:1.1}
+.dkpis3 .kpi i{font-size:13px}
+.dkpis3 .dkw{flex-direction:row;align-items:center;justify-content:flex-start;gap:16px}
+.dkpis3 .dkmain{border-color:var(--accent);background:linear-gradient(135deg,var(--accent-soft),var(--shell) 70%)}
+.dkpis3 .dkmain b{font-size:46px}
+.dkpis3 .ddonut{width:92px;height:92px;flex:none}
+.dkpis3 .dform i{width:24px;height:24px;font-size:12px}
+.dkpis3 .dspark{height:34px;margin-top:4px}
+@media (max-width:900px){.dkpis3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dmatch{grid-template-columns:52px 92px 200px 270px minmax(260px,1fr) 150px;min-height:88px}
+.dmatch .vs{min-width:0}
+.dmatch .vs b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dmatch .mkcol{align-content:center}
+.dmatch .bo3g{justify-content:flex-end}
+.dteams2{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dtl{display:flex;align-items:center;gap:2px}
+.dtl small{flex:none;width:40px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.dts{flex:none;width:36px;height:34px;display:grid;place-items:center;font-style:normal;border-bottom:3px solid transparent;border-radius:3px}
+.dts.ld{border-bottom-color:var(--gold)}
+.dts.in{border-bottom-color:var(--accent)}
+.dts .spr{width:32px;height:32px}
+@media (max-width:1250px){.dmatch{grid-template-columns:52px 92px 170px 200px minmax(240px,1fr) 130px}}
+.dleg{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);margin-left:10px}
+.dleg .dts{width:18px;height:6px;border-bottom-width:3px}
+
+/* ---------- 0.15 · Visor: combate → transcripción → notas; a la derecha leads, reserva y hoja pequeña ---------- */
+.rvbody{grid-template-columns:minmax(0,1fr) 440px}
+.rvplayer webview{max-height:52%}
+.rvtx{flex:1 1 0;min-height:110px}
+.rvnotes{flex:0 0 210px;display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;border-top:1px solid var(--line);background:var(--shell);min-height:0}
+.rvnotes .rvnhead{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin:0;flex-wrap:wrap}
+.rvnotes h3{margin:0;font-family:var(--display);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.rvnotes .nhl{flex:1;min-height:0}
+.rvnotes #rvNotes{min-height:0}
+.rvside .rvots{border-top:0;background:transparent;padding:0;max-height:none;overflow:visible}
+.rvside .rvotshead{flex-wrap:wrap}
+.shgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.shc{display:flex;flex-direction:column;gap:3px;min-width:0;padding:5px 6px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);font-size:11.5px}
+.shc.out{opacity:.62}
+.shh{display:flex;align-items:center;gap:4px;min-width:0;flex-wrap:wrap}
+.shh .spr{width:30px;height:30px}
+.shh b{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shty{display:flex;gap:2px}
+.shh em{flex-basis:100%;font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.shh em.in{color:var(--good)}
+.shi{display:flex;align-items:center;gap:3px;min-width:0;white-space:nowrap;overflow:hidden;font-weight:600}
+.shi img{width:20px;height:20px;flex:none}
+.shi span{overflow:hidden;text-overflow:ellipsis}
+.shi i{font-style:normal;color:var(--muted);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.shn{font-size:11px;color:var(--muted)}
+.shn .up{color:var(--good)}.shn .dn{color:var(--bad)}
+.shm{display:flex;flex-direction:column;gap:2px}
+.shmv{--tc:#5b6b99;display:block;padding:2px 6px;border-radius:5px;border-left:3px solid var(--tc);background:color-mix(in srgb,var(--tc) 30%,#0b1a46);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;font-weight:600;color:var(--ink)}
+.shmv.st{background:color-mix(in srgb,var(--tc) 14%,#0b1a46)}
+.shmv.empty{--tc:transparent;background:transparent;color:var(--muted)}
+.shmv.t-Fire{--tc:#ff7a3d}.shmv.t-Water{--tc:#4a9dff}.shmv.t-Grass{--tc:#5fd068}.shmv.t-Electric{--tc:#ffd23f}.shmv.t-Ice{--tc:#7fe3ff}.shmv.t-Fighting{--tc:#e0553d}.shmv.t-Poison{--tc:#b55dd6}.shmv.t-Ground{--tc:#d9a94a}.shmv.t-Flying{--tc:#9fb4ff}.shmv.t-Psychic{--tc:#ff5c9a}.shmv.t-Bug{--tc:#a8c23a}.shmv.t-Rock{--tc:#b8a05a}.shmv.t-Ghost{--tc:#8a7be0}.shmv.t-Dragon{--tc:#7a6cff}.shmv.t-Dark{--tc:#8a7466}.shmv.t-Steel{--tc:#9fb3c8}.shmv.t-Fairy{--tc:#ff9fe0}.shmv.t-Normal{--tc:#b9b39c}
+.shc .shpc{margin-top:3px;align-self:stretch;padding:3px 6px;font-size:11px}
+@media (max-width:1100px){.rvbody{grid-template-columns:minmax(0,1fr) 360px}}
+.shgrid.shwide{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.shwide .shc{padding:8px 10px;font-size:12.5px;gap:4px}
+.shwide .shh .spr{width:40px;height:40px}
+.shwide .shh b{font-size:14px}
+.shwide .shmv{font-size:12.5px;padding:3px 8px}
+.shwide .shm{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+@media (max-width:760px){.shgrid.shwide{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- 0.15 · Matchups en grande ---------- */
+.murow.big{border-color:var(--accent)}
+.murow.big .mubody{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"riv notes" "pa notes" "pb notes";align-items:start;gap:12px;padding:14px}
+.murow.big .murival{grid-area:riv}
+.murow.big .muplan.a{grid-area:pa}
+.murow.big .muplan.b{grid-area:pb}
+.murow.big .munotes{grid-area:notes;align-self:stretch}
+.murow.big .munotes textarea{min-height:420px;font-size:14.5px;line-height:1.55}
+.murow.big .muslot{width:64px;height:68px}
+.murow.big .muslot .muspr{width:52px;height:52px}
+.murow.big .muname{font-size:18px}
+.mubigsets{padding:0 14px 12px}
+.mubigsets h4,.mubigh{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.mubigh{padding:0 14px}
+@media (max-width:900px){.murow.big .mubody{grid-template-columns:1fr;grid-template-areas:"riv" "pa" "notes" "pb"}}
+
+/* ---------- 0.15 · Calculadora más compacta: todo de un vistazo también en pantallas de 17" ---------- */
+.strip .lbl{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:78px}
+.cadd{border:1px dashed var(--line);background:transparent;color:var(--accent);border-radius:7px;padding:2px 6px;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;cursor:pointer;white-space:nowrap}
+.cadd:hover{border-color:var(--accent);background:var(--accent-soft)}
+.strip .chips,.strip .chips:has(.mchip.add){grid-template-columns:repeat(6,minmax(0,1fr))}
+.strip .mchip{min-height:0;display:grid;grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:4px;row-gap:2px;padding:3px 6px 3px 3px;text-align:left}
+.strip .mchip .spr{grid-row:1 / 3;width:34px;height:34px}
+.strip .mchip .mcn{font-size:11.5px;justify-self:start}
+.strip .mchip .hpbar{width:100%;margin:0}
+.strip .mchip .mchp{display:none}
+.strip{gap:6px}
+.chips + .note,.strip + .strip{margin-top:4px}
+.c2{gap:8px}
+/* Arena más pequeña */
+.c2arena .arrow{padding:4px 8px}
+.c2arena .arfig{width:46px;height:46px}
+.c2arena .armon .arspr{width:46px;height:46px}
+.c2arena .armon.empty{min-height:46px}
+.c2arena .armon{padding:2px 6px 2px 2px;gap:6px}
+.c2arena .armid{min-height:20px;padding:2px 8px}
+.c2arena .arinfo b{font-size:12px}
+.c2arena .spd{padding:4px 10px}
+/* Los que se calculan: el nombre bien grande */
+.sdmvs h4.c2who{gap:6px;margin:0 0 4px;font-family:var(--display);font-size:17px;letter-spacing:.02em;color:var(--ink)}
+.sdmvs h4.c2who .spr{width:32px;height:32px}
+.sdmvs h4.c2who small{font-family:var(--body,inherit);font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
+.sdmvs.me h4.c2who>span{color:var(--accent)}.sdmvs.foe h4.c2who>span{color:#ff8f8f}
+.c2 .sdmv{padding:4px 8px}
+.c2 .sdpn>b{font-size:20px;line-height:1.1}
+.c2 .sdph .spr{width:48px;height:48px}
+/* Cálculo compacto */
+.c2res .sdmain{padding:8px 12px}
+.c2res .sddesc{margin:0 0 4px;font-size:13.5px}
+.c2res .sdrolls{margin:2px 0 4px;font-size:11.5px}
+.c2res .row-btns{margin-top:4px}
+/* Fichas: menos aire */
+.c2poke{padding:8px 10px}
+.c2poke .sdgrid{gap:4px 8px;margin-top:4px}
+.c2poke .sdgrid .field{font-size:11px;gap:2px}
+.c2poke .sdgrid input,.c2poke .sdgrid select{padding:3px 7px;font-size:12px}
+.c2stats th,.c2stats td{padding:1px 4px}
+.c2stats .cstep button{width:22px;height:22px;font-size:14px}
+.c2stats .cstep input{padding:2px 2px!important}
+.c2poke .sdhp{margin-top:4px}
+.c2poke .c2moves{gap:4px;margin-top:4px}
+.c2poke .c2mv{min-height:38px;padding:3px 7px}
+.c2poke .cforme{margin:2px 0}
+@container (min-width:1000px){.c2panels{grid-template-columns:minmax(0,1fr) minmax(200px,.62fr) minmax(0,1fr)}}
+/* Campo ordenado */
+.c2fld{padding:8px 10px}
+.c2fld .sdfrow{grid-template-columns:50px 1fr;margin-bottom:4px}
+.sdbtns.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.sdbtns.g3 button{padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c2fside{width:100%;border-collapse:collapse;margin-top:6px;font-size:11.5px}
+.c2fside thead th{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:2px 0;text-align:center}
+.c2fside tbody th{text-align:left;font-weight:600;color:var(--muted);padding:2px 4px 2px 0;white-space:nowrap}
+.c2fside td{text-align:center;padding:2px}
+.c2fside td button{width:100%;min-width:36px;height:22px;border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;color:var(--accent-ink);font-weight:800}
+.c2fside td button:hover{border-color:var(--accent)}
+.c2fside td button.on{background:var(--accent);border-color:var(--accent)}
+.c2fside tbody tr:nth-child(odd){background:rgba(255,255,255,.025)}
+
+/* ---------- 0.15 · Documento: índice a la izquierda y hojas nuevas ---------- */
+.dlay{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;align-items:start}
+.dtoc{position:sticky;top:140px;display:flex;flex-direction:column;gap:2px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--shell);max-height:calc(100vh - 160px);overflow:auto}
+.dtoc>b{font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);padding:0 6px 6px}
+.dtoc button{display:flex;align-items:baseline;gap:8px;padding:5px 6px;border:0;border-left:3px solid transparent;border-radius:6px;background:transparent;color:var(--muted);text-align:left;cursor:pointer;font-size:12.5px}
+.dtoc button small{font-family:var(--mono);font-size:10.5px;flex:none;width:16px}
+.dtoc button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtoc button:hover{color:var(--ink);background:var(--accent-soft)}
+.dtoc button.on{color:var(--ink);border-left-color:var(--accent);background:var(--accent-soft);font-weight:700}
+@media (max-width:1000px){.dlay{grid-template-columns:1fr}.dtoc{position:static;flex-direction:row;flex-wrap:wrap;max-height:none}}
+.dsheet .dmonbig{display:flex;gap:18px;align-items:center;margin:6px 0 10px}
+.dsheet .dmonbig>.spr{width:150px;height:150px;flex:none}
+.dsheet .dmonbi{flex:1;min-width:0}
+.dsheet .dmonbi h3{font-size:24px}
+.dsheet .dtypes{display:flex;gap:4px;margin:2px 0 6px}
+.dsheet .ditem{width:22px;height:22px;vertical-align:middle;margin-right:2px}
+.dsheet .dmstats{border-collapse:collapse;margin:6px 0;font-size:13px}
+.dsheet .dmstats th,.dsheet .dmstats td{padding:2px 10px;text-align:center;border:1px solid rgba(120,140,180,.3)}
+.dsheet .dmstats th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8}
+.dsheet .dmstats .dsp{font-size:11px;opacity:.75}
+.dsheet .dmoves{display:flex;flex-wrap:wrap;gap:4px}
+.dsheet .dmv{--tc:#5b6b99;padding:2px 9px;border-radius:6px;border-left:4px solid var(--tc);background:color-mix(in srgb,var(--tc) 22%,transparent);font-weight:600;font-size:12.5px}
+.dsheet .dmv.t-Fire{--tc:#ff7a3d}.dsheet .dmv.t-Water{--tc:#4a9dff}.dsheet .dmv.t-Grass{--tc:#5fd068}.dsheet .dmv.t-Electric{--tc:#e6b800}.dsheet .dmv.t-Ice{--tc:#5fc8e6}.dsheet .dmv.t-Fighting{--tc:#e0553d}.dsheet .dmv.t-Poison{--tc:#b55dd6}.dsheet .dmv.t-Ground{--tc:#d9a94a}.dsheet .dmv.t-Flying{--tc:#8fa4ef}.dsheet .dmv.t-Psychic{--tc:#ff5c9a}.dsheet .dmv.t-Bug{--tc:#a8c23a}.dsheet .dmv.t-Rock{--tc:#b8a05a}.dsheet .dmv.t-Ghost{--tc:#8a7be0}.dsheet .dmv.t-Dragon{--tc:#7a6cff}.dsheet .dmv.t-Dark{--tc:#8a7466}.dsheet .dmv.t-Steel{--tc:#9fb3c8}.dsheet .dmv.t-Fairy{--tc:#f08fd0}.dsheet .dmv.t-Normal{--tc:#b9b39c}
+.dsheet .dglance{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+.dsheet .dglance td{padding:3px 6px;border-bottom:1px solid rgba(120,140,180,.25);vertical-align:middle}
+.dsheet .dglance td:last-child{font-family:var(--mono);text-align:right}
+.dsheet .dreps,.dsheet .dsurv{margin:4px 0 10px;padding-left:18px}
+.dsheet .dreps li,.dsheet .dsurv li{margin:3px 0}
+.dsheet .dsurv li,.dsheet .dreps li{color:inherit}.dsheet .dw{color:#1fae68}.dsheet .dl{color:#e2445f}
+.dsheet.dark .dw{color:var(--good)}.dsheet.dark .dl{color:var(--bad)}
+.dsheet .dsurv li.dw,.dsheet .dsurv li.dl{color:inherit}.dsheet .dsurv li.dw::marker,.dsheet .dsurv li.dw b{color:#1fae68}.dsheet .dsurv li.dl::marker,.dsheet .dsurv li.dl b{color:#e2445f}
+.dsheet.dark .dsurv li.dw::marker,.dsheet.dark .dsurv li.dw b{color:var(--good)}.dsheet.dark .dsurv li.dl::marker,.dsheet.dark .dsurv li.dl b{color:var(--bad)}
+.dsheet .dsurv li b{display:inline-block;min-width:82px}
+.dsheet .dsurv .dcalc{color:inherit}
+.sha{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shh b{white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.shwide .sha{font-size:12px}
+/* Arena y ataques fijos arriba al bajar a los puntos: el daño se ve cambiar mientras tocas el reparto */
+#calcPage .c2top{position:sticky;top:44px;z-index:5;background:var(--shell);padding:6px 0;margin:-6px 0;box-shadow:0 8px 12px -8px rgba(0,0,0,.6)}
+.sdbtns.g3{grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}
+.sdbtns.g3 button{white-space:normal;line-height:1.15;overflow:visible}
+.murow.big .mubody{grid-template-rows:auto auto 1fr}
+.armid em{font-style:normal}

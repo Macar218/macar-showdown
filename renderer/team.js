@@ -113,7 +113,7 @@ const Team = (() => {
           <label class="field">Mote<input id="tbNick" value="${esc(m.nick || '')}" autocomplete="off" placeholder="Opcional"></label>
           <div class="tytags">${m.species ? P.typesOf(m.species).map(P.typeBadge).join('') : ''}</div></div>
         <span style="flex:1"></span>
-        ${draft ? '<span class="note">Escribe el Pokémon para añadirlo.</span>' : `<div class="row-btns" style="margin:0"><button class="btn sm" data-tleft="${T.slot}" title="Mover a la izquierda">◀</button><button class="btn sm" data-tright="${T.slot}" title="Mover a la derecha">▶</button><button class="btn sm" id="tbMore" title="Sets más usados, Mi PC y pegar el set">Más opciones</button><button class="btn sm danger" id="tbRm">Quitar</button></div>`}</div>
+        ${draft ? '<span class="note">Escribe el Pokémon para añadirlo.</span>' : `<div class="row-btns" style="margin:0"><button class="btn sm" data-tleft="${T.slot}" title="Mover a la izquierda">◀</button><button class="btn sm" data-tright="${T.slot}" title="Mover a la derecha">▶</button><button class="btn sm" id="tbMore" title="Sets más usados, Mi PC y pegar el set">Más opciones</button><button class="btn sm" id="tbSetPC" title="Guarda solo este Pokémon en Mi PC, en la caja del equipo">Set a Mi PC</button><button class="btn sm danger" id="tbRm">Quitar</button></div>`}</div>
       ${m.species ? `<div class="tbedgrid">${statsTable(m)}${infoBox(m)}</div>${T.mvOpen != null ? `<div class="tbmvhead">Movimiento ${T.mvOpen + 1}</div>${P.movePanel(m.species, T.U, T.TT, T.mvQ, m.moves)}` : ''}${T.itOpen ? P.itemPanel(m.species, T.U, T.TT, T.itTab, T.itQ) : ''}` : ''}
     </div>`;
   }
@@ -286,6 +286,7 @@ const Team = (() => {
     else if (t.id === 'tbCopy') { navigator.clipboard.writeText(team.text); T.msg = 'Equipo copiado (formato Showdown).'; render(); }
     else if (t.id === 'tbSd') toShowdown(team);
     else if (t.id === 'tbPC') { let n = 0; for (const x of S) { const r = await P.pcAdd(P.cleanSet(x), { name: `${x.species} · ${team.name}`, side: 'me', box: team.name }); if (r.ok) n++; } T.msg = n ? `${n} set${n > 1 ? 's' : ''} guardados en Mi PC.` : 'Esos sets ya están en tu PC.'; render(); }
+    else if (t.id === 'tbSetPC') { const x = S[T.slot]; if (!x) return; const r = await P.pcAdd(P.cleanSet(x), { name: `${x.species} · ${team.name}`, side: 'me', box: team.name }); T.msg = r.ok ? `${x.species} guardado en Mi PC (caja «${team.name}»).` : 'Ese set ya está en tu PC.'; render(); }
     else if (t.id === 'tbCalc') { Calc.setTeams(team.id); show('calc'); }
     else if (t.id === 'tbDel') { await Undo.snap('equipos', `Equipo «${team.name}» borrado`); await P.removeTeam(team.id); if (SET.teamId === team.id) await setMine(''); T.id = null; Calc.reloadTeams(); render(); }
     else if (d.tleft || d.tright) {

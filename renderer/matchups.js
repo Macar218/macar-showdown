@@ -77,9 +77,13 @@ const Matchups = (() => {
     const list = games(team.id, r.mons);
     const w = list.filter(s => s.result === 'win').length, l = list.filter(s => s.result === 'loss').length;
     const guess = r.arch ? '' : P.archetypeOf(r.mons.filter(Boolean));
-    const open = V.open === r.id;
-    return `<div class="murow" data-row="${r.id}">
+    const big = V.big === r.id;
+    const open = big || V.open === r.id;
+    let sheet = '';
+    if (big && r.sets) { try { const S = P.parseTeam(r.sets).sets; if (S.length) sheet = `<div class="mubigsets"><h4>Sus sets</h4><div class="shgrid shwide">${S.slice(0, 6).map(m => P.sheetCard(m)).join('')}</div></div>`; } catch (e) { sheet = ''; } }
+    return `<div class="murow${big ? ' big' : ''}" data-row="${r.id}">
       <div class="muhead"><span class="mun">${String(i + 1).padStart(2, '0')}</span>
+        <button class="btn sm${big ? '' : ' primary'}" data-mubig="${r.id}" title="${big ? 'Volver a la lista' : 'Abrirlo en grande para escribir y verlo con detalle'}">${big ? '← Todos' : '⤢ Abrir'}</button>
         <input class="muname" data-mf="name" value="${esc(r.name)}" placeholder="Nombre del matchup (p. ej. Sun · Chari-Floette)" maxlength="80">
         <input class="muarch" data-mf="arch" list="dlArch" value="${esc(r.arch)}" placeholder="${esc(guess || 'Arquetipo')}" maxlength="40" title="Arquetipo: Sun, Rain, Trick Room, Tailwind…${guess ? ` Detectado: ${guess}` : ''}">
         ${list.length ? `<button class="murec ${w > l ? 'win' : l > w ? 'loss' : ''}" data-murec="${r.id}" title="Tus partidas con este equipo contra él (al menos 4 de sus Pokémon)">${w}–${l}</button>` : '<span class="murec none" title="Aún no has jugado contra este equipo con el tuyo">sin partidas</span>'}
@@ -96,7 +100,9 @@ const Matchups = (() => {
         <div class="munotes"><h4>A tener en cuenta</h4><textarea data-mf="notes" placeholder="Qué vigilar, cálculos, cómo te abre, qué no puede pasar…">${esc(r.notes)}</textarea></div>
         ${planHTML(r, 'b', my)}
       </div>
-      ${open ? `<div class="mugames">${list.slice(0, 12).map(s => `<button class="gbtn ${s.result || ''}" data-view="${esc(s.id)}" title="${esc(new Date(s.endedAt).toLocaleDateString())} · vs ${esc(Stats.theirs(s).name)}">▶ ${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'} · ${esc(Stats.leadKey(Stats.mine(s).leads))}</button>`).join('')}</div>` : ''}
+      ${sheet}
+      ${big ? `<h4 class="mubigh">Tus partidas contra este equipo ${list.length ? `<span class="note">${w}–${l}</span>` : '<span class="note">ninguna aún</span>'}</h4>` : ''}
+      ${open ? `<div class="mugames">${list.slice(0, big ? 40 : 12).map(s => `<button class="gbtn ${s.result || ''}" data-view="${esc(s.id)}" title="${esc(new Date(s.endedAt).toLocaleDateString())} · vs ${esc(Stats.theirs(s).name)}">▶ ${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'} · ${esc(Stats.leadKey(Stats.mine(s).leads))}</button>`).join('')}</div>` : ''}
     </div>`;
   }
 
@@ -113,11 +119,12 @@ const Matchups = (() => {
     if (!team) { el.innerHTML = `${head}<div class="card"><p class="note">Crea tu equipo en el Teambuilder o empieza una sesión con él.</p></div>`; return; }
     const D = await ofTeam(team.id), my = mine(team);
     const q = V.q.trim().toLowerCase();
-    const rows = D.rows.filter(r => !q || [r.name, r.arch, ...r.mons].join(' ').toLowerCase().includes(q));
+    if (V.big && !D.rows.some(r => r.id === V.big)) V.big = null;
+    const rows = V.big ? D.rows.filter(r => r.id === V.big) : D.rows.filter(r => !q || [r.name, r.arch, ...r.mons].join(' ').toLowerCase().includes(q));
     el.innerHTML = `${head}
       <div class="mumine"><span class="mulbl">Tu equipo</span><b class="nolang">${esc(team.name)}</b><div class="muslots six">${my.map(n => slot(n, 'disabled')).join('')}</div>
         <div class="mulinks"><input id="muMyPaste" value="${esc(D.paste)}" placeholder="Tu Pokepaste">${D.paste ? `<button class="btn sm ibtn" data-muopen="${esc(D.paste)}" title="Abrir el Pokepaste">↗</button>` : ''}<input id="muMyCode" value="${esc(D.code)}" placeholder="Código" class="mucode" maxlength="20"></div></div>
-      <div class="mubar"><b class="mutitle">Matchups <span class="note">${D.rows.length}</span></b>
+      <div class="mubar${V.big ? ' hide' : ''}"><b class="mutitle">Matchups <span class="note">${D.rows.length}</span></b>
         <input id="muQ" value="${esc(V.q)}" placeholder="Buscar: nombre, arquetipo o Pokémon…">
         <button class="btn sm primary" data-muadd="blank">+ Matchup</button><button class="btn sm" data-muadd="paste" title="Desde un Pokepaste o pegando el equipo">+ Desde Pokepaste</button><button class="btn sm" data-muadd="games" title="Los equipos rivales de tus partidas con este equipo">+ De tus partidas</button><button class="btn sm" data-muadd="box" title="Los equipos rivales de tu Team Box (Mi PC)">+ De Team Box</button></div>
       ${V.msg ? `<p class="note mumsg">${esc(V.msg)}</p>` : ''}
@@ -212,6 +219,7 @@ const Matchups = (() => {
       if (d.muopen) { api.openExternal(d.muopen); return; }
       if (d.view) { Viewer.open(d.view); return; }
       if (d.murec) { V.open = V.open === d.murec ? null : d.murec; render(); return; }
+      if (d.mubig) { V.big = V.big === d.mubig ? null : d.mubig; V.pick = null; V.edit = null; await render(); const r = document.querySelector(`.murow[data-row="${CSS.escape(d.mubig)}"]`); if (r) r.scrollIntoView({ block: 'start' }); return; }
       if (d.mumon) { const [row, i] = d.mumon.split(':'); V.edit = { row, i: +i }; await render(); const inp = $('.muedit'); if (inp) { inp.focus(); inp.select(); } return; }
       if (d.muplan) { const [row, plan, i] = d.muplan.split(':'); V.pick = V.pick && V.pick.row === row && V.pick.plan === plan && V.pick.i === +i ? null : { row, plan, i: +i }; render(); return; }
       if (d.mupick != null && V.pick) {
@@ -258,7 +266,7 @@ const Matchups = (() => {
       }, 450);
     });
     el.addEventListener('change', async e => {
-      if (e.target.id === 'muTeam') { V.teamId = e.target.value; V.pick = null; V.edit = null; V.open = null; render(); }
+      if (e.target.id === 'muTeam') { V.teamId = e.target.value; V.pick = null; V.edit = null; V.open = null; V.big = null; render(); }
     });
     // Cambiar un Pokémon del rival: Intro o salir del cuadro guarda, Esc lo deja.
     const commit = async inp => {

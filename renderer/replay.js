@@ -45,8 +45,11 @@ const Viewer = (() => {
         <button class="btn sm" data-rv="side" title="Ver la partida desde el otro lado">⇄ Lados</button>
         <button class="btn sm ibtn mute" data-rv="mute" id="rvMute"></button>
       </div>
-      <div class="rvots" id="rvOts">${otsHTML()}</div>
-      <div class="rvtx nolang" id="rvTx">${txHTML()}</div>`;
+      <div class="rvtx nolang" id="rvTx">${txHTML()}</div>
+      <div class="rvnotes">
+        <div class="rvnhead"><h3>Notas</h3><button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button><span class="note">Pulsa una línea que empiece por [T5] para saltar a ese turno.</span><span style="flex:1"></span><span class="note" id="rvSaved"></span></div>
+        <textarea id="rvNotes" placeholder="Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
+      </div>`;
   }
 
   /* ---------- hoja de equipo (OTS): la del rival por defecto, con pestaña para ver la tuya ---------- */
@@ -57,18 +60,7 @@ const Viewer = (() => {
     const tabs = `<div class="seg rvotstabs">${[['foe', s.me ? 'Rival' : 'Jugador 2'], ['me', s.me ? 'Tú' : 'Jugador 1']].map(([k, l]) => `<button data-rvots="${k}" aria-pressed="${(V.otsSide || 'foe') === k}">${l}</button>`).join('')}</div>`;
     let body;
     if (x.sheet && x.sheet.length) {
-      body = x.sheet.map(m => {
-        const brought = (x.brought || []).some(b => P.toID(P.baseSpecies(b)) === P.toID(P.baseSpecies(m.species)));
-        const ab = /^[01H]$/.test(m.ability) ? '' : P.nameOf('abilities', m.ability);
-        const it = P.nameOf('items', m.item), ii = it && P.itemInfo(it);
-        const nat = m.nature && P.NAT[m.nature], natTxt = nat && nat.plus && nat.plus !== nat.minus ? `<span class="up">+${P.SL[nat.plus]}</span> <span class="dn">−${P.SL[nat.minus]}</span>` : (m.nature ? `<span class="note">${tt('neutra', 'neutral')}</span>` : '');
-        return `<div class="otscard${brought ? '' : ' out'}">
-          <div class="otsch">${spr(m.species)}<div><b class="nolang">${esc(m.species)}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div><em class="${brought ? 'in' : ''}">${brought ? tt('Jugó', 'Played') : tt('No salió', 'Benched')}</em></div>
-          <div class="otsrow"><span class="k">${tt('Objeto', 'Item')}</span><span class="v nolang">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}${esc(it || '—')}</span></div>
-          <div class="otsrow"><span class="k">${tt('Habilidad', 'Ability')}</span><span class="v nolang">${esc(ab || '—')}</span></div>
-          <div class="otsrow"><span class="k">${tt('Naturaleza', 'Nature')}</span><span class="v"><span class="nolang">${esc(m.nature || '—')}</span> ${natTxt}</span></div>
-          <div class="otsmoves">${[0, 1, 2, 3].map(k => P.moveTile(m.moves[k] ? P.nameOf('moves', m.moves[k]) : '')).join('')}</div></div>`;
-      }).join('');
+      body = x.sheet.map(m => P.sheetCard(m, { played: (x.brought || []).some(b => P.toID(P.baseSpecies(b)) === P.toID(P.baseSpecies(m.species))) })).join('');
     } else {
       const seen = x.moves || {};
       body = (x.preview && x.preview.length ? x.preview : x.brought || []).map(n => {
@@ -78,7 +70,7 @@ const Viewer = (() => {
       }).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
     }
     const open = V.otsOpen !== false;
-    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? (x.sheet && x.sheet.length ? `<div class="otsgrid big">${body}</div>` : `<div class="otsgrid nolang">${body}</div>`) : ''}`;
+    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? (x.sheet && x.sheet.length ? `<div class="shgrid">${body}</div>` : `<div class="otsgrid nolang">${body}</div>`) : ''}`;
   }
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
@@ -147,10 +139,7 @@ const Viewer = (() => {
         <aside class="rvside">
           <div class="rvteam me"><h3>${s.me ? 'Tú' : 'Jugador 1'}</h3>${monsHTML(s[a])}</div>
           <div class="rvteam foe"><h3>${s.me ? 'Rival' : 'Jugador 2'}</h3>${monsHTML(s[b])}</div>
-          <div class="rvnhead"><h3>Notas</h3><span class="note" id="rvSaved"></span></div>
-          <button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button>
-          <textarea id="rvNotes" placeholder="Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
-          <p class="note">Pulsa una línea que empiece por [T5] para saltar a ese turno.</p>
+          <div class="rvots" id="rvOts">${otsHTML()}</div>
         </aside>
       </div></div>`;
     NoteHL.wrap(document.querySelector('#rvNotes'));

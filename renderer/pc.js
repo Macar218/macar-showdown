@@ -5,20 +5,22 @@
 const PC = (() => {
   const V = { tab: 'sets', q: '', side: '', box: '', sort: 'new', page: 0, tq: '', tmine: false, tpage: 0, T: null, U: null, sel: null, msg: '' };
   const PAGE = 30;
-  /** Los sets de los equipos de tus sesiones se guardan solos en Mi PC (una caja por equipo) y se ponen al día. */
+  /** Los sets de todos tus equipos se guardan solos en Mi PC (una caja por equipo, con su nombre) y se ponen al día. */
   async function syncSessions() {
-    const sess = (typeof Sess !== 'undefined' ? await Sess.list() : []);
-    const ids = new Set(sess.map(x => x.teamId).filter(Boolean));
-    if (!ids.size) return false;
-    const teams = (await P.teams()).filter(t => ids.has(t.id));
+    const teams = (await P.teams()).filter(t => t.side === 'me' && t.text);
+    if (!teams.length) return false;
     const list = (await P.pcList()).slice();
     let changed = false;
     for (const t of teams) {
       for (const m of P.parseTeam(t.text).sets) {
         const key = `${t.id}|${P.toID(m.species)}`, text = P.exportSet(P.cleanSet(m));
         const old = list.find(x => x.auto === key);
-        if (old) { if (old.text !== text) { old.text = text; changed = true; } }
-        else { list.unshift({ id: newId('s'), name: '', notes: '', side: 'me', box: t.name, text, up: Date.now(), auto: key }); changed = true; }
+        const bx = String(t.name || '').slice(0, 40);
+        if (old) {
+          if (old.text !== text) { old.text = text; changed = true; }
+          // Si cambias el nombre del equipo, su caja también (salvo que la hayas movido tú a otra).
+          if ((old.abox === undefined || old.box === old.abox) && old.box !== bx) { old.box = bx; old.abox = bx; changed = true; }
+        } else { list.unshift({ id: newId('s'), name: '', notes: '', side: 'me', box: bx, abox: bx, text, up: Date.now(), auto: key }); changed = true; }
       }
     }
     if (changed) await DB.set('pc', list);
@@ -30,6 +32,7 @@ const PC = (() => {
     const el = $('#v-pc');
     if (!V.synced) { V.synced = true; try { await syncSessions(); } catch (e) { /* nada */ } }
     const [list, teams] = await Promise.all([P.pcList(), P.teams()]);
+    V.tnames = new Set(teams.filter(t => t.side === 'me').map(t => String(t.name || '').slice(0, 40)));
     const boxes = [...new Set(list.map(x => x.box).filter(Boolean))].sort();
     el.innerHTML = `<div class="head"><div><h1>Mi <span>PC</span></h1><p class="note" style="margin-top:4px">Tus sets y repartos guardados, y todos tus equipos. Se guardan en tu carpeta de datos.</p></div>
       <div class="seg">${[['sets', `Sets (${list.length})`], ['teams', `Team Box (${teams.length})`]].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${V.tab === k}">${l}</button>`).join('')}</div></div>
@@ -38,6 +41,12 @@ const PC = (() => {
     paintTeamSel();
   }
 
+  /** Las cajas: primero las de tus equipos y luego las demás (Rivales, las que crees tú). */
+  function boxOpts(list, boxes) {
+    const T = boxes.filter(b => V.tnames && V.tnames.has(b)), O = boxes.filter(b => !T.includes(b));
+    const o = b => `<option value="${esc(b)}"${b === V.box ? ' selected' : ''}>${esc(b)} (${list.filter(x => x.box === b).length})</option>`;
+    return (T.length ? `<optgroup label="Tus equipos">${T.map(o).join('')}</optgroup>` : '') + (O.length ? `<optgroup label="Otras cajas">${O.map(o).join('')}</optgroup>` : '');
+  }
   /** Caja como en los juegos: 30 huecos con el sprite; al pulsar uno, su ficha a la derecha. */
   function setsView(list, boxes) {
     const q = V.q.toLowerCase();
@@ -59,11 +68,11 @@ const PC = (() => {
         <input type="search" id="pcQ" placeholder="Buscar: nombre, Pokémon, objeto, movimiento, notas…" value="${esc(V.q)}">
         <div class="seg">${[['', `Todos (${nMe + nFoe})`], ['me', `Tus sets (${nMe})`], ['foe', `Sets de rivales (${nFoe})`]].map(([k, l]) => `<button data-pcside="${k}" aria-pressed="${V.side === k}">${l}</button>`).join('')}</div>
         <button class="btn primary" id="pcAdd">Añadir sets</button></div>
-      <p class="note" style="margin:-6px 0 10px">${V.side === 'foe' ? 'Los sets de rivales guardan lo que se ve en su hoja de equipo (objeto, habilidad, naturaleza y movimientos). Su reparto (SP) nunca se ve: se estima con el más común. Se traen desde Partidas.' : 'Los sets de los equipos de tus sesiones se guardan solos aquí, en una caja por equipo.'}</p>
+      <p class="note" style="margin:-6px 0 10px">${V.side === 'foe' ? 'Los sets de rivales guardan lo que se ve en su hoja de equipo (objeto, habilidad, naturaleza y movimientos). Su reparto (SP) nunca se ve: se estima con el más común. Se traen desde Partidas.' : 'Cada equipo tuyo tiene su caja, con el nombre del equipo y sus sets al día. «Todas las cajas» los enseña todos juntos.'}</p>
       <div class="pcwrap">
         <div class="pcbox2">
           <div class="pcboxhead"><button class="btn sm" data-pcbox="${bi - 1}"${bi > 0 ? '' : ' disabled'} title="Caja anterior">◀</button>
-            <select id="pcBox"><option value="">Todas las cajas (${list.length})</option>${boxes.map(b => `<option${b === V.box ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
+            <select id="pcBox" title="Cada equipo tuyo tiene su caja con sus sets"><option value="">Todas las cajas (${list.length})</option>${boxOpts(list, boxes)}</select>
             <button class="btn sm" data-pcbox="${bi + 1}"${bi < names.length - 1 ? '' : ' disabled'} title="Caja siguiente">▶</button>
             ${pages > 1 ? `<span class="note">${V.page + 1}/${pages}</span><button class="btn sm" id="pcPrev"${V.page ? '' : ' disabled'}>‹</button><button class="btn sm" id="pcNext"${V.page < pages - 1 ? '' : ' disabled'}>›</button>` : ''}</div>
           <div class="pcgrid">${slots.map(o => (o ? `<button class="pcslot ${o.x.side}${o.x.id === V.sel ? ' on' : ''}" data-psel="${o.x.id}" title="${esc(o.x.name || o.s.species)}">${spr(o.s.species, 'pcspr')}<small class="nolang">${esc(o.x.name || o.s.species)}</small>${o.x.side === 'foe' ? '<i class="pcfoe">Rival</i>' : ''}<span class="pcx" data-pcx="${o.x.id}" role="button" title="Borrar de Mi PC (Ctrl+Z para deshacer)">×</span></button>` : '<span class="pcslot empty"></span>')).join('')}</div>

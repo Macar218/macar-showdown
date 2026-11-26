@@ -372,6 +372,25 @@ const P = (() => {
     return `<${tag} class="tbmv mvt${d ? ` t-${esc(d.type)}` : ''}${cls ? ` ${cls}` : ''}" ${attrs}><b class="nolang">${esc(name)}</b><span class="mvtm">${d ? typeBadge(d.type) : ''}<small>${esc(meta)}</small></span></${tag}>`;
   }
   /**
+   * Hoja de equipo compacta (3 + 3): sprite, nombre y tipos; objeto y habilidad; naturaleza; los 4 ataques
+   * coloreados por su tipo (sin la etiqueta). m = un Pokémon de la hoja { species, item, ability, nature, moves }.
+   * o.played: true / false (salió o no) · o.btn: HTML extra al pie.
+   */
+  function sheetCard(m, o = {}) {
+    const ab = /^[01H]$/.test(m.ability || '') ? '' : nameOf('abilities', m.ability || '');
+    const it = m.item ? nameOf('items', m.item) : '', ii = it && itemInfo(it);
+    const nat = m.nature && NAT[m.nature];
+    const natTxt = nat && nat.plus && nat.plus !== nat.minus ? ` <span class="up">+${SL[nat.plus]}</span> <span class="dn">−${SL[nat.minus]}</span>` : '';
+    const mv = (m.moves || []).slice(0, 4).map(x => { const n = nameOf('moves', x), d = moveOf(n); return `<span class="shmv${d ? ` t-${esc(d.type)}` : ''}${d && d.category === 'Status' ? ' st' : ''}" title="${esc(d ? `${TYPES_ES[d.type] || d.type} · ${CATS[d.category] || ''}${d.basePower ? ` · ${d.basePower}` : ''}` : n)}">${esc(n)}</span>`; });
+    while (mv.length < 4) mv.push('<span class="shmv empty">—</span>');
+    const badge = o.played == null ? '' : `<em class="${o.played ? 'in' : ''}">${o.played ? 'Jugó' : 'No salió'}</em>`;
+    return `<div class="shc${o.played === false ? ' out' : ''}">
+      <div class="shh">${spr(m.species, 'sm')}<b class="nolang">${esc(m.species)}</b><span class="shty">${typesOf(m.species).map(typeDot).join('')}</span>${badge}</div>
+      <div class="shi nolang" title="${esc(it || '')}">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}<span>${esc(it || '—')}</span></div>${ab ? `<div class="sha nolang" title="${esc(ab)}">${esc(ab)}</div>` : ''}
+      ${m.nature ? `<div class="shn"><span class="nolang">${esc(m.nature)}</span>${natTxt}</div>` : ''}
+      <div class="shm nolang">${mv.join('')}</div>${o.btn || ''}</div>`;
+  }
+  /**
    * Estadísticas claras: cada stat con su valor final, una barra, la base y los puntos (SP) que lleva;
    * la naturaleza marca ▲ y ▼. guess: el reparto no se conoce (rival) y es el más común.
    */
@@ -649,6 +668,8 @@ const P = (() => {
     const PC = await pcList();
     const box = $('#modalBox');
     let msg = '', itOpen = false, itTab = 'top', itQ = '';
+    // Lo que ya lleva el set sale en verde; pulsarlo otra vez lo quita.
+    const isOn = (attr, v) => (attr === 'umove' ? m.moves.includes(v) : attr === 'uitem' ? m.item === v : attr === 'uab' ? m.ability === v : attr === 'unat' ? m.nature === v : false);
     const draw = () => {
       const tot = m.sp.reduce((a, b) => a + b, 0);
       const u = m.species ? usageOf(U, m.species) : null;
@@ -672,16 +693,16 @@ const P = (() => {
         ${opts.live ? `<div class="ed" style="margin-top:12px">
           <label class="field">Estado<select id="eSt">${STATUS.map(([k, l]) => `<option value="${k}"${k === m.status ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
           <label class="field">PS (%)<input type="number" id="eHp" min="0" max="100" value="${Math.round(m.hp)}"></label></div>` : ''}
-        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn${attr === 'umove' && m.moves.includes(table ? nameOf(table, k) : k) ? ' on' : ''}" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
+        ${m.species && tourOf(T, m.species) ? (() => { const t = tourOf(T, m.species); const ch = (arr, attr, table) => arr.map(([k, pc]) => `<button class="chipbtn${isOn(attr, table ? nameOf(table, k) : k) ? ' on' : ''}" data-${attr}="${esc(table ? nameOf(table, k) : k)}">${esc(table ? nameOf(table, k) : k)} <em>${String(pc).replace('.', DEC())}%</em></button>`).join(''); return `<div class="flabel" style="margin-top:14px">Más llevados en torneos <span class="note">· ${t.n} equipos de los últimos ${T.days} días (Limitless) · pulsa para ponerlo</span></div><div class="uset tourset">
           <div><small>Objetos</small>${ch(t.items, 'uitem', 'items')}</div>
           <div><small>Habilidades</small>${ch(t.abilities, 'uab', 'abilities')}</div>
           <div><small>Naturalezas</small>${ch(t.natures, 'unat', null)}</div>
           <div><small>Movimientos</small>${ch(t.moves, 'umove', 'moves')}</div>
           <div><button class="btn sm" data-tourset="1">Poner el set de torneo entero</button></div></div>`; })() : ''}
-        ${u ? `<div class="flabel" style="margin-top:14px">Más usados en Smogon <span class="note">· pulsa para ponerlo</span></div><div class="uset">
-          <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn" data-spread="${i}">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', DEC())}%</em></button>`).join('')}</div>
-          <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
-          <div><small>Habilidades</small>${u.abilities.map(([k, pc]) => `<button class="chipbtn" data-uab="${esc(nameOf('abilities', k))}">${esc(nameOf('abilities', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+        ${u ? `<div class="flabel" style="margin-top:14px">Más usados en Smogon <span class="note">· pulsa para ponerlo; en verde, lo que ya lleva (pulsa otra vez para quitarlo)</span></div><div class="uset">
+          <div><small>Repartos</small>${u.spreads.map((s, i) => `<button class="chipbtn${s.nature === m.nature && s.sp.every((v, j) => Math.min(SP_MAX, v || 0) === m.sp[j]) ? ' on' : ''}" data-spread="${i}" title="Pulsa para ponerlo; si está en verde, para quitarlo">${esc(s.nature)} ${s.sp.join('/')} <em>${String(s.pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+          <div><small>Objetos</small>${u.items.map(([k, pc]) => `<button class="chipbtn${isOn('uitem', nameOf('items', k)) ? ' on' : ''}" data-uitem="${esc(nameOf('items', k))}">${esc(nameOf('items', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
+          <div><small>Habilidades</small>${u.abilities.map(([k, pc]) => `<button class="chipbtn${isOn('uab', nameOf('abilities', k)) ? ' on' : ''}" data-uab="${esc(nameOf('abilities', k))}">${esc(nameOf('abilities', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div>
           <div><small>Movimientos</small>${u.moves.map(([k, pc]) => `<button class="chipbtn${m.moves.includes(nameOf('moves', k)) ? ' on' : ''}" data-umove="${esc(nameOf('moves', k))}">${esc(nameOf('moves', k))} <em>${String(pc).replace('.', DEC())}%</em></button>`).join('')}</div></div>` : ''}
         ${mine.length ? `<div class="flabel" style="margin-top:14px">En Mi PC</div><div class="pcpick">${mine.slice(0, 30).map(x => { const s = parseSet(x.text) || {}; return `<button class="chipbtn" data-pc="${esc(x.id)}" title="${esc(x.notes || '')}">${s.species ? spr(s.species, 'xs') : ''}${esc(x.name || s.species || '')}</button>`; }).join('')}</div>` : ''}
         <details class="pastebox"><summary>Pegar o copiar el set (formato Showdown)</summary>
@@ -723,10 +744,10 @@ const P = (() => {
       if (t.dataset.itopen) { readForm(); itOpen = !itOpen; itQ = ''; draw(); return; }
       if (t.dataset.ittab) { readForm(); itTab = t.dataset.ittab; itQ = ''; draw(); return; }
       if (t.dataset.pickitem != null) { readForm(); m.item = t.dataset.pickitem; itOpen = false; draw(); return; }
-      if (t.dataset.spread != null) { readForm(); const s = u.spreads[+t.dataset.spread]; m.nature = NAT[s.nature] ? s.nature : m.nature; m.sp = s.sp.map(x => Math.min(SP_MAX, x || 0)); draw(); }
-      else if (t.dataset.uitem != null) { readForm(); m.item = t.dataset.uitem; draw(); }
-      else if (t.dataset.uab != null) { readForm(); m.ability = t.dataset.uab; draw(); }
-      else if (t.dataset.unat != null) { readForm(); if (NAT[t.dataset.unat]) m.nature = t.dataset.unat; draw(); }
+      if (t.dataset.spread != null) { readForm(); if (t.classList.contains('on')) { m.sp = [0, 0, 0, 0, 0, 0]; m.nature = 'Hardy'; } else { const s = u.spreads[+t.dataset.spread]; m.nature = NAT[s.nature] ? s.nature : m.nature; m.sp = s.sp.map(x => Math.min(SP_MAX, x || 0)); } draw(); }
+      else if (t.dataset.uitem != null) { readForm(); m.item = m.item === t.dataset.uitem ? '' : t.dataset.uitem; draw(); }
+      else if (t.dataset.uab != null) { readForm(); if (m.ability !== t.dataset.uab) m.ability = t.dataset.uab; else { const o = abilitiesOf(m.species).find(a => a !== m.ability); if (o) m.ability = o; } draw(); }
+      else if (t.dataset.unat != null) { readForm(); if (NAT[t.dataset.unat]) m.nature = m.nature === t.dataset.unat ? 'Hardy' : t.dataset.unat; draw(); }
       else if (t.dataset.tourset != null) { readForm(); const s = tourSet(T, U, m.species); if (s) Object.assign(m, { item: s.item, ability: s.ability, nature: s.nature, moves: s.moves, sp: s.sp }); draw(); }
       else if (t.dataset.umove != null) {
         // Ya lo lleva: se quita. Si no, va al primer hueco libre; con los 4 puestos, primero quita uno con ×.
@@ -849,7 +870,7 @@ const P = (() => {
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, archetypeOf, ARCHETYPES, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
     blankSide, blankField, mkPoke, mkField, damage, speed, autoField, megaOf,
-    pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, statBlock, spLine,
+    pct, koClass, koEs, bar, cell, typeDot, typeBadge, moveTile, sheetCard, statBlock, spLine,
     usage, usageOf, usageSet, usageRank, tour, tourOf, tourSet, tourTeamSets, tourRank, spreadFor, unpackSheet, spreadGuess, sheetSet,
     teams, teamById, saveTeam, removeTeam, myTeam, pcList, pcAdd,
     openEditor, datalists, itemPanel, movePanel, dex, dexSet, moveInfo, learnOf

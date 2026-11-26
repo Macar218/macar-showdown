@@ -23,7 +23,7 @@ const Doc = (() => {
   ];
   const nid = p => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const block = (type, html, extra = {}) => ({ id: nid('b'), type, html, on: true, ...extra });
-  const page = blocks => ({ id: nid('p'), blocks });
+  const page = (blocks, title = '') => ({ id: nid('p'), blocks, ...(title ? { title } : {}) });
   const fill = t => `<span class="fill">${esc(t)}</span>`;
   const pctTxt = (w, n) => (n ? `${w}–${n - w} (${Math.round((w / n) * 100)}%)` : '—');
 
@@ -35,8 +35,9 @@ const Doc = (() => {
     const r = Stats.compute(ms);
     const MU = typeof Matchups !== 'undefined' ? await Matchups.forDoc(team.id) : { paste: '', code: '', rows: [] };
     const pages = [];
+    const foes = threats(U, T, r);
 
-    // 1. Portada: tu equipo
+    // 1. Resumen: tu equipo de un vistazo
     pages.push(page([
       block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · Reg M-C · ${new Date().toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
       block('kv', `<p><b>Pokepaste del equipo:</b> ${MU.paste ? `<a href="${esc(MU.paste)}">${esc(MU.paste)}</a>` : fill('pega aquí el enlace')}</p><p><b>Código de alquiler:</b> ${MU.code ? esc(MU.code) : fill('—')}</p>${ms.length ? `<p><b>Récord con Macar Showdown:</b> ${pctTxt(r.w, r.n)} en ${r.n} partidas${r.eloNow ? ` · ELO ${r.eloNow}` : ''}</p>` : ''}`),
@@ -46,37 +47,38 @@ const Doc = (() => {
         <p><b>Por qué este equipo.</b> ${fill('Qué viste en el metajuego y qué querías aprovechar.')}</p>
         <p><b>Cómo gana.</b> ${fill('El plan principal y los alternativos. Sus puntos fuertes y débiles.')}</p>
         <p><b>Gracias a…</b> ${fill('Quién te ha ayudado o de dónde salió la idea.')}</p>`),
-      block('hint', '<p><b>Huecos para rellenar:</b> lo que está en gris cursiva no sale en el PDF hasta que lo escribas. Cada parte sale en el PDF: quítala con el ojo (👁) o con × si no la quieres.</p>', { on: false })
-    ]));
+      block('hint', '<p><b>Huecos para rellenar:</b> lo que está en gris cursiva no sale en el PDF hasta que lo escribas. Cada parte sale en el PDF: quítala con el ojo (👁) o con × si no la quieres.</p>', { on: false }),
+      ...(MU.rows.length ? [block('glance', glanceHTML(MU.rows))] : []),
+      ...(r.oppPreview.length ? [block('p', `<p><b>Lo más jugado.</b> Lo que más te encuentras: ${r.oppPreview.slice(0, 8).map(x => `${esc(x.key)} (${x.n})`).join(', ')}. Cómo te suelen abrir: ${r.oppLeads.slice(0, 3).map(x => `${esc(x.key)} (${x.n})`).join(' · ') || '—'}.</p>`)] : [])
+    ], 'Resumen'));
 
-    // 2. Sets y cálculos clave
-    const foes = threats(U, T, r);
+    // 2. Una hoja por Pokémon: el Pokémon en grande con sus características y luego sus cálculos.
     const speedNote = [];
     if (sets.some(m => m.moves.some(x => P.toID(x) === 'tailwind'))) speedNote.push('Tu equipo lleva Tailwind: la Velocidad cuenta la mitad con él puesto.');
     if (sets.some(m => m.moves.some(x => P.toID(x) === 'trickroom'))) speedNote.push('Tu equipo lleva Trick Room: los lentos no gastan en Velocidad.');
-    let cur = [block('h', '<h2>Sets y cálculos clave de cada Pokémon</h2>')];
-    if (speedNote.length) cur.push(block('key', `<p>${speedNote.map(esc).join('<br>')}</p>`));
     sets.forEach((m, i) => {
-      cur.push(block('mon', monHTML(m, foes)));
-      if ((i % 2 === 1 || i === sets.length - 1) && cur.length) { pages.push(page(cur)); cur = []; }
+      const bl = [];
+      if (i === 0) bl.push(block('h', '<h2>Sets y cálculos clave de cada Pokémon</h2>'));
+      if (i === 0 && speedNote.length) bl.push(block('key', `<p>${speedNote.map(esc).join('<br>')}</p>`));
+      bl.push(block('mon', monHTML(m, foes)));
+      bl.push(block('box', `<h3>Notas de ${esc(m.species)}</h3><p>${fill('Cómo se juega, cuándo traerlo y cuándo no.')}</p>`));
+      pages.push(page(bl, m.species));
     });
 
-    // 3. Guía de matchups
-    const mu = [block('h', '<h2>Guía de matchups</h2>', { mu: true })];
-    if (r.oppPreview.length) {
-      mu.push(block('p', `<p><b>Lo más jugado.</b> Lo que más te encuentras: ${r.oppPreview.slice(0, 8).map(x => `${esc(x.key)} (${x.n})`).join(', ')}. Cómo te suelen abrir: ${r.oppLeads.slice(0, 3).map(x => `${esc(x.key)} (${x.n})`).join(' · ') || '—'}.</p>`));
-    }
-    // Tus matchups (pantalla Matchups) mandan; si no tienes, los rivales del Team Box y lo que más te encuentras.
-    if (MU.rows.length) for (const x of MU.rows) mu.push(block('match', muHTML(x), { mu: true }));
+    // 3. Guía de matchups (2 por hoja) y 4. replays por matchup: salen de la pantalla Matchups.
+    if (MU.rows.length) pages.push(...muPages(MU.rows));
     else {
+      const mu = [block('h', '<h2>Guía de matchups</h2>')];
       const rivals = (await P.teams()).filter(t => t.side === 'foe');
       let n = 0;
       for (const t of rivals.slice(0, 8)) { mu.push(block('match', rivalTeamHTML(t, ms))); n++; }
       for (const x of r.oppPreview.slice(0, Math.max(0, 6 - n))) mu.push(block('match', rivalMonHTML(x.key, ms)));
+      if (mu.length === 1) mu.push(block('box', `<h3>Equipo rival</h3><p>${fill('Prepara tus matchups en la pantalla Matchups (o añade equipos rivales en Mi PC → Team Box) y aquí salen con tu plan, tu récord y sus replays.')}</p>`));
+      pages.push(page(mu, 'Guía de matchups'));
     }
-    if (mu.length === 1) mu.push(block('box', `<h3>Equipo rival</h3><p>${fill('Añade equipos rivales en Mi PC → Team Box (o juega partidas con este equipo) y aquí salen sus matchups con tu récord, con qué ganas y sus replays.')}</p>`));
-    mu.push(block('box', `<h3>Notas</h3><p>${fill('Escribe aquí…')}</p>`));
-    pages.push(page(mu));
+
+    // 5. Otros cálculos importantes: los golpes al límite (supervivencia).
+    pages.push(page([block('h', '<h2>Otros cálculos importantes</h2>'), block('surv', survHTML(sets, foes)), block('box', `<h3>Más cálculos</h3><p>${fill('Añade aquí los cálculos que te importen: qué tienes que aguantar sí o sí, qué KOs necesitas.')}</p>`)], 'Otros cálculos'));
     if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') for (const pg of pages) for (const b of pg.blocks) b.html = I18N.trHTML(b.html);
     return { v: 2, teamId: team.id, style: 'dark', zoom: 1, pages, up: Date.now() };
   }
@@ -100,23 +102,31 @@ const Doc = (() => {
     }
     off.sort((a, b) => b.pHi - a.pHi); def.sort((a, b) => b.pHi - a.pHi);
     const line = x => `<li class="dcalc">${esc(x.desc)}</li>`;
-    return `<div class="dmonhead">${spr(m.species)}<div><h3>${esc(m.species)} @ ${esc(m.item || 'Sin objeto')}</h3><p class="dsub">${esc(m.ability)} · ${esc(P.natLabel(m.nature))} · ${esc(P.spLine(m))} · ${m.moves.filter(Boolean).map(esc).join(' / ')}</p></div></div>
+    const st = P.stats(m) || {}, mega = P.megaOf(m), spe = P.speed(m, P.blankField(), 'me');
+    const faster = foes.filter(f => P.speed(f, P.blankField(), 'foe') < spe).map(f => P.baseSpecies(f.species)), slower = foes.filter(f => P.speed(f, P.blankField(), 'foe') > spe).map(f => P.baseSpecies(f.species));
+    const it = m.item && P.itemInfo(m.item);
+    return `<div class="dmonbig">${spr(mega, 'huge')}<div class="dmonbi"><h3>${esc(m.species)}${mega !== m.species ? ` <span class="darch">${esc(mega)}</span>` : ''}</h3>
+        <div class="dtypes">${P.typesOf(mega).map(P.typeBadge).join('')}</div>
+        <p><b>Objeto:</b> ${it && it.img ? `<img class="ditem" src="${it.img}" alt="">` : ''}${esc(m.item || 'Sin objeto')} · <b>Habilidad:</b> ${esc(mega !== m.species ? P.abilitiesOf(mega)[0] || m.ability : m.ability)} · <b>Naturaleza:</b> ${esc(P.natLabel(m.nature))}</p>
+        <table class="dmstats"><tr>${P.STATS.map(k => `<th>${P.SL[k]}</th>`).join('')}</tr><tr>${P.STATS.map(k => `<td><b>${st[k] ?? ''}</b></td>`).join('')}</tr><tr>${P.STATS.map((k, i) => `<td class="dsp">${m.sp[i] ? `${m.sp[i]} SP` : '—'}</td>`).join('')}</tr></table>
+        <p class="dmoves">${m.moves.filter(Boolean).map(x => { const d = P.moveOf(x); return `<span class="dmv${d ? ` t-${esc(d.type)}` : ''}">${esc(x)}</span>`; }).join('')}</p></div></div>
       <p><b>Para qué está pensado este reparto.</b> ${fill('Qué aguanta, a quién supera en velocidad y qué KOs busca.')}</p>
-      ${off.length ? `<p><b>Cálculos ofensivos clave:</b></p><ul>${off.slice(0, 4).map(line).join('')}</ul>` : ''}
-      ${def.length ? `<p><b>Cálculos defensivos clave:</b></p><ul>${def.slice(0, 3).map(line).join('')}</ul>` : ''}`;
+      <p><b>Velocidad ${spe}.</b> ${faster.length ? `Más rápido que ${faster.slice(0, 6).map(esc).join(', ')}.` : ''} ${slower.length ? `Más lento que ${slower.slice(0, 6).map(esc).join(', ')}.` : ''}</p>
+      ${off.length ? `<p><b>Cálculos ofensivos clave:</b></p><ul>${off.slice(0, 7).map(line).join('')}</ul>` : ''}
+      ${def.length ? `<p><b>Cálculos defensivos clave:</b></p><ul>${def.slice(0, 6).map(line).join('')}</ul>` : ''}`;
   }
   /** Partidas contra un equipo rival: las que comparten al menos 4 de sus Pokémon. */
   function vsTeam(ms, ids) {
     return ms.filter(s => { const pv = Stats.theirs(s).preview.map(x => P.toID(P.baseSpecies(x))); return ids.filter(i => pv.includes(i)).length >= Math.min(4, ids.length); });
   }
-  function matchupBody(sub) {
+  function matchupBody(sub, noRep) {
     const rr = Stats.compute(sub);
     const winLeads = (() => { const m = new Map(); for (const s of sub) if (s.result === 'win') { const k = Stats.leadKey(Stats.mine(s).leads); m.set(k, (m.get(k) || 0) + 1); } return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2); })();
     const rep = res => sub.filter(s => s.result === res && s.replay).slice(0, 4).map(s => `<a href="${esc(s.replay)}">${esc(s.replay.replace('https://replay.pokemonshowdown.com/', ''))}</a>`).join(' · ');
     return `<p><b>Récord:</b> ${sub.length ? pctTxt(rr.w, rr.n) : 'aún sin partidas'}${rr.oppLeads[0] ? ` · <b>Te abre con:</b> ${esc(rr.oppLeads[0].key)}` : ''}</p>
       <p><b>Ganas con:</b> ${winLeads.length ? winLeads.map(([k, c]) => `${esc(k)} (${c})`).join(' · ') : fill('tu lead y lo que traes atrás')}</p>
       <p><b>Claves para ganar el matchup.</b> ${fill('La idea clave.')}</p>
-      <p class="drep"><b>Replays ganadas:</b> ${rep('win') || '—'}</p><p class="drep"><b>Replays perdidas:</b> ${rep('loss') || '—'}</p>`;
+      ${noRep ? '' : `<p class="drep"><b>Replays ganadas:</b> ${rep('win') || '—'}</p><p class="drep"><b>Replays perdidas:</b> ${rep('loss') || '—'}</p>`}`;
   }
   /** Un matchup de la pantalla Matchups: el rival, su arquetipo, Plan A, qué tener en cuenta y Plan B, y tu récord. */
   function muHTML(x) {
@@ -125,7 +135,42 @@ const Doc = (() => {
       <div class="drow">${x.mons.filter(Boolean).map(n => spr(n, 'sm')).join('')}</div>
       ${x.paste || x.code ? `<p class="dsub">${x.paste ? `Pokepaste: <a href="${esc(x.paste)}">${esc(x.paste)}</a>` : ''}${x.paste && x.code ? ' · ' : ''}${x.code ? `Código: ${esc(x.code)}` : ''}</p>` : ''}
       <div class="dmuplan"><div><b>Plan A</b>${plan(x.a)}</div><div><b>A tener en cuenta</b><p>${x.notes ? esc(x.notes).split('\n').join('<br>') : fill('Qué vigilar en este matchup.')}</p></div><div><b>Plan B</b>${plan(x.b)}</div></div>
-      ${matchupBody(x.games || [])}`;
+      ${matchupBody(x.games || [], true)}`;
+  }
+  /** La guía de matchups (2 por hoja) y las replays de cada uno. Todo con mu: true para poder rehacerlo. */
+  function muPages(rows) {
+    const out = [];
+    for (let i = 0; i < rows.length; i += 2) {
+      const bl = rows.slice(i, i + 2).map(x => block('match', muHTML(x), { mu: true }));
+      if (!i) bl.unshift(block('h', '<h2>Guía de matchups</h2>', { mu: true }));
+      out.push(page(bl, rows.length > 2 ? `Guía de matchups ${i / 2 + 1}` : 'Guía de matchups'));
+    }
+    const rep = [block('h', '<h2>Replays por matchup</h2>', { mu: true }), ...rows.map(x => block('reps', repHTML(x), { mu: true }))];
+    out.push(page(rep, 'Replays por matchup'));
+    return out;
+  }
+  /** Las replays de un matchup: las subidas, con enlace; las demás, para verlas en la app. */
+  function repHTML(x) {
+    const g = x.games || [];
+    const row = s => { const me = Stats.mine(s), op = Stats.theirs(s); return `<li><b class="${s.result === 'win' ? 'dw' : s.result === 'loss' ? 'dl' : ''}">${s.result === 'win' ? 'V' : s.result === 'loss' ? 'D' : 'E'}</b> ${me.leads.map(n => spr(n, 'xs')).join('')} vs ${op.leads.map(n => spr(n, 'xs')).join('')} · ${esc(op.name)} · ${new Date(s.endedAt).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'short' })}${s.replay ? ` · <a href="${esc(s.replay)}">${esc(s.replay.replace('https://replay.pokemonshowdown.com/', ''))}</a>` : ''}</li>`; };
+    return `<h3>${esc(x.name || 'Matchup')}${x.arch ? ` <span class="darch">${esc(x.arch)}</span>` : ''}</h3><div class="drow">${x.mons.filter(Boolean).map(n => spr(n, 'xs')).join('')}</div>
+      ${g.length ? `<ul class="dreps">${g.slice(0, 8).map(row).join('')}</ul>` : `<p>${fill('Aún no hay partidas contra este equipo: pega aquí replays de referencia.')}</p>`}`;
+  }
+  /** Resumen de los matchups en la portada: rival, arquetipo y Plan A. */
+  function glanceHTML(rows) {
+    return `<h3>Matchups de un vistazo</h3><table class="dglance"><tbody>${rows.slice(0, 10).map(x => { const w = (x.games || []).filter(s => s.result === 'win').length, l = (x.games || []).filter(s => s.result === 'loss').length; return `<tr><td><b>${esc(x.name || x.mons.filter(Boolean).slice(0, 2).join(' + ') || 'Matchup')}</b>${x.arch ? ` <span class="darch">${esc(x.arch)}</span>` : ''}</td><td>${x.mons.filter(Boolean).map(n => spr(n, 'xs')).join('')}</td><td>${x.a.slice(0, 2).filter(Boolean).map(n => spr(n, 'xs')).join('')}<span class="dsep">|</span>${x.a.slice(2).filter(Boolean).map(n => spr(n, 'xs')).join('')}</td><td>${w + l ? `${w}–${l}` : '—'}</td></tr>`; }).join('')}</tbody></table>`;
+  }
+  /** Supervivencia: los golpes de las amenazas que se quedan cerca del KO (aguantas justo o caes justo). */
+  function survHTML(sets, foes) {
+    const L = [];
+    for (const m of sets) for (const f of foes) for (const mv of f.moves) {
+      const x = P.damage(f, m, mv, P.blankField(), 'foe');
+      if (x && !x.err && x.hi > 0 && x.pHi >= 70 && x.pLo <= 130) L.push({ m, x });
+    }
+    L.sort((a, b) => Math.abs(100 - a.x.pHi) - Math.abs(100 - b.x.pHi));
+    const seen = new Set(), top = L.filter(o => { const k = `${o.m.species}|${o.x.desc.split(':')[0]}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 14);
+    if (!top.length) return `<h3>Supervivencia</h3><p>${fill('No hay golpes al límite contra lo que más se ve.')}</p>`;
+    return `<h3>Supervivencia: golpes al límite</h3><p class="dsub">Lo que más se ve contra tu equipo, cerca del KO: si aguantas o no depende del reparto.</p><ul class="dsurv">${top.map(o => `<li class="${o.x.pHi < 100 ? 'dw' : 'dl'}"><b>${o.x.pHi < 100 ? 'Aguanta' : o.x.pLo >= 100 ? 'Cae' : 'Puede caer'}</b> <span class="dcalc">${esc(o.x.desc)}</span></li>`).join('')}</ul>`;
   }
   /** La guía de matchups de la pantalla Matchups, al documento: sustituye la que hubiera o va en una hoja nueva. */
   async function putMatchups(teamId) {
@@ -134,17 +179,17 @@ const Doc = (() => {
     let doc = await getDoc(teamId);
     if (!doc) { doc = await generate(team); await saveDoc(doc); V.teamId = teamId; return; }
     const MU = await Matchups.forDoc(teamId);
-    let fresh = [block('h', '<h2>Guía de matchups</h2>', { mu: true }), ...MU.rows.map(x => block('match', muHTML(x), { mu: true }))];
-    if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') fresh = fresh.map(b => ({ ...b, html: I18N.trHTML(b.html) }));
-    let at = null;
-    for (const p of doc.pages) {
-      const i = p.blocks.findIndex(b => b.mu || (b.type === 'h' && /Guía de matchups|Matchup guide/.test(b.html)));
-      if (i >= 0 && !at) at = { p, i };
-      p.blocks = p.blocks.filter(b => !b.mu && !(b.type === 'h' && /Guía de matchups|Matchup guide/.test(b.html)));
-    }
-    if (at) at.p.blocks.splice(Math.min(at.i, at.p.blocks.length), 0, ...fresh);
-    else doc.pages.push(page(fresh));
+    const fresh = MU.rows.length ? muPages(MU.rows) : [page([block('h', '<h2>Guía de matchups</h2>', { mu: true })], 'Guía de matchups')];
+    if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') for (const p of fresh) for (const b of p.blocks) b.html = I18N.trHTML(b.html);
+    // Donde estaba la guía: se quita la vieja (y sus hojas vacías) y se ponen las nuevas en su sitio.
+    const isMu = b => b.mu || (b.type === 'h' && /Guía de matchups|Matchup guide|Replays por matchup|Replays by matchup/.test(b.html));
+    let at = doc.pages.findIndex(p => p.blocks.some(isMu));
+    const before = at < 0 ? doc.pages.length : doc.pages.slice(0, at).filter(p => p.blocks.some(b => !isMu(b))).length;
+    for (const p of doc.pages) p.blocks = p.blocks.filter(b => !isMu(b));
     doc.pages = doc.pages.filter(p => p.blocks.length);
+    at = Math.min(before, doc.pages.length);
+    // Si la hoja de antes se quedó con otros bloques (p. ej. notas), la guía va justo detrás.
+    doc.pages.splice(at, 0, ...fresh);
     await saveDoc(doc);
     V.teamId = teamId;
   }
@@ -198,6 +243,15 @@ const Doc = (() => {
   }
 
   /* ================= pintar ================= */
+  /** El nombre de una hoja en el índice: el suyo o el primer título que tenga. */
+  function pageTitle(p, i) {
+    if (p.title) return p.title;
+    for (const b of p.blocks) {
+      const m = String(b.html || '').match(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/i);
+      if (m) { const t = m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim(); if (t) return t.length > 34 ? `${t.slice(0, 33)}…` : t; }
+    }
+    return `Página ${i + 1}`;
+  }
   const ctl = b => `<div class="dctl"><button class="dbtn" data-bon="${b.id}" title="${b.on ? 'Va en el PDF: pulsa para dejarla fuera' : 'No va en el PDF: pulsa para incluirla'}">${b.on ? '👁' : '🚫'}</button><button class="dbtn" data-bup="${b.id}" title="Subir">▲</button><button class="dbtn" data-bdown="${b.id}" title="Bajar">▼</button><button class="dbtn" data-bdel="${b.id}" title="Quitar">×</button></div>`;
   function blockHTML(b, edit) {
     if (b.type === 'hint' && !edit) return '';
@@ -247,13 +301,19 @@ const Doc = (() => {
         <span style="flex:1"></span><span class="note" id="dMsg">${esc(V.msg)}</span>
         <button class="btn${V.regen ? ' danger sure' : ''}" id="dRegen" title="Documento montado otra vez con tus datos de ahora">${V.regen ? 'Pulsa otra vez: se pierden tus cambios' : 'Volver a generar'}</button><button class="btn primary" id="dPdf">Guardar PDF</button>
         ${edit ? selTools(doc) : ''}</div>
+      <div class="dlay"><nav class="dtoc" aria-label="Índice"><b>Índice</b>${doc.pages.map((p, i) => `<button data-dtoc="${p.id}" class="${V.page === p.id ? 'on' : ''}"><small>${i + 1}</small><span>${esc(pageTitle(p, i))}</span></button>`).join('')}</nav>
       <div class="dsheetwrap" id="dWrap"><div class="dpages" style="zoom:${zoom}">${doc.pages.map((p, i) => `<div class="dsheet ${doc.style === 'light' ? 'light' : 'dark'}${edit ? ' editing' : ' preview'}${V.page === p.id ? ' cur' : ''}" data-pid="${p.id}">
         ${edit ? `<div class="dpagebar"><span>Página ${i + 1} de ${doc.pages.length}</span>${doc.pages.length > 1 ? `<button class="dbtn" data-pdel="${p.id}" title="Quitar esta página">Quitar esta página</button>` : ''}</div>` : ''}
         ${p.blocks.filter(b => edit || b.on).map(b => blockHTML(b, edit)).join('')}
-        ${i === doc.pages.length - 1 ? '<p class="dfoot">Hecho con Macar Showdown</p>' : ''}</div>`).join('')}</div></div>
+        ${i === doc.pages.length - 1 ? '<p class="dfoot">Hecho con Macar Showdown</p>' : ''}</div>`).join('')}</div></div></div>
       <input type="file" id="dImgFile" accept="image/*" class="hide">`;
     if (edit) bindSheet();
+    // El índice marca la hoja que estás viendo.
+    if (V.io) V.io.disconnect();
+    V.io = new IntersectionObserver(es => { const v = es.filter(x => x.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) tocOn(v.target.dataset.pid); }, { rootMargin: '-20% 0px -60% 0px' });
+    $$('.dsheet', el).forEach(s => V.io.observe(s));
   }
+  function tocOn(pid) { $$('#v-doc .dtoc button').forEach(b => b.classList.toggle('on', b.dataset.dtoc === pid)); }
 
   /* ================= imágenes ================= */
   /** Imagen a data URL, reducida a 1400 px de ancho como mucho. */
@@ -402,6 +462,7 @@ const Doc = (() => {
       await saveDoc(doc); V.msg = 'Documento montado otra vez con tus datos de ahora'; render(); return;
     }
     if (t.id === 'dPdf') { clearTimeout(V.saving); await persist(); exportPdf(); return; }
+    if (d.dtoc) { const s = el.querySelector(`.dsheet[data-pid="${CSS.escape(d.dtoc)}"]`); V.page = d.dtoc; if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); tocOn(d.dtoc); return; }
     if (d.dmode) { clearTimeout(V.saving); await persist(); V.preview = d.dmode === 'view'; V.sel = null; V.cell = null; render(); return; }
     const doc = await getDoc(V.teamId);
     if (!doc) return;

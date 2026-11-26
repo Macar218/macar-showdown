@@ -314,8 +314,23 @@ async function openSet(ids, opts) {
 }
 /** Hoja de equipo abierta → sus sets, con botón para llevar cada uno a Mi PC y el equipo a la calculadora. */
 function sheetHTML(sheet) {
-  return `<div class="sheet">${sheet.map((x, i) => `<div class="sheetmon">${spr(x.species, 'sm')}<div><b>${esc(x.species)}</b><span>${[P.nameOf('items', x.item) || 'Sin objeto', /^[01H]$/.test(x.ability) ? '' : P.nameOf('abilities', x.ability), x.nature].filter(Boolean).map(esc).join(' · ')}</span><small>${x.moves.map(m => esc(P.nameOf('moves', m))).join(' / ')}</small></div><button class="btn sm sheetpc" data-sheetpc="${i}" title="Guardarlo en Mi PC, en «Sets de rivales» (sin reparto: no se ve)">→ Mi PC</button></div>`).join('')}</div>
-    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button><button class="btn sm" data-sheetpcall="1">Todos a Mi PC</button><span class="note sheetmsg"></span></div>`;
+  return `<div class="shgrid shwide">${sheet.map((x, i) => P.sheetCard(x, { btn: `<button class="btn sm shpc" data-sheetpc="${i}" title="Guardarlo en Mi PC, en «Sets de rivales» (sin reparto: no se ve)">→ Mi PC</button>` })).join('')}</div>
+    <div class="row-btns"><button class="btn sm" data-sheetcalc="1">Rival en la calculadora</button><button class="btn sm" data-sheetpcall="1">Todos a Mi PC</button><button class="btn sm primary" data-sheetteam="1" title="Guarda los 6 como un equipo de rival en Mi PC → Team Box (con el reparto más común)">Equipo a Mi PC (Team Box)</button><span class="note sheetmsg"></span></div>`;
+}
+/** La hoja entera como equipo de rival en el Team Box (reparto más común, que no se ve). */
+async function sheetToTeam(sheet, meta) {
+  const U = await P.usage('');
+  await P.dex();
+  const sets = sheet.map(x => P.sheetSet(x, U)).filter(Boolean).map(P.cleanSet);
+  if (!sets.length) return null;
+  const text = P.exportTeam(sets);
+  const all = await P.teams();
+  const same = all.find(t => t.side === 'foe' && t.text === text);
+  if (same) return { dup: true, team: same };
+  const day = meta.at ? new Date(meta.at).toLocaleDateString(I18N && I18N.lang === 'en' ? 'en-GB' : 'es-ES', { day: 'numeric', month: 'short' }) : '';
+  const team = await P.saveTeam({ name: `vs ${meta.opp || '?'}${day ? ` · ${day}` : ''}`, side: 'foe', text, notes: '' });
+  if (typeof Calc !== 'undefined' && Calc.reloadTeams) Calc.reloadTeams();
+  return { team };
 }
 /** Los sets de la hoja a la calculadora de estudio, con el reparto más común. */
 async function sheetToCalc(sheet) {
@@ -343,6 +358,12 @@ async function sheetToPC(list, meta) {
 async function sheetClick(b, sheet, meta) {
   const msg = $('#modalBox .sheetmsg');
   if (b.dataset.sheetcalc) { sheetToCalc(sheet); return true; }
+  if (b.dataset.sheetteam) {
+    const r = await sheetToTeam(sheet, meta);
+    if (msg) msg.textContent = !r ? 'No se pudo leer la hoja.' : r.dup ? `Ya estaba en el Team Box: «${r.team.name}».` : `Equipo guardado en Mi PC → Team Box: «${r.team.name}».`;
+    if (r && !r.dup) { b.textContent = '✓ En el Team Box'; b.disabled = true; }
+    return true;
+  }
   if (b.dataset.sheetpc != null || b.dataset.sheetpcall) {
     const n = await sheetToPC(b.dataset.sheetpcall ? sheet : [sheet[+b.dataset.sheetpc]], meta);
     if (msg) msg.textContent = n ? `${n} guardado${n > 1 ? 's' : ''} en Mi PC (Sets de rivales).` : 'Ya estaba en Mi PC.';
