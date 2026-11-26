@@ -2042,3 +2042,59 @@ body.navmini .navmin{position:static;width:100%;height:22px}
 .mtnotes{margin-top:12px}
 .mtnotes textarea{width:100%;min-height:90px;font:inherit;font-size:14px;color:var(--ink);background:#081639;border:1px solid var(--line);border-radius:8px;padding:8px}
 @media (max-width:1100px){.mtpicks{grid-template-columns:repeat(3,minmax(0,1fr))}.mtdet{grid-template-columns:1fr}}
+
+/* ---------- 0.19: todos los tamaños (portátil 1366, Surface, 1920, 2560 y media pantalla) ---------- */
+/* El menú nunca es más alto que la ventana (si no, la página entera se desplazaba al enfocar un campo). */
+.side{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;min-height:0}
+.side::-webkit-scrollbar{display:none}
+@media (max-height:860px){
+  .side{gap:8px;padding-top:10px}
+  .side .brand{flex-direction:row;align-items:center;padding:0 4px 8px;gap:10px}
+  .side .lens{width:34px;height:34px;border-width:3px}
+  .side .brand b{font-size:15px}
+  .dexscreen button{padding:5px 8px}
+  .dexscreen .navsep{padding:4px 8px 1px}
+  .side .sessbtn{padding:5px 10px}
+  .winbtn{padding:6px 12px}
+  .side .cap{padding:6px 8px;font-size:11px}
+}
+@media (max-height:700px){.side .cap span{display:none}.side .cap{justify-content:center}}
+/* Filtros del Dashboard: en varias líneas si no caben (antes se desplazaban de lado y no se veían todos). */
+.filters.dfil{flex-wrap:wrap;overflow-x:visible;row-gap:8px}
+/* Filas de partidas: columnas que encogen hasta ~900 px; más estrecho, en dos líneas. */
+.dmatch{grid-template-columns:52px 92px minmax(120px,190px) minmax(150px,300px) minmax(240px,1fr) minmax(110px,150px)}
+@media (max-width:1250px){.dmatch{grid-template-columns:48px 86px minmax(110px,170px) minmax(130px,260px) minmax(230px,1fr) minmax(100px,130px)}}
+@media (max-width:1060px){
+  .dmatch{grid-template-columns:48px 86px minmax(0,1fr) auto;row-gap:6px}
+  .dmatch .dteams2{grid-column:1/-1}
+  .dmatch .bo3g{grid-column:4;grid-row:1}
+}
+/* Calculadora estrecha (visor, Jugar, otra ventana): en la fila solo el sprite, sin el nombre cortado. */
+@container (max-width:600px){.strip .mchip .mcn{display:none}.strip .mchip{padding:4px 2px}}
+/* Visor en pantallas bajas (portátil): menos notas y más transcripción. */
+@media (max-height:820px){.rvnotes{flex:0 0 clamp(130px,22%,200px)}}
+/* Monitores grandes (2560): la calculadora aprovecha más ancho. */
+@media (min-width:2000px){.calcpage .cbody{max-width:1900px}}
+/* Ventana estrecha (media pantalla en un portátil, otra ventana al lado). */
+.sdcol{container-type:inline-size}
+@container (max-width:560px){
+  .nbbody{flex-direction:column}
+  .nbside{width:auto;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:6px 10px}
+  .nbside .btn{width:auto}
+}
+.playbar{min-width:0}
+.playbar .pstat{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1000px){
+  .playbar .pstat{display:none}
+  .playbar .tools{flex-shrink:1;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+  .tblayout{grid-template-columns:1fr}
+  .dlay{grid-template-columns:1fr}
+  .dlay .dtoc{position:static;max-height:none;flex-direction:row;flex-wrap:wrap}
+}
+/* Bo3: cada game cabe en su columna (con 2 o 3 games en una ventana estrecha, uno debajo de otro). */
+.rounds{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.rface{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+.rfside{min-width:0;overflow:hidden}
+/* Menú bajo: el nombre no pisa el botón ‹ y sin las tres luces. */
+@media (max-height:860px){.side .brand{padding-right:30px}.side .dexlights i{display:none}}
+.dmore{display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 4px}

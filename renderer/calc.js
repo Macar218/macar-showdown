@@ -814,10 +814,12 @@ const Calc = {
   document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen(panel.classList.contains('closed')); } });
   window.addEventListener('ms:view', () => { CalcStudy.setOpen(onPage()); });
   // Ancho: el que dejes al arrastrar el borde (de 380 px hasta casi toda la ventana, lo decides tú) o «Más ancha» (un poco más: el 42 % de la ventana).
-  let w = 560, wide = false;
-  try { w = +localStorage.getItem('msCalcW') || 560; wide = localStorage.getItem('msCalcWide') === '1'; } catch (e) { /* nada */ }
+  // Sin ancho tuyo, el de partida crece con la pantalla (560 px en un portátil, ~720 en un monitor de 2560).
+  let w = 0, wide = false;
+  try { w = +localStorage.getItem('msCalcW') || 0; wide = localStorage.getItem('msCalcWide') === '1'; } catch (e) { /* nada */ }
   const maxW = () => Math.max(380, window.innerWidth - 480);
-  const apply = () => { panel.style.width = `${wide ? Math.max(w, Math.min(maxW(), Math.round(window.innerWidth * 0.42))) : Math.min(w, maxW())}px`; };
+  const baseW = () => w || Math.max(560, Math.min(760, Math.round(window.innerWidth * 0.28)));
+  const apply = () => { panel.style.width = `${wide ? Math.max(baseW(), Math.min(maxW(), Math.round(window.innerWidth * 0.42))) : Math.min(baseW(), maxW())}px`; };
   const setW = x => { w = Math.max(380, Math.min(maxW(), x)); wide = false; apply(); };
   window.CalcDrawer = {
     wide: () => wide,

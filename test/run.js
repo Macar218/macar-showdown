@@ -329,4 +329,31 @@ if (process.env.REPLAYS) {
     t(`replay real ${f.slice(0, 40)}`, () => { assert.ok(r && r.summary.finished && r.summary.p1.preview.length === 6); });
   }
 }
-console.log(`\n${ok} pruebas correctas`);
+// El índice local de partidas: arranca sin abrir los archivos, ve los cambios de fuera y no pierde lo guardado mientras lee.
+(async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), idx = dir + '-indice.json';
+  let st = new Store(dir, idx);
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-1', log: LOG });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-2', log: LOG });
+  st.flushIndex();
+  assert.ok(fs.existsSync(idx));
+  st = new Store(dir, idx);
+  assert.strictEqual(st.cache.size, 2); // del índice, sin leer la carpeta
+  assert.strictEqual((await st.listAsync()).length, 2);
+  const v = st.ver; st.stale = true; await st.listAsync(); assert.strictEqual(st.ver, v); // sin cambios, misma versión
+  // Otro ordenador (OneDrive) borra una partida y cambia otra.
+  fs.unlinkSync(st.file('gen9championsvgc2026regmc-2'));
+  const f = st.file('gen9championsvgc2026regmc-1'), m = JSON.parse(fs.readFileSync(f, 'utf8'));
+  m.summary.notes = 'de fuera'; fs.writeFileSync(f, JSON.stringify(m)); fs.utimesSync(f, new Date(), new Date(Date.now() + 5000));
+  st.stale = true; const p = st.listAsync();
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-3', log: LOG }); // se guarda una mientras se lee
+  const L = await p;
+  assert.deepStrictEqual(L.map(x => x.id).sort(), ['gen9championsvgc2026regmc-1', 'gen9championsvgc2026regmc-3']);
+  assert.strictEqual(L.find(x => x.id === 'gen9championsvgc2026regmc-1').notes, 'de fuera');
+  assert.ok(st.ver > v);
+  // El índice de otra carpeta no se usa.
+  st.flushIndex();
+  assert.strictEqual(new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), idx).list().length, 0);
+  ok++; console.log('✓ índice de partidas: arranque rápido, cambios de fuera y guardado durante la lectura');
+  console.log(`\n${ok} pruebas correctas`);
+})().catch(e => { console.error(e); process.exit(1); });

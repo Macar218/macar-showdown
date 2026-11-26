@@ -8,7 +8,7 @@
 /* global $, esc, spr, pill, wrRow, monLabel, pairLabel, unusedMoves, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH, I18N */
 
 const Dash = (() => {
-  const D = { tab: 'res', rv: '', cal: false };
+  const D = { tab: 'res', rv: '', cal: false, shown: 150 }; // shown: sets que se pintan en Partidas (con miles, «Mostrar más»)
   try { D.tab = localStorage.getItem('msDashTab') || 'res'; } catch (e) { /* nada */ }
   const ICO = {
     res: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
@@ -157,7 +157,7 @@ const Dash = (() => {
     const a = Stats.advanced(ms);
     const groups = groupBo3(ms);
     const days = [];
-    for (const g of groups) {
+    for (const g of groups.slice(0, D.shown)) {
       const key = new Date(g.games[0].endedAt).toDateString();
       const last = days[days.length - 1];
       if (last && last.key === key) last.groups.push(g); else days.push({ key, t: g.games[0].endedAt, groups: [g] });
@@ -179,7 +179,8 @@ const Dash = (() => {
     };
     return `<div class="kpis dk">${kp('Sets ganados (Bo3)', a.bo3)}${kp('Ganas el G1', a.bo3.g1)}${kp('Cierras tras ganar el G1', a.bo3.closeAfterG1)}${kp('Remontas tras perder el G1', a.bo3.comeback)}${kpi('Sets incompletos', a.bo3.incomplete || 0)}</div>
       <div class="row-btns dgbtns"><span class="note">Pulsa una partida para ver sus notas y escribir las notas finales; ▶ abre la replay.</span><span class="dleg"><i class="dts ld"></i><span>Lead</span><i class="dts in"></i><span>Salió detrás</span></span><span style="flex:1"></span><button class="btn" id="dImport">Importar replays</button><button class="btn" id="dCsv">Exportar CSV</button></div>
-      ${days.map(d => { const w = d.groups.filter(g => res(g).r === 'win').length, l = d.groups.filter(g => res(g).r === 'loss').length; return `<h3 class="dsec dday">${esc(dayLabel(d.t))} <span class="note">${w}–${l}</span></h3><div class="mlist">${d.groups.map(row).join('')}</div>`; }).join('') || '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>'}`;
+      ${days.map(d => { const w = d.groups.filter(g => res(g).r === 'win').length, l = d.groups.filter(g => res(g).r === 'loss').length; return `<h3 class="dsec dday">${esc(dayLabel(d.t))} <span class="note">${w}–${l}</span></h3><div class="mlist">${d.groups.map(row).join('')}</div>`; }).join('') || '<div class="card"><p class="note">Aún no hay partidas con estos filtros.</p></div>'}
+      ${groups.length > D.shown ? `<div class="dmore"><button class="btn" data-dmore="1">Mostrar más</button><span class="note">${D.shown} de ${groups.length}</span></div>` : ''}`;
   }
   function csv(ms) {
     const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
@@ -334,7 +335,8 @@ const Dash = (() => {
     if (!t) return;
     const d = t.dataset;
     if (d.view) { e.stopPropagation(); Viewer.open(d.view); return; }
-    if (d.dtab) { D.tab = d.dtab; try { localStorage.setItem('msDashTab', D.tab); } catch (x) { /* nada */ } $('#v-dash').scrollTop = 0; paint(); return; }
+    if (d.dmore) { D.shown += 300; paint(); return; }
+    if (d.dtab) { D.shown = 150; D.tab = d.dtab; try { localStorage.setItem('msDashTab', D.tab); } catch (x) { /* nada */ } $('#v-dash').scrollTop = 0; paint(); return; }
     if (d.dcal) { F.days = F.days === -1 ? 0 : -1; if (F.days !== -1) { F.from = 0; F.to = 0; } paint(); return; }
     if (d.frival) { F.rival = d.frival; paint(); return; }
     if (d.flead) { F.lead = d.flead; paint(); return; }

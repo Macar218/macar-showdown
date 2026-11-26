@@ -184,6 +184,7 @@ async function capturas(dir) {
   for (const st of steps) {
     try {
       if (st.size) { if (win.isMaximized()) win.unmaximize(); win.setSize(st.size[0], st.size[1]); }
+      if (st.zoom) win.webContents.setZoomFactor(st.zoom);
       if (st.js) { const r = await win.webContents.executeJavaScript(st.js); if (r !== undefined) fs.appendFileSync(log, `[js] ${JSON.stringify(r).slice(0, 4000)}
 `); }
     } catch (e) { fs.appendFileSync(log, `[paso] ${e.message}
@@ -247,7 +248,9 @@ function copyMissing(from, to) {
 }
 
 function registerIpc() {
-  ipcMain.handle('ms:list', () => store.list());
+  ipcMain.handle('ms:list', () => store.listAsync());
+  // Solo la lista si ha cambiado desde la versión que ya tiene la ventana (al volver a ella no se manda todo otra vez).
+  ipcMain.handle('ms:listIf', async (_e, ver) => { const list = await store.listAsync(); return store.ver === ver ? { ver: store.ver, same: true } : { ver: store.ver, list }; });
   ipcMain.handle('ms:get', (_e, id) => store.get(String(id)));
   ipcMain.handle('ms:delete', (_e, id) => { store.remove(String(id)); notify(); return true; });
   ipcMain.handle('ms:notes', (e, id, text) => { const r = store.setNotes(String(id), String(text || '')); for (const w of [win, ...extra]) if (w && !w.isDestroyed() && w.webContents !== e.sender) w.webContents.send('ms:changed', { notes: String(id), other: true }); return r; });
@@ -530,7 +533,8 @@ let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="ht
 app.whenReady().then(async () => {
   app.setAppUserModelId('app.macar.showdown');
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
-  store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir());
+  store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir(), path.join(app.getPath('userData'), 'indice-partidas.json'));
+  app.on('before-quit', () => { try { store.flushIndex(); } catch (e) { /* nada */ } });
   usage = new Usage(store.dir);
   tours = new Tournaments(store.dir);
   dex = new MacarDex(store.dir);

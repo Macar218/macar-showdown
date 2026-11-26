@@ -231,6 +231,8 @@ const I18N = (() => {
     '# guardado en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', '# guardados en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', 'Ya estaba en Mi PC.': 'It was already in My PC.', '✓ En Mi PC': '✓ In My PC',
     'Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…': 'Click “+ Note” or a transcript line to write a note at that replay turn…',
     '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
+    // 0.19
+    'Mostrar más': 'Show more',
     // 0.18
     'Esconder la calculadora': 'Hide the calculator', '⤢ Pantalla completa': '⤢ Full screen', '⤡ Al lado de la replay': '⤡ Next to the replay',
     'La calculadora en todo el visor (la replay sigue detrás: «Ver la replay» o Ctrl+K para cambiar)': 'The calculator over the whole viewer (the replay stays behind: “Watch the replay” or Ctrl+K to switch)',

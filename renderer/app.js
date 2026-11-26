@@ -82,8 +82,11 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
 });
 
+let MVER = -1; // versión de la lista de partidas que ya tiene esta ventana
 async function load() {
-  [M, SET] = await Promise.all([api.list(), api.settings()]);
+  const [r, set] = await Promise.all([api.listIf(MVER), api.settings()]);
+  if (!r.same) { M = r.list; MVER = r.ver; }
+  SET = set;
   await loadTeams();
   loadLadder();
   try { DASH.teamSets = await P.myTeam(); } catch (e) { DASH.teamSets = { sets: [] }; }

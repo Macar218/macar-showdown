@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('macar', {
   list: () => ipcRenderer.invoke('ms:list'),
+  listIf: ver => ipcRenderer.invoke('ms:listIf', ver),
   get: id => ipcRenderer.invoke('ms:get', id),
   remove: id => ipcRenderer.invoke('ms:delete', id),
   setNotes: (id, text) => ipcRenderer.invoke('ms:notes', id, text),
