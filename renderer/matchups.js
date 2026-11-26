@@ -99,6 +99,7 @@ const Matchups = (() => {
         ${planHTML(r, 'a', my)}
         <div class="munotes"><h4>A tener en cuenta</h4><textarea data-mf="notes" placeholder="Qué vigilar, cálculos, cómo te abre, qué no puede pasar…">${esc(r.notes)}</textarea></div>
         ${planHTML(r, 'b', my)}
+        <div class="munotes mubn"><h4>Cómo usar el Plan B</h4><textarea data-mf="bn" placeholder="Cuándo pasar al Plan B y cómo jugarlo en este matchup…">${esc(r.bn || '')}</textarea></div>
       </div>
       ${sheet}
       ${big ? `<h4 class="mubigh">Tus partidas contra este equipo ${list.length ? `<span class="note">${w}–${l}</span>` : '<span class="note">ninguna aún</span>'}</h4>` : ''}
@@ -262,7 +263,7 @@ const Matchups = (() => {
         const team = await pickTeam();
         if (!team) return;
         if (t.id === 'muMyPaste' || t.id === 'muMyCode') { const D = await ofTeam(team.id); D[t.id === 'muMyPaste' ? 'paste' : 'code'] = t.value.trim(); await saveTeam(team.id, D); return; }
-        if (row && t.dataset.mf) await patchRow(row.dataset.row, r => { r[t.dataset.mf] = t.dataset.mf === 'notes' ? t.value.slice(0, 4000) : t.value.slice(0, 200); });
+        if (row && t.dataset.mf) await patchRow(row.dataset.row, r => { r[t.dataset.mf] = t.dataset.mf === 'notes' || t.dataset.mf === 'bn' ? t.value.slice(0, 4000) : t.value.slice(0, 200); });
       }, 450);
     });
     el.addEventListener('change', async e => {

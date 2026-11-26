@@ -133,7 +133,7 @@ const Viewer = (() => {
     el.innerHTML = `<div class="rv" role="dialog" aria-label="Replay de la partida">
       <header class="rvhead">${pill(s.result)}<b>${s.me ? `vs <span class="nolang">${esc(s[b].name)}</span>` : `<span class="nolang">${esc(s.p1.name)} vs ${esc(s.p2.name)}</span>`}</b>
         <span class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos</span><span style="flex:1"></span>
-        ${s.replay ? '<button class="btn sm" data-rv="ext">Abrir en el navegador</button>' : ''}<button class="btn" data-rv="close" title="Cerrar (Esc)">Cerrar</button></header>
+        ${s.replay ? '<button class="btn sm" data-rv="ext">Abrir en el navegador</button>' : ''}<button class="btn" data-rv="close" title="Cerrar la replay">Cerrar</button></header>
       <div class="rvbody">
         <div class="rvplayer">${playerHTML()}</div>
         <aside class="rvside">
@@ -292,8 +292,6 @@ const Viewer = (() => {
 
   document.addEventListener('click', e => {
     if (!V) return;
-    const wrap = document.querySelector('#rvWrap');
-    if (e.target === wrap) { close(); return; }
     const b = e.target.closest('#rvWrap button');
     if (!b) return;
     const d = b.dataset;
@@ -330,7 +328,7 @@ const Viewer = (() => {
     V.caret = ta.selectionStart;
     if (ta.selectionStart === ta.selectionEnd) jumpFromLine(ta.value, ta.selectionStart);
   });
-  document.addEventListener('keydown', e => { if (V && e.key === 'Escape') { e.stopPropagation(); close(); } }, true);
+  // El visor solo se cierra con «Cerrar» (ni con un clic fuera ni con Esc).
 
   return { open, close };
 })();

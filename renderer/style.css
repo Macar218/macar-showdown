@@ -1757,3 +1757,113 @@ input[type=date]{font:inherit;color:var(--ink);background:#081639;border:1px sol
 .sdbtns.g3 button{white-space:normal;line-height:1.15;overflow:visible}
 .murow.big .mubody{grid-template-rows:auto auto 1fr}
 .armid em{font-style:normal}
+
+/* ---------- 0.16 · Dashboard: % de victorias y GXE en grande con su color; marcas por game ---------- */
+.midc{color:var(--gold)!important}
+.ddonut.midc .fg{stroke:var(--gold)}
+.dkbig{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:12px}
+.dkhero{padding:20px 26px;min-height:150px;display:flex;flex-direction:column;justify-content:center;border-width:2px}
+.dkhero.dkw{flex-direction:row;align-items:center;gap:22px}
+.dkhero small{font-size:14px}
+.dkhero b{font-size:64px;line-height:1;margin-top:6px}
+.dkhero i{font-size:14px}
+.dkhero .ddonut{width:120px;height:120px}
+.dkhero .ddonut text{font-size:11px}
+.dkhero.okc{border-color:var(--good);background:linear-gradient(135deg,rgba(70,214,140,.16),var(--shell) 70%)}
+.dkhero.midc{border-color:var(--gold);background:linear-gradient(135deg,rgba(255,196,64,.16),var(--shell) 70%)}
+.dkhero.badc{border-color:var(--bad);background:linear-gradient(135deg,rgba(255,92,122,.16),var(--shell) 70%)}
+.dkband{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:6px}
+.dksmall{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.dksmall .kpi{padding:10px 14px}
+.dksmall .kpi b{font-size:22px}
+@media (max-width:900px){.dkbig{grid-template-columns:1fr}.dksmall{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mkrows{display:flex;flex-direction:column;align-items:stretch;gap:3px}
+.mkg{display:grid;grid-template-columns:26px 92px 112px 70px;gap:4px;align-items:center}
+.mkgn{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.mkrows .mktag{font-size:11px;padding:2px 6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkrows .mktag.mkempty{background:transparent;border-color:transparent}
+.dmatch{grid-template-columns:52px 92px 190px 310px minmax(260px,1fr) 150px}
+.dts.gap{margin-left:12px}
+.dtl{gap:4px}
+
+/* ---------- 0.16 · Visor: combate más grande, notas más altas; hoja de equipo de 2 en 2 que crece con el hueco ---------- */
+.rvbody{grid-template-columns:minmax(0,1fr) clamp(380px,30vw,600px)}
+.rvplayer webview{max-height:62%}
+.rvtx{flex:1 1 0;min-height:80px}
+.rvnotes{flex:0 0 clamp(210px,28%,360px)}
+.rvside{container-type:inline-size}
+.rvside .shgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.rvside .shc{font-size:clamp(11.5px,2.5cqi,15px);padding:.5em .6em}
+.rvside .shh{gap:.35em}
+.rvside .shh .spr{width:2.6em;height:2.6em}
+.rvside .shh b{font-size:1.12em;white-space:normal}
+.rvside .shi,.rvside .sha,.rvside .shn{font-size:.95em}
+.rvside .shi img{width:1.6em;height:1.6em}
+.rvside .shmv{font-size:1em;padding:.18em .5em}
+.shty .tyb{font-size:9.5px;padding:1px 5px}
+.rvside .shty .tyb{font-size:.72em}
+.rvside .shh em{flex-basis:auto;margin-left:auto}
+.tmonin{flex:0 1 200px;min-width:120px}
+
+/* ---------- 0.16 · Calculadora más limpia: sprites en una línea, arena sin barras de colores, cálculo en grande ---------- */
+.sprline{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:900px){.sprline{grid-template-columns:1fr}}
+.sprrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:var(--shell)}
+.sprrow .lbl{flex:none;width:64px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.msprs{flex:1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;min-width:0}
+.mspr{position:relative;height:50px;display:grid;place-items:center;border:1px solid transparent;border-radius:10px;background:rgba(255,255,255,.03);cursor:pointer;padding:0}
+.mspr .spr{width:44px;height:44px}
+.mspr:hover{border-color:var(--line)}
+.mspr.act{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25)}
+.mspr.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.sprrow.foe .mspr.sel{border-color:#ff8f8f;box-shadow:0 0 0 1px #ff8f8f}
+.mspr.add{border:1px dashed var(--line);color:var(--muted);font-size:20px;background:transparent}
+.mspr .mcx{opacity:0}
+.mspr:hover .mcx{opacity:1}
+.sprhint{margin:4px 0 2px;font-size:11.5px}
+/* Menos color: la arena y las fichas, sobrias */
+.c2arena .arena{background:var(--shell)}
+.c2arena .arrow.foe,.c2arena .arrow.me{background:transparent}
+.c2arena .armon{background:rgba(255,255,255,.03);border-color:var(--line)}
+.c2arena .armon.on{border-color:var(--accent);box-shadow:none;background:var(--accent-soft)}
+.c2arena .arena .armon.foe.on{border-color:#ff8f8f;background:rgba(255,107,107,.1)}
+.c2arena .arhp{display:none}
+.c2arena .arinfo small{display:none}
+.c2arena .arinfo b{font-size:13.5px}
+.c2poke .c2mv,.c2poke .c2mv[class*=" t-"]{background:var(--surface);border-left-width:3px}
+.c2poke .c2mv .tyb{display:none}
+.c2poke{border-top-width:1px}
+.c2 .sdmv.on{background:rgba(255,255,255,.06)}
+/* El dato importante: la línea del cálculo, grande */
+.c2res .sdmain{padding:12px 16px}
+.c2res .sddesc{font-size:19px;font-weight:700;line-height:1.35;margin:0 0 8px;color:var(--ink)}
+.c2res .sdko b{font-size:15px}
+/* Matchups: notas del Plan B a su derecha */
+.mubn h4{color:#c9a8ff}
+@container (min-width:1100px){.mubody{grid-template-columns:auto auto minmax(200px,1fr) auto minmax(180px,.8fr)}}
+.murow.big .mubody{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);grid-template-areas:"riv notes notes" "pa notes notes" "pb bn bn"}
+.murow.big .mubn{grid-area:bn}
+.murow.big .mubn textarea{min-height:120px;font-size:14px}
+@media (max-width:900px){.murow.big .mubody{grid-template-columns:1fr;grid-template-areas:"riv" "pa" "notes" "pb" "bn"}}
+/* Documento 0.16: el Pokémon en grande y 3 matchups por hoja */
+.dsheet .dmonbig{align-items:flex-start;gap:22px;padding:12px;border:1px solid rgba(120,140,180,.35);border-radius:12px}
+.dsheet .dmonbig>.spr{width:220px;height:220px}
+.dsheet .dmonbi h3{font-size:26px;flex-wrap:wrap}
+.dsheet .dmonbi p{font-size:15px}
+.dsheet .dmstats{font-size:14px}
+.dsheet .dmoves{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.dsheet .dmv{font-size:15px;padding:6px 12px;border-left-width:5px}
+.dsheet .dmu{border:1px solid rgba(120,140,180,.35);border-radius:10px;padding:8px 12px;margin:8px 0}
+.dsheet .dmu h3{margin:0 0 2px}
+.dsheet .dmu .dmuplan{margin:4px 0 0}
+.dsheet .dmu .dmuplan p{font-size:13px}
+.dmatch{grid-template-columns:52px 92px 170px 300px minmax(280px,1fr) 150px}
+.dts{width:33px}
+.dts .spr{width:30px;height:30px}
+.dts.gap{margin-left:8px}
+.dtl small{width:36px}
+@media (max-width:1250px){.dmatch{grid-template-columns:52px 92px 150px 300px minmax(280px,1fr) 130px}}
+/* Hoja: el nombre entero en su línea; tipos y «Jugó» debajo */
+.shh b,.rvside .shh b{flex:1 1 55%;white-space:normal;overflow-wrap:normal;word-break:normal;overflow:visible}
+.shty{order:3}
+.shh em{order:4}

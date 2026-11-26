@@ -54,7 +54,7 @@ Repositorio: `Macar218/macar-showdown` (público). Cada push a `main` compila el
 - Estilos nuevos: comprobar que el nombre de clase no existe ya en `style.css` (en la 0.7 chocaron `.dres`, `.mrow`, `.dbar` y `.dteam`).
 - El tamaño de Showdown solo lo cambia el usuario (− / + de Jugar, Ctrl + / − / 0; sin Ctrl + rueda, porque el evento 'zoom-changed' entraba en bucle; se recuerda en `msSdZoom`). Nunca ajustarlo solo: en la 0.11.0 la ampliación automática al empezar el combate, en monitores grandes, dejó a la app sin leer el combate (ni captura, ni notas, ni calculadora). Las lecturas de Showdown van con límite de tiempo (`capture.run`). Las pruebas de interfaz usan una ventana pequeña: lo que dependa del tamaño de pantalla hay que probarlo también con la ventana grande.
 - Showdown puede abrir su cliente nuevo: nunca leer `window.app` directamente, siempre `SDAPP` (src/sdapp.js). En la 0.11.3 la app no capturaba nada con el cliente nuevo.
-- El editor de un Pokémon (`P.openEditor`) es fijo: `#modal[data-sticky]` hace que un clic fuera o Esc no lo cierren; solo Cerrar, Guardar o Quitar.
+- Ninguna ventana (`#modal`, visor de replays) se cierra con un clic fuera ni con Esc: solo con sus botones (Cerrar, ← Atrás, Guardar, Quitar). Toda ventana nueva necesita su botón Cerrar (`#mClose`).
 - Nada de `prompt()` (Electron no lo tiene): formularios propios. `confirm()` sí funciona (y se traduce).
 - Idioma: cada texto nuevo de la interfaz necesita su traducción en `renderer/i18n.js`. No traducir trozos de una sola palabra corriente (cambiarían nombres puestos por el usuario).
 

@@ -385,7 +385,7 @@ const P = (() => {
     while (mv.length < 4) mv.push('<span class="shmv empty">—</span>');
     const badge = o.played == null ? '' : `<em class="${o.played ? 'in' : ''}">${o.played ? 'Jugó' : 'No salió'}</em>`;
     return `<div class="shc${o.played === false ? ' out' : ''}">
-      <div class="shh">${spr(m.species, 'sm')}<b class="nolang">${esc(m.species)}</b><span class="shty">${typesOf(m.species).map(typeDot).join('')}</span>${badge}</div>
+      <div class="shh">${spr(m.species, 'sm')}<b class="nolang">${esc(m.species)}</b><span class="shty">${typesOf(m.species).map(o.dots ? typeDot : typeBadge).join('')}</span>${badge}</div>
       <div class="shi nolang" title="${esc(it || '')}">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}<span>${esc(it || '—')}</span></div>${ab ? `<div class="sha nolang" title="${esc(ab)}">${esc(ab)}</div>` : ''}
       ${m.nature ? `<div class="shn"><span class="nolang">${esc(m.nature)}</span>${natTxt}</div>` : ''}
       <div class="shm nolang">${mv.join('')}</div>${o.btn || ''}</div>`;

@@ -209,7 +209,13 @@ function makeCalc(cfg) {
     const act = (side === 'me' ? S.meActive : S.foeActive).includes(i);
     const sel = (side === 'me' ? S.selMe : S.selFoe) === i;
     const hp = Math.max(0, Math.min(100, m.hp));
+    if (!LIVE) return `<button class="mspr${sel ? ' sel' : ''}${act ? ' act' : ''}" data-strip="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ' · pulsa para sacarlo al campo'}">${spr(m.species, 'sm')}<span class="mcx" data-cx="${side}:${i}" role="button" title="Quitarlo (luego añade otro con +)">×</span></button>`;
     return `<button class="mchip${sel ? ' sel' : ''}${act ? ' act' : ''}${m.fainted ? ' fnt' : ''}" data-pick="${side}:${i}" title="${esc(m.species)}${act ? ' · en el campo' : ''}${S.battleId ? '' : ' · clic derecho: sacarlo al campo o retirarlo'}">${spr(m.species, 'sm')}<span class="mcn nolang">${esc(P.baseSpecies(m.species))}</span><i class="hpbar"><i style="width:${hp}%" class="${hpCls(m.hp)}"></i></i><small class="mchp">${m.fainted ? 'KO' : `${Math.round(hp)}%`}</small>${act ? '<em class="mcact" title="En el campo">●</em>' : ''}${LIVE ? '' : `<span class="mcx" data-cx="${side}:${i}" role="button" title="Quitarlo (luego añade otro con +)">×</span>`}</button>`;
+  }
+  /** En estudio: tus sprites y los del rival en una línea; pulsa uno del campo y luego uno de aquí para cambiarlo. */
+  function sprRow() {
+    const row = side => `<div class="sprrow ${side}"><span class="lbl">${side === 'me' ? 'Tus Pokémon' : 'Sus Pokémon'}</span><div class="msprs">${S[side].map((m, i) => monChip(m, i, side)).join('')}${S[side].length < 6 ? `<button class="mspr add" data-add="${side}" title="Añadir un Pokémon a mano">+</button>` : ''}</div>${S[side].length >= 6 ? `<button class="cadd" data-add="${side}" title="Añadir un Pokémon a mano">+</button>` : ''}</div>`;
+    return `<div class="sprline">${row('me')}${row('foe')}</div><p class="note sprhint">Pulsa un Pokémon de la arena y luego uno de arriba para cambiarlo. La × lo quita.</p>`;
   }
   function strip(side) {
     const canAdd = !LIVE;
@@ -399,7 +405,7 @@ function makeCalc(cfg) {
     P.datalists();
     const back = S.tab === 'dmg' ? '' : '<button class="btn sm" data-ctab="dmg" title="Volver a la pestaña Daño">← Daño</button>';
     el.innerHTML = `${topHTML()}
-      ${strip('me')}${strip('foe')}
+      ${LIVE ? strip('me') + strip('foe') : sprRow()}
       <div class="ctabbar">${back}<div class="seg ctabs" role="tablist"><button data-ctab="dmg" aria-pressed="${S.tab === 'dmg'}">Daño</button><button data-ctab="multi" aria-pressed="${S.tab === 'multi'}">Multicalc</button><button data-ctab="tree" aria-pressed="${S.tab === 'tree'}" title="Tus mejores jugadas, lo que puede responder el rival y qué pasa después, turno a turno">Árbol</button></div></div>
       <div class="ctabbody">${S.tab === 'multi' ? Multi.render(api_state()) : S.tab === 'tree' ? Multi.renderTree(api_state()) : `
         <div class="c2">
@@ -410,6 +416,20 @@ function makeCalc(cfg) {
       ${S.tab === 'dmg' ? '' : fieldBox()}
       <p class="note usage cusage">${esc(usageMsg)}</p>`;
     el.scrollTop = keepScroll;
+  }
+  /** Saca un Pokémon de la fila al campo: si ya está, lo elige; si no, ocupa el hueco libre o sustituye al elegido. */
+  function toArena(side, i) {
+    const key = side === 'me' ? 'meActive' : 'foeActive', selKey = side === 'me' ? 'selMe' : 'selFoe';
+    const act = (S[key] || []).filter(k => S[side][k]);
+    if (!act.includes(i)) {
+      if (!act.length && S[side][S[selKey]] && S[selKey] !== i) act.push(S[selKey]);
+      if (act.length < 2) act.push(i);
+      else { const at = act.indexOf(S[selKey]); act[at >= 0 ? at : 0] = i; }
+    }
+    S[key] = act;
+    S[selKey] = i;
+    autoWeather();
+    persist(); render();
   }
   /** Lo que la Multicalc necesita saber. */
   const api_state = () => ({ S, me: S.me, foe: S.foe, meActive: S.meActive, foeActive: S.foeActive, field: S.field, live: !!S.battleId, turn: S.turn, battleId: S.battleId });
@@ -614,6 +634,7 @@ function makeCalc(cfg) {
       if (t.dataset.cfo) { S.field[t.dataset.cfo] = !S.field[t.dataset.cfo]; persist(); render(); return; }
       if (t.dataset.cfs) { const [side, key] = t.dataset.cfs.split('.'); S.field[side][key] = !S.field[side][key]; persist(); render(); return; }
       if (t.dataset.tuse) { Multi.click(t, api_state()); S.tab = 'multi'; persist(); render(); return; }
+      if (t.dataset.strip) { const [side, i] = t.dataset.strip.split(':'); toArena(side, +i); return; }
       if (t.dataset.pick) { const [side, i] = t.dataset.pick.split(':'); if (side === 'me') S.selMe = +i; else S.selFoe = +i; render(); }
       else if (t.dataset.add) edit(t.dataset.add, -1, true);
       else if (t.dataset.edit) edit(t.dataset.edit, t.dataset.edit === 'me' ? S.selMe : S.selFoe, false);

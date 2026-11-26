@@ -71,7 +71,6 @@ $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'
 document.addEventListener('keydown', e => {
   const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'mu', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
-  if (e.key === 'Escape' && !$('#modal').dataset.sticky) closeModal();
 });
 
 async function load() {
@@ -212,7 +211,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-fclear]'); if (c) { Object.assign(F, F_CLEAR); render(); return; }
-  const op = e.target.closest('[data-open]'); if (op && VIEW === 'dash') { openDetail(op.dataset.open); }
+  const op = e.target.closest('[data-open]'); if (op && VIEW === 'dash' && !op.closest('#modalBox')) { openDetail(op.dataset.open); }
 });
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-go]'); if (g) { closeModal(); show(g.dataset.go); return; }
@@ -310,7 +309,7 @@ async function openSet(ids, opts) {
     }, 600);
   };
   const sheetMeta = { opp: s0[opSd].name, at: s0.endedAt, id: s0.id };
-  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.view) Viewer.open(b.dataset.view); if (b.dataset.open) openDetail(b.dataset.open); if (sheet) sheetClick(b, sheet, sheetMeta); };
+  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ext) api.openExternal(b.dataset.ext); if (b.dataset.view) Viewer.open(b.dataset.view); if (b.dataset.open) openDetail(b.dataset.open, ids); if (sheet) sheetClick(b, sheet, sheetMeta); };
 }
 /** Hoja de equipo abierta → sus sets, con botón para llevar cada uno a Mi PC y el equipo a la calculadora. */
 function sheetHTML(sheet) {
@@ -408,14 +407,14 @@ function sideCard(s, sd, title) {
   </div>`;
 }
 let notesTimer = null;
-async function openDetail(id) {
+async function openDetail(id, back) {
   const m = await api.get(id);
   if (!m) return;
   const s = m.summary;
   const a = s.me || 'p1', b = s.opp || 'p2';
   $('#modalBox').innerHTML = `<div class="head"><div><h1 style="font-size:22px">${s.me ? `vs ${esc(s[b].name)}` : `${esc(s.p1.name)} vs ${esc(s.p2.name)}`}</h1>
       <p class="note">${fmtDate(s.endedAt)} · ${esc(s.format)} · ${s.turns} turnos${s.forfeit ? ` · ${esc(s.forfeit)} abandonó` : ''}${s.timeout ? ` · ${esc(s.timeout)} perdió por tiempo` : ''} · ${s.source === 'importada' ? 'importada' : 'guardada al jugar'}</p></div>
-      <div style="display:flex;gap:8px;align-items:center">${pill(s.result)}<button class="btn" id="mClose">Cerrar</button></div></div>
+      <div style="display:flex;gap:8px;align-items:center">${pill(s.result)}${back ? '<button class="btn" id="mBack" title="Volver al Bo3">← Atrás</button>' : ''}<button class="btn" id="mClose">Cerrar</button></div></div>
     <div class="mlinks"><button class="btn sm primary" id="mView" title="La replay dentro de la app, con tus notas por turno">▶ Ver replay</button>${s.replay ? `<button class="btn sm" id="mReplay">Abrir en Showdown</button><button class="btn sm" id="mReplayCopy">Copiar enlace</button>` : (s.me ? '<button class="btn sm" id="mReplayUp" title="Solo funciona si la sala del combate sigue abierta en Jugar">Subir replay</button>' : '')}<button class="btn sm" id="mReplayDl" title="Guarda la replay en un archivo .html que se abre en el navegador">Descargar replay</button><span class="note" id="mLinkMsg"></span></div>
     <div class="sides">${sideCard(s, a, s.me ? 'Tú' : 'Jugador 1')}${sideCard(s, b, s.me ? 'Rival' : 'Jugador 2')}</div>
     ${s[b].sheet ? `<h3 style="margin:4px 0 6px">Hoja de equipo del rival</h3>${sheetHTML(s[b].sheet)}` : ''}
@@ -431,7 +430,8 @@ async function openDetail(id) {
   if ($('#mReplayCopy')) $('#mReplayCopy').onclick = () => { navigator.clipboard.writeText(s.replay); $('#mLinkMsg').textContent = 'Enlace copiado'; };
   $('#mReplayDl').onclick = async () => { const r = await api.downloadReplay(id); if (r.ok) $('#mLinkMsg').textContent = 'Replay guardada.'; };
   $('#modalBox').onclick = e => { const bt = e.target.closest('button'); if (bt && s[b].sheet) sheetClick(bt, s[b].sheet, { opp: s[b].name, at: s.endedAt, id: s.id }); };
-  if ($('#mReplayUp')) $('#mReplayUp').onclick = async () => { $('#mLinkMsg').textContent = 'Subiendo…'; const r = await api.replayNow(id); $('#mLinkMsg').textContent = r.ok ? 'Replay subida.' : r.why; if (r.ok) { s.replay = r.url; openDetail(id); } };
+  if ($('#mBack')) $('#mBack').onclick = () => openSet(back);
+  if ($('#mReplayUp')) $('#mReplayUp').onclick = async () => { $('#mLinkMsg').textContent = 'Subiendo…'; const r = await api.replayNow(id); $('#mLinkMsg').textContent = r.ok ? 'Replay subida.' : r.why; if (r.ok) { s.replay = r.url; openDetail(id, back); } };
   if ($('#mSess')) $('#mSess').onchange = async e => { await api.setMatchSession(id, e.target.value); $('#mSaved').textContent = 'Sesión cambiada'; };
   if ($('#mTeam')) $('#mTeam').onchange = async e => {
     const map = { ...((await DB.get('partidaTeam')) || {}) };
@@ -450,8 +450,7 @@ async function openDetail(id) {
   };
 }
 function closeModal() { delete $('#modal').dataset.sticky; $('#modal').classList.add('hide'); $('#modalBox').onclick = $('#modalBox').onchange = null; if (VIEW === 'dash') Dash.render(); }
-// Un clic fuera cierra la ventana, salvo en el editor de un Pokémon (sticky): ese solo con sus botones.
-$('#modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('#modal').dataset.sticky) closeModal(); });
+// Las ventanas no se cierran con un clic fuera ni con Esc: solo con sus botones (Cerrar, ← Atrás, Guardar…).
 
 /* ---------- Macar Dex dentro de la app (se carga la primera vez que se abre) ---------- */
 VIEWS.dex = () => {

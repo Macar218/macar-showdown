@@ -76,6 +76,12 @@ const Dash = (() => {
   const vbars = (list, lab) => `<div class="dvbars">${list.map((h, i) => `<div class="dvb${h.n ? '' : ' none'}" title="${h.n ? `${wrp(h)}% · ${h.n} partida${h.n === 1 ? '' : 's'}` : '—'}"><small>${h.n || ''}</small><i><b class="${cls(h) || 'mid'}" style="height:${h.n ? Math.max(4, wrp(h)) : 0}%"></b></i><span>${esc(lab ? lab(h, i) : h.key)}</span></div>`).join('')}</div>`;
 
   /* ---------- Resumen ---------- */
+  /** Color del % de victorias según tu ELO (cuanto más alto, más cuesta ganar). */
+  function winColor(p, elo) {
+    const [g, y] = elo >= 1650 ? [65, 55] : elo >= 1400 ? [70, 60] : [80, 70];
+    return p >= g ? 'okc' : p >= y ? 'midc' : 'badc';
+  }
+  const gxeColor = v => (v > 80 ? 'okc' : v >= 65 ? 'midc' : 'badc');
   function resumen(ms) {
     const r = Stats.compute(ms), a = Stats.advanced(ms), ov = Stats.overview(ms);
     const st = ov.streak;
@@ -87,13 +93,18 @@ const Dash = (() => {
     const leadsBest = r.myLeads.filter(x => x.n >= 2).sort((x, y) => wrp(y) - wrp(x) || y.n - x.n).slice(0, 5);
     const seen = r.oppPreview.slice(0, 6).map(x => ({ ...x }));
     const winP = r.n ? Math.round((r.w / r.n) * 100) : 0;
-    return `<div class="dkpis3">
-        <div class="kpi dkw dkmain">${donut(winP, cls(r))}<div><small>Porcentaje de victorias</small><b class="${cls(r)}">${r.n ? `${winP}%` : '—'}</b><i>${r.w}–${r.l} · ${r.n} partida${r.n === 1 ? '' : 's'}</i></div></div>
+    const elo = (LADDER && +LADDER.elo) || r.eloNow || 0;
+    const wc = r.n ? winColor(winP, elo) : '', gc = LADDER && LADDER.gxe != null ? gxeColor(+LADDER.gxe) : '';
+    const band = elo >= 1650 ? '1650+' : elo >= 1400 ? '1400–1650' : '1000–1399';
+    return `<div class="dkbig">
+        <div class="kpi dkw dkhero ${wc}">${donut(winP, wc)}<div><small>Porcentaje de victorias</small><b>${r.n ? `${winP}%` : '—'}</b><i>${r.w}–${r.l} · ${r.n} partida${r.n === 1 ? '' : 's'}</i><em class="dkband" title="Verde, amarillo o rojo según tu ELO">ELO ${band}: ${elo >= 1650 ? 'verde ≥ 65% · amarillo 55–65%' : elo >= 1400 ? 'verde ≥ 70% · amarillo 60–70%' : 'verde ≥ 80% · amarillo 70–80%'}</em></div></div>
+        <div class="kpi dkhero ${gc}"><small>GXE</small><b>${gxe}</b><i>ladder de Showdown</i><em class="dkband">verde &gt; 80% · amarillo 65–80%</em></div>
+      </div>
+      <div class="dksmall">
         <div class="kpi"><small>Sets Bo3</small><b class="${a.bo3.n ? cls(a.bo3) : ''}">${a.bo3.n ? `${wrp(a.bo3)}%` : '—'}</b><i>${a.bo3.n ? `${a.bo3.w}–${a.bo3.n - a.bo3.w} en sets` : 'sin sets'}</i></div>
         <div class="kpi"><small>Forma</small>${form(ov.last)}<i>Últimas ${ov.last.length} partidas</i></div>
         ${kpi('Racha', st ? `${Math.abs(st)}${st > 0 ? W() : L()}` : '—', st > 0 ? 'ganando' : st < 0 ? 'perdiendo' : '', st > 0 ? 'okc' : st < 0 ? 'badc' : '')}
         <div class="kpi"><small>ELO</small><b>${r.eloNow ?? '—'}</b>${spark(r.elo)}</div>
-        <div class="kpi"><small>GXE</small><b>${gxe}</b><i>ladder de Showdown</i></div>
       </div>
       <div class="dtwo">
         <div class="card dmvp"><h2>Tu MVP</h2>${mvp && card ? `<div class="dmvpb"><span class="dmvpimg">${spr(mvp.key, 'huge')}</span><div class="dmvpi"><b class="nolang">${esc(mvp.key)}</b><div class="tytags">${typesOf(mvp.key).map(P.typeBadge).join('')}</div>
@@ -125,18 +136,18 @@ const Dash = (() => {
   /** Las marcas de las partidas de una fila: buena / indiferente / mala y «analizar». */
   function markTags(games) {
     const L = { good: 'Buena', meh: 'Indiferente', bad: 'Mala' };
-    const t = games.map((y, i) => { const mk = y.mark || {}; const pre = games.length > 1 ? `G${i + 1} ` : ''; const note = String(y.notes || '').trim();
-      return [mk.r ? `<i class="mktag mk-${mk.r}">${pre}<span>${L[mk.r]}</span></i>` : '',
-        mk.a === 'done' ? `<i class="mktag mk-done">${pre}<span>✓ Analizada</span></i>` : mk.a ? `<i class="mktag mk-a">${pre}<span>🔍 Por analizar</span></i>` : '',
-        note ? `<i class="mktag mk-n" title="${esc(note.slice(0, 300))}">${pre}<span>✎ Notas</span></i>` : ''].join(''); }).join('');
-    return `<span class="mkcol">${t}</span>`;
+    const rows = games.map((y, i) => { const mk = y.mark || {}; const note = String(y.notes || '').trim();
+      if (!mk.r && !mk.a && !note) return '';
+      return `<span class="mkg"><b class="mkgn">G${i + 1}</b>${mk.r ? `<i class="mktag mk-${mk.r}">${L[mk.r]}</i>` : '<i class="mktag mkempty"></i>'}${mk.a === 'done' ? '<i class="mktag mk-done">✓ Analizada</i>' : mk.a ? '<i class="mktag mk-a">🔍 Por analizar</i>' : '<i class="mktag mkempty"></i>'}${note ? `<i class="mktag mk-n" title="${esc(note.slice(0, 300))}">✎ Notas</i>` : '<i class="mktag mkempty"></i>'}</span>`; }).join('');
+    return `<span class="mkcol mkrows">${rows}</span>`;
   }
   /** Un equipo en su fila: siempre 6 huecos fijos; los leads con raya amarilla y los que salieron detrás, azul. */
   function teamLine(label, x) {
     const base = n => Stats.toID(P.baseSpecies(n));
     const list = (x.preview && x.preview.length ? x.preview : x.brought || []).slice(0, 6);
     const isLead = n => (x.leads || []).some(y => base(y) === base(n)), isIn = n => (x.brought || []).some(y => base(y) === base(n));
-    const cells = Array.from({ length: 6 }, (_, i) => { const n = list[i]; if (!n) return '<i class="dts"></i>'; const k = isLead(n) ? 'ld' : isIn(n) ? 'in' : ''; return `<i class="dts ${k}" title="${esc(n)}${k === 'ld' ? ' · lead' : k === 'in' ? ' · salió' : ''}">${spr(n, 'sm')}</i>`; }).join('');
+    const ord = [...list.filter(isLead), ...list.filter(n => !isLead(n) && isIn(n)), ...list.filter(n => !isLead(n) && !isIn(n))];
+    const cells = Array.from({ length: 6 }, (_, i) => { const n = ord[i]; if (!n) return '<i class="dts"></i>'; const k = isLead(n) ? 'ld' : isIn(n) ? 'in' : ''; const gap = i && (isLead(ord[i - 1]) !== isLead(n)) ? ' gap' : ''; return `<i class="dts ${k}${gap}" title="${esc(n)}${k === 'ld' ? ' · lead' : k === 'in' ? ' · salió' : ''}">${spr(n, 'sm')}</i>`; }).join('');
     return `<span class="dtl"><small>${label}</small>${cells}</span>`;
   }
   function partidas(ms) {

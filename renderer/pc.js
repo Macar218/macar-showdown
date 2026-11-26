@@ -34,6 +34,7 @@ const PC = (() => {
     const [list, teams] = await Promise.all([P.pcList(), P.teams()]);
     V.tnames = new Set(teams.filter(t => t.side === 'me').map(t => String(t.name || '').slice(0, 40)));
     const boxes = [...new Set(list.map(x => x.box).filter(Boolean))].sort();
+    P.datalists();
     el.innerHTML = `<div class="head"><div><h1>Mi <span>PC</span></h1><p class="note" style="margin-top:4px">Tus sets y repartos guardados, y todos tus equipos. Se guardan en tu carpeta de datos.</p></div>
       <div class="seg">${[['sets', `Sets (${list.length})`], ['teams', `Team Box (${teams.length})`]].map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${V.tab === k}">${l}</button>`).join('')}</div></div>
       ${V.tab === 'teams' ? teamsView(teams) : setsView(list, boxes)}
@@ -127,15 +128,29 @@ const PC = (() => {
     }).join('') : '<p class="note">Aún no tienes equipos: crea uno abajo.</p>';
   }
 
-  function teamsView(teams) {
-    return `<div class="row-btns" style="margin-bottom:12px"><button class="btn primary" id="pcTeamAdd">Añadir un equipo al Team Box</button><button class="btn" id="pcTeamExport">Exportar el Team Box</button></div>
-      ${teams.length ? `<div class="pcteams">${teams.map(t => { const S = P.parseTeam(t.text).sets; return `<div class="pcteam">
+  function teamsView(all) {
+    // Filtros: buscar (nombre, Pokémon, notas), tuyos o de rivales, con un Pokémon y orden.
+    const q = (V.tq || '').trim().toLowerCase(), mon = (V.tmon || '').trim(), monId = mon ? P.toID(P.baseSpecies(P.calcSpecies(mon) || mon)) : '';
+    const L = all.map(t => ({ t, S: P.parseTeam(t.text).sets }));
+    let teams = L.filter(o => !V.tside || o.t.side === V.tside);
+    if (q) teams = teams.filter(o => `${o.t.name} ${o.t.notes || ''} ${o.S.map(m => `${m.species} ${m.item} ${m.moves.join(' ')}`).join(' ')}`.toLowerCase().includes(q));
+    if (monId) teams = teams.filter(o => o.S.some(m => P.toID(P.baseSpecies(m.species)) === monId));
+    teams.sort(V.tsort === 'name' ? (a, b) => a.t.name.localeCompare(b.t.name) : (a, b) => (b.t.up || 0) - (a.t.up || 0));
+    const nMe = L.filter(o => o.t.side === 'me').length;
+    return `<div class="pctools card">
+        <input type="search" id="tQ" placeholder="Buscar: nombre, Pokémon, objeto, movimiento, notas…" value="${esc(V.tq || '')}">
+        <div class="seg">${[['', `Todos (${L.length})`], ['me', `Tuyos (${nMe})`], ['foe', `De rivales (${L.length - nMe})`]].map(([k, l]) => `<button data-tside="${k}" aria-pressed="${(V.tside || '') === k}">${l}</button>`).join('')}</div>
+        <input id="tMon" list="dlSpecies" placeholder="Con este Pokémon…" value="${esc(mon)}" title="Solo los equipos que llevan este Pokémon" class="tmonin">${mon ? '<button class="btn sm ibtn" data-tmonx="1" title="Quitar el filtro">×</button>' : ''}
+        <select id="tSort" title="Orden"><option value="new"${V.tsort !== 'name' ? ' selected' : ''}>Más recientes</option><option value="name"${V.tsort === 'name' ? ' selected' : ''}>Por nombre</option></select>
+      </div>
+      <div class="row-btns" style="margin-bottom:12px"><button class="btn primary" id="pcTeamAdd">Añadir un equipo al Team Box</button><button class="btn" id="pcTeamExport">Exportar el Team Box</button><span class="note">${teams.length} de ${L.length}</span></div>
+      ${teams.length ? `<div class="pcteams">${teams.map(({ t, S }) => { return `<div class="pcteam">
         <div class="pchead"><div><b>${esc(t.name)}</b>${SET.teamId === t.id ? ' <span class="pill win">mi equipo</span>' : ''}<span class="note">${t.side === 'me' ? 'Tuyo' : 'De un rival'} · ${new Date(t.up).toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'))}</span></div></div>
         <div class="pcmons">${S.map(m => spr(m.species, 'sm')).join('')}</div>
         ${t.notes ? `<p class="pcnotes">${esc(t.notes)}</p>` : ''}
         <div class="pcbtns">${t.side === 'me' ? `<button class="btn sm" data-tbopen="${t.id}">Abrir en el Teambuilder</button>${SET.teamId === t.id ? '' : `<button class="btn sm" data-tbmine="${t.id}">Usar como mi equipo</button>`}` : `<button class="btn sm" data-tbrival="${t.id}" title="La Calculadora usará sus sets">Rival en la calculadora</button>`}
           <button class="btn sm" data-tbside="${t.id}">${t.side === 'me' ? 'Pasar a rival' : 'Pasar a mío'}</button><button class="btn sm" data-tbcopy="${t.id}">Copiar</button><button class="btn sm danger" data-tbdel="${t.id}">Borrar</button></div>
-      </div>`; }).join('')}</div>` : '<div class="card"><p class="note">Todavía no hay equipos.</p></div>'}`;
+      </div>`; }).join('')}</div>` : `<div class="card"><p class="note">${L.length ? 'Ningún equipo con estos filtros.' : 'Todavía no hay equipos.'}</p></div>`}`;
   }
 
   /* ---------- añadir sets ---------- */
@@ -235,6 +250,8 @@ const PC = (() => {
     const find = id => list.find(x => x.id === id);
     const d = t.dataset;
     if (d.ptab) { V.tab = d.ptab; render(); }
+    else if (d.tside != null) { V.tside = d.tside; render(); }
+    else if (d.tmonx) { V.tmon = ''; render(); }
     else if (d.psel) { V.sel = V.sel === d.psel ? null : d.psel; V.msg = ''; V.rename = false; render(); }
     else if (d.pcside != null) { V.side = d.pcside; V.page = 0; render(); }
     else if (d.pcadd || d.pcdel != null) {
@@ -312,6 +329,8 @@ const PC = (() => {
   el.addEventListener('change', e => {
     if (e.target.id === 'pdBox') { const v = e.target.value.trim().slice(0, 40); Undo.snap('pc', 'Caja cambiada').then(() => patchSel({ box: v })).then(render); return; }
     if (e.target.id === 'tMine') { V.tmine = e.target.checked; V.tpage = 0; render(); return; }
+    if (e.target.id === 'tMon') { V.tmon = e.target.value; render(); return; }
+    if (e.target.id === 'tSort') { V.tsort = e.target.value; render(); return; }
     const k = { pcSide: 'side', pcBox: 'box', pcSort: 'sort' }[e.target.id];
     if (k) { V[k] = e.target.value; V.page = 0; render(); }
   });
