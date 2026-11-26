@@ -71,7 +71,7 @@ const I18N = (() => {
     'Todas tus jugadas contra todas las suyas': 'All your plays against all of theirs', 'Tu jugada': 'Your play', 'su mejor respuesta, malas tiradas': 'their best answer, bad rolls', 'Usarla': 'Use it',
     'Si el rival hace': 'If the rival does', 'Si el rival hace:': 'If the rival does:', 'Y luego ▸': 'And then ▸', 'Ocultar': 'Hide', 'Usarlo este turno': 'Use it this turn', 'Pone este turno (PS y movimientos) en la Multicalc': 'Puts this turn (HP and moves) in the Multicalc',
     'Ningún KO': 'No KO', '▶ Ver replay': '▶ Watch replay', 'La replay dentro de la app, con tus notas por turno': 'The replay inside the app, with your notes by turn', 'Abrir en Showdown': 'Open in Showdown',
-    'Replay de la partida': 'Match replay', 'Replay': 'Replay', 'Vídeo': 'Video', 'Abrir en el navegador': 'Open in the browser', 'Cerrar (Esc)': 'Close (Esc)', 'Turno anterior': 'Previous turn', 'Turno siguiente': 'Next turn',
+    'Replay de la partida': 'Match replay', 'Replay': 'Replay', 'Vídeo': 'Video', 'Abrir en el navegador': 'Open in the browser', 'Cerrar (Esc)': 'Close (Esc)',
     '▶ Play': '▶ Play', '⏸ Pausa': '⏸ Pause', 'Inicio': 'Start', 'Velocidad': 'Speed', 'Muy rápida': 'Hyperfast', 'Rápida': 'Fast', 'Lenta': 'Slow', '⇄ Lados': '⇄ Sides', 'Ver la partida desde el otro lado': 'See the battle from the other side',
     'Leads': 'Leads', 'Reserva': 'Back', 'No salieron': 'Not brought', 'Notas': 'Notes', 'Guardando…': 'Saving…',
     '+ Nota en el turno #': '+ Note at turn #', '+ Nota en el minuto #:#': '+ Note at #:#',
@@ -231,6 +231,14 @@ const I18N = (() => {
     '# guardado en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', '# guardados en Mi PC (Sets de rivales).': '# saved to My PC (Rival sets).', 'Ya estaba en Mi PC.': 'It was already in My PC.', '✓ En Mi PC': '✓ In My PC',
     'Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…': 'Click “+ Note” or a transcript line to write a note at that replay turn…',
     '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
+    // 0.18
+    'Esconder la calculadora': 'Hide the calculator', '⤢ Pantalla completa': '⤢ Full screen', '⤡ Al lado de la replay': '⤡ Next to the replay',
+    'La calculadora en todo el visor (la replay sigue detrás: «Ver la replay» o Ctrl+K para cambiar)': 'The calculator over the whole viewer (the replay stays behind: “Watch the replay” or Ctrl+K to switch)',
+    'Esconder la calculadora (Ctrl+K la vuelve a sacar, tal cual la dejaste)': 'Hide the calculator (Ctrl+K brings it back as you left it)',
+    'Esconder el menú: solo iconos y más sitio': 'Hide the menu: icons only and more room', 'Sacar el menú': 'Show the menu',
+    'Ver su ficha, sus cálculos y notas': 'See its sheet, calcs and notes', '# cálculos': '# calcs', '# cálculo': '# calc', 'sin cálculos': 'no calcs',
+    '· las mismas que en el Teambuilder': '· the same as in the Teambuilder', 'Notas en Mi PC': 'Notes in My PC', 'Abrir la Calculadora': 'Open the Calculator', 'Ver en Mi PC': 'See in My PC',
+    'Ninguno. En la Calculadora, «Cálculo a Mi PC» cuando ataca.': 'None. In the Calculator, “Calc to My PC” when it attacks.', 'Ninguno. En la Calculadora, «Cálculo a Mi PC» cuando recibe el golpe.': 'None. In the Calculator, “Calc to My PC” when it takes the hit.',
     // 0.17
     '#–# · # partidas': '#–# · # games', '#–# · # partida': '#–# · # game', '· en el #% de tus partidas': '· in #% of your games',
     'El % es tu porcentaje de victorias en las partidas donde aparece. Pulsa una fila para filtrar todo el panel.': 'The % is your win rate in the games where it shows up. Click a row to filter the whole panel.',

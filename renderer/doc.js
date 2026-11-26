@@ -62,7 +62,7 @@ const Doc = (() => {
     if (auto && sets.some(m => m.moves.some(x => P.toID(x) === 'tailwind'))) speedNote.push('Tu equipo lleva Tailwind: la Velocidad cuenta la mitad con él puesto.');
     if (auto && sets.some(m => m.moves.some(x => P.toID(x) === 'trickroom'))) speedNote.push('Tu equipo lleva Trick Room: los lentos no gastan en Velocidad.');
     sets.forEach((m, i) => {
-      const mine = pcCalcsOf(PC, m.species), au = auto ? autoCalcs(m, foes) : { off: [], def: [] };
+      const mine = P.myCalcs(PC, m.species), au = auto ? autoCalcs(m, foes) : { off: [], def: [] };
       const items = [...[...mine.off, ...au.off.filter(t => !mine.off.includes(t))].map(t => ({ k: 'off', t })), ...[...mine.def, ...au.def.filter(t => !mine.def.includes(t))].map(t => ({ k: 'def', t }))];
       const chunks = [items.slice(0, FIRST_CALCS)];
       for (let k = FIRST_CALCS; k < items.length; k += MORE_CALCS) chunks.push(items.slice(k, k + MORE_CALCS));
@@ -110,17 +110,6 @@ const Doc = (() => {
     off.sort((a, b) => b.pHi - a.pHi); def.sort((a, b) => b.pHi - a.pHi);
     return { off: off.slice(0, 7).map(x => x.desc), def: def.slice(0, 6).map(x => x.desc) };
   }
-  /** Los cálculos que guardaste en Mi PC para ese Pokémon (los tuyos), separados en ofensivos y defensivos. */
-  function pcCalcsOf(PC, species) {
-    const id = P.toID(P.baseSpecies(species)), out = { off: [], def: [] };
-    for (const x of PC) {
-      if ((x.side || 'me') !== 'me' || !(x.calcs || []).length) continue;
-      const s = P.parseSet(x.text);
-      if (!s || s.bad || P.toID(P.baseSpecies(s.species)) !== id) continue;
-      for (const c of x.calcs) { const k = P.calcRole(c, s.species); if (!out[k].includes(c.t)) out[k].push(c.t); }
-    }
-    return out;
-  }
   /** Lista de cálculos de una hoja: ofensivos y defensivos; vacía, con su hueco para rellenar. */
   function calcsHTML(items, first, more) {
     const off = items.filter(x => x.k === 'off'), def = items.filter(x => x.k === 'def');
@@ -155,7 +144,7 @@ const Doc = (() => {
     return `<div class="dmu"><h3>${x.name ? esc(x.name) : fill('Nombre del matchup')}${x.arch ? ` <span class="darch">${esc(x.arch)}</span>` : ''}${g.length ? ` <span class="dsub">· ${w}–${l}</span>` : ''}</h3>
       <div class="drow">${mons.length ? mons.map(n => spr(n, 'sm')).join('') : fill('Sus 6 Pokémon')}</div>
       ${x.paste || x.code ? `<p class="dsub">${x.paste ? `Pokepaste: <a href="${esc(x.paste)}">${esc(x.paste)}</a>` : ''}${x.paste && x.code ? ' · ' : ''}${x.code ? `Código: ${esc(x.code)}` : ''}</p>` : ''}
-      <div class="dmuplan"><div><b>Plan A</b>${plan(x.a)}</div><div><b>A tener en cuenta</b><p>${x.notes ? esc(x.notes).split('\n').join('<br>') : fill('Qué vigilar en este matchup.')}</p></div><div><b>Plan B</b>${plan(x.b)}<p>${x.bn ? esc(x.bn).split('\n').join('<br>') : fill('Cómo usar el Plan B.')}</p></div></div></div>`;
+      <div class="dmugrid"><div class="dmup a"><b>Plan A</b>${plan(x.a)}</div><div class="dmun"><b>A tener en cuenta</b><p>${x.notes ? esc(x.notes).split('\n').join('<br>') : fill('Qué vigilar en este matchup.')}</p></div><div class="dmup b"><b>Plan B</b>${plan(x.b)}</div><div class="dmun"><b>Cómo usar el Plan B</b><p>${x.bn ? esc(x.bn).split('\n').join('<br>') : fill('Cómo usar el Plan B.')}</p></div></div></div>`;
   }
   const blankMu = () => ({ name: '', arch: '', mons: [], paste: '', code: '', a: ['', '', '', ''], b: ['', '', '', ''], notes: '', bn: '', games: [], blank: true });
   /** La guía de matchups: 3 por hoja y al menos 2 hojas; los huecos que faltan, en blanco para rellenar. Con mu: true para poder rehacerla. */

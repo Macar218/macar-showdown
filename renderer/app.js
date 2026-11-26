@@ -573,5 +573,12 @@ if (W2) VIEW = /^[a-z]+$/.test(QS.get('view') || '') && QS.get('view') !== 'juga
 // En la otra ventana, su sección cuando ya están los datos y todas las pantallas (los otros archivos se cargan después).
 Promise.all([load(), new Promise(r => (document.readyState === 'complete' ? r() : window.addEventListener('load', r)))]).then(() => { if (W2) show(VIEW); });
 pollStatus();
+/** El menú de la izquierda se puede esconder (solo iconos) y volver a sacar; se recuerda. */
+(() => {
+  const set = on => { document.body.classList.toggle('navmini', on); const b = $('#navMin'); if (b) { b.textContent = on ? '›' : '‹'; b.title = on ? 'Sacar el menú' : 'Esconder el menú: solo iconos y más sitio'; } try { localStorage.setItem('msNavMini', on ? '1' : '0'); } catch (e) { /* nada */ } };
+  let on = false; try { on = localStorage.getItem('msNavMini') === '1'; } catch (e) { /* nada */ }
+  set(on);
+  document.addEventListener('click', e => { if (e.target.closest('#navMin')) set(!document.body.classList.contains('navmini')); });
+})();
 /** Otra ventana: con dos monitores, en el otro; con uno, las dos una al lado de la otra. */
 document.addEventListener('click', e => { if (e.target.closest('#winNew')) api.newWindow(VIEW === 'jugar' ? 'calc' : VIEW); });

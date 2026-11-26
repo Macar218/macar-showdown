@@ -67,7 +67,9 @@ const Viewer = (() => {
       }).join('')}</div></div>`).join('') + `<p class="note otsnone">${tt('Sin hoja de equipo (CTS): solo lo que se vio.', 'No team sheet (CTS): only what was seen.')}</p>`;
     }
     const open = V.otsOpen !== false;
-    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1">${open ? tt('Ocultar', 'Hide') : tt('Mostrar', 'Show')}</button></div>${open ? body : ''}`;
+    // Escondida, la columna se queda en una pestaña estrecha y la replay gana todo ese sitio.
+    if (!open) return `<button class="rvsidetab" data-rvotsopen="1" title="${tt('Sacar la hoja de equipo', 'Show the team sheet')}">▶ ${tt('Hoja de equipo', 'Team sheet')}</button>`;
+    return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1" title="${tt('Esconder la columna: más sitio para la replay', 'Hide the column: more room for the replay')}">${tt('Esconder', 'Hide')} ▶</button></div>${body}`;
   }
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
@@ -137,9 +139,10 @@ const Viewer = (() => {
         <aside class="rvside">
           <div class="rvots" id="rvOts">${otsHTML()}</div>
         </aside>
-        <aside class="rvcalc"><div class="rvchead"><b>Calculadora</b><span class="note" id="rvCalcTurn"></span><span style="flex:1"></span><button class="btn sm" data-rv="calc">Cerrar calculadora</button></div><div class="rvcbox" id="rvCalcBox"></div></aside>
+        <aside class="rvcalc"><div class="rvchead"><b>Calculadora</b><button class="btn sm" data-rv="prev" title="Turno anterior">⏮</button><span class="rvcturn" id="rvCalcTurn"></span><button class="btn sm" data-rv="next" title="Turno siguiente">⏭</button><span style="flex:1"></span><button class="btn sm" data-rv="cfull" id="rvCalcFull" title="La calculadora en todo el visor (la replay sigue detrás: «Ver la replay» o Ctrl+K para cambiar)"></button><button class="btn sm" data-rv="calc" title="Esconder la calculadora (Ctrl+K la vuelve a sacar, tal cual la dejaste)">${tt('Esconder', 'Hide')}</button></div><div class="rvcbox" id="rvCalcBox"></div></aside>
       </div></div>`;
     NoteHL.wrap(document.querySelector('#rvNotes'));
+    el.querySelector('.rv').classList.toggle('sidehid', V.otsOpen === false);
     hook();
   }
 
@@ -217,7 +220,7 @@ const Viewer = (() => {
     if (p) p.textContent = paused || end ? '▶ Play' : '⏸ Pausa';
     const m = document.querySelector('#rvMark');
     if (m) m.textContent = `+ Nota en el turno ${V.turn}`;
-    if (V.calc) { const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `· turno ${V.turn}`; if (V.turn !== prev) CalcReplay.tick(); }
+    if (V.calc) { const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `Turno ${V.turn}`; if (V.turn !== prev) CalcReplay.tick(); }
   }
   /* ---------- calculadora del turno (la misma de Jugar, siguiendo la replay) ---------- */
   let READER = { side: '', js: '' };
@@ -228,15 +231,25 @@ const Viewer = (() => {
     const r = await run(READER.js);
     return r && r.ok && r.battle ? { ok: true, battle: { ...r.battle, id: `rv:${V.id}` } } : null;
   }
+  /** Sacar o esconder la calculadora: al lado de la replay o en todo el visor. Esconderla no borra lo que hayas cambiado. */
   function setCalc(on) {
-    const body = document.querySelector('#rvCalcBody'), box = document.querySelector('#rvCalcBox'), hold = document.querySelector('#rvCalcHold');
+    const body = document.querySelector('#rvCalcBody'), box = document.querySelector('#rvCalcBox');
     V.calc = on;
-    document.querySelector('#rvWrap .rv').classList.toggle('withcalc', on);
+    const rv = document.querySelector('#rvWrap .rv');
+    rv.classList.toggle('withcalc', on && !V.full);
+    rv.classList.toggle('calcfull', on && !!V.full);
     const b = document.querySelector('#rvCalcBtn');
-    if (b) { b.classList.toggle('on', on); b.textContent = on ? 'Ocultar la calculadora' : 'Calculadora de este turno'; }
-    if (on) { box.appendChild(body); const t = typeof teamOf === 'function' ? teamOf(V.s) : ''; CalcReplay.setTeams(t || (typeof SET !== 'undefined' && SET.teamId) || ''); CalcReplay.setOpen(true); const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `· turno ${V.turn}`; }
-    else { CalcReplay.setOpen(false); hold.appendChild(body); }
-    try { localStorage.setItem('msRvCalc', on ? '1' : '0'); } catch (e) { /* nada */ }
+    if (b) { b.classList.toggle('on', on); b.textContent = on ? (V.full ? 'Ver la replay' : 'Esconder la calculadora') : 'Calculadora de este turno'; }
+    const f = document.querySelector('#rvCalcFull');
+    if (f) f.textContent = V.full ? '⤡ Al lado de la replay' : '⤢ Pantalla completa';
+    if (on) {
+      if (body.parentNode !== box) box.appendChild(body);
+      // Los equipos solo la primera vez en esta replay: así no se pierden tus cambios al esconderla y sacarla.
+      if (!V.calcInit) { V.calcInit = true; const t = typeof teamOf === 'function' ? teamOf(V.s) : ''; CalcReplay.setTeams(t || (typeof SET !== 'undefined' && SET.teamId) || ''); }
+      CalcReplay.setOpen(true);
+      const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `Turno ${V.turn}`;
+    } else CalcReplay.setOpen(false);
+    try { localStorage.setItem('msRvCalc', on ? '1' : '0'); localStorage.setItem('msRvCalcFull', V.full ? '1' : '0'); } catch (e) { /* nada */ }
   }
 
   /** Salta al turno de la línea pulsada ([T5]). */
@@ -286,7 +299,7 @@ const Viewer = (() => {
     if (V) close();
     let tx = [];
     try { tx = Transcript.parse(m.log); } catch (e) { tx = []; }
-    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })() };
+    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })(), full: (() => { try { return localStorage.getItem('msRvCalcFull') === '1'; } catch (e) { return false; } })() };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -318,17 +331,25 @@ const Viewer = (() => {
     if (d.rv === 'close') close();
     else if (d.rv === 'ext') api.openExternal(V.s.replay);
     else if (d.rv === 'calc') { if (V.ready) { setCalc(!V.calc); run('Replays.battle.pause()').then(poll); } }
+    else if (d.rv === 'cfull') { V.full = !V.full; setCalc(true); }
     else if (d.rv === 'play') run('Replays.battle.paused || Replays.battle.atQueueEnd ? Replays.battle.play() : Replays.battle.pause()').then(poll);
     else if (d.rv === 'prev') run('Replays.battle.seekBy(-1)').then(poll);
     else if (d.rv === 'next') run('Replays.battle.seekBy(1)').then(poll);
     else if (d.rv === 'side') run('Replays.battle.switchViewpoint()');
     else if (d.rvturn != null) run(`Replays.battle.seekTurn(${+d.rvturn})`).then(poll);
     else if (d.rv === 'mute') { muted = !muted; applyMute(); }
-    else if (d.rvotsopen) { V.otsOpen = V.otsOpen === false; try { localStorage.setItem('msRvOts', V.otsOpen ? '1' : '0'); } catch (e) { /* nada */ } document.querySelector('#rvOts').innerHTML = otsHTML(); }
+    else if (d.rvotsopen) { V.otsOpen = V.otsOpen === false; try { localStorage.setItem('msRvOts', V.otsOpen ? '1' : '0'); } catch (e) { /* nada */ } document.querySelector('#rvOts').innerHTML = otsHTML(); document.querySelector('#rvWrap .rv').classList.toggle('sidehid', !V.otsOpen); }
     else if (d.rvots) { V.otsSide = d.rvots; document.querySelector('#rvOts').innerHTML = otsHTML(); }
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
     else if (b.id === 'rvMark') mark();
   });
+  // Ctrl+K con el visor abierto: saca o esconde su calculadora (no la de Jugar).
+  document.addEventListener('keydown', e => {
+    if (!V || !V.ready || !e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'k') return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    setCalc(!V.calc);
+    if (V.calc) run('Replays.battle.pause()').then(poll);
+  }, true);
   // Pulsar una línea de la transcripción: salta a ese turno y apunta una nota enlazada a ese momento.
   document.addEventListener('click', e => {
     if (!V) return;

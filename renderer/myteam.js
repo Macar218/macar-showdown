@@ -7,7 +7,7 @@
 /* global $, esc, spr, api, P, SET, VIEWS, show, Calc, Team, Start, Sess, load, scopeInfo, I18N */
 
 const MyTeam = (() => {
-  const V = { msg: '', ok: true, paste: '', url: '', link: '' };
+  const V = { msg: '', ok: true, paste: '', url: '', link: '', sel: 0 };
 
   async function teamOfSession() {
     const s = await Sess.current();
@@ -20,22 +20,16 @@ const MyTeam = (() => {
     const { s, team } = await teamOfSession();
     await P.dex(); // descripciones de los movimientos (Macar Dex)
     const sets = team ? P.parseTeam(team.text).sets : [];
+    const PC = await P.pcList();
+    if (V.sel >= sets.length) V.sel = 0;
     const name = m => (m.nick && m.nick !== m.species ? `${m.nick} (${m.species})` : m.species);
     el.innerHTML = `<div class="head"><div><h1>Tu <span>equipo</span></h1><p class="note" style="margin-top:4px">El equipo de tu sesión. Con él se reconocen tus Pokémon en cada partida (también por mote) y salen sus estadísticas.</p></div>
       <div class="row-btns">${s ? `<span class="mtsess nolang">${esc(s.name)}</span>` : '<button class="btn" id="mtStart">Elegir sesión</button>'}
         ${team ? `<button class="btn primary" id="mtEdit">Editar en el Teambuilder</button><button class="btn" id="mtCopy" title="Copiar el equipo en formato Showdown">Copiar</button><button class="btn" id="mtPaste" title="Lo sube a pokepast.es (quien tenga el enlace puede verlo)">Crear Pokepaste</button><button class="btn" id="mtSd" title="Lo añade a tu teambuilder de Showdown (carpeta «Macar Showdown»)">Llevar a Showdown</button>` : ''}</div></div>
       ${V.msg ? `<p class="${V.ok ? 'okmsg' : 'errmsg'} mtmsg">${esc(V.msg)}${V.link ? ` <button class="btn sm" id="mtOpen">Abrir</button>` : ''}</p>` : ''}
-      ${sets.length ? `<div class="mtgrid">${sets.map(m => {
-          const it = m.item && P.itemInfo(m.item), en = typeof I18N !== 'undefined' && I18N.lang === 'en';
-          return `<div class="mtc"><div class="mthead">${spr(m.species, 'huge')}<div class="mthn"><b class="nolang">${esc(name(m))}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div></div>
-            <div class="mtinfo">
-              <div class="mtik"><small>Objeto</small><span class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<b>${esc(m.item || '—')}</b></span>${it ? `<em class="nolang">${esc(en ? it.d : it.dEs || it.d)}</em>` : ''}</div>
-              <div class="mtik"><small>Habilidad</small><span class="nolang"><b>${esc(m.ability || '—')}</b></span></div>
-              <div class="mtik"><small>Naturaleza</small><span><b>${esc(P.natLabel(m.nature))}</b></span></div>
-            </div>
-            ${P.statBlock(m)}
-            <div class="mtmoves">${m.moves.map(x => { const info = x && P.moveInfo(x); return `<div class="mtmv">${P.moveTile(x)}${info && info.desc ? `<small class="mtmvd nolang">${esc(info.desc)}</small>` : ''}</div>`; }).join('')}</div></div>`;
-        }).join('')}</div>`
+      ${sets.length ? `<div class="mtpicks">${sets.map((m, i) => { const c = P.myCalcs(PC, m.species), n = c.off.length + c.def.length, it = m.item && P.itemInfo(m.item); return `<button class="mtpk${i === V.sel ? ' on' : ''}" data-mtsel="${i}" title="Ver su ficha, sus cálculos y notas">${spr(m.species)}<b class="nolang">${esc(name(m))}</b><span class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}${esc(m.item || '—')}</span><small>${n ? `${n} cálculo${n === 1 ? '' : 's'}` : 'sin cálculos'}</small></button>`; }).join('')}</div>
+        ${detail(sets[V.sel], PC, name)}
+        <div class="card mtnotes"><h2>Notas del equipo <span class="note">· las mismas que en el Teambuilder</span></h2><textarea id="mtNotes" rows="4" placeholder="Idea del equipo, leads, planes…">${esc(team.notes || '')}</textarea><p class="note" id="mtNotesMsg"></p></div>`
         : `<div class="card mtempty"><b>${s ? 'Esta sesión aún no tiene equipo.' : 'No tienes ninguna sesión abierta.'}</b><span class="note">${s ? 'Pega su Pokepaste abajo y queda montado.' : 'Empieza o carga una sesión con tu equipo.'}</span></div>`}
       <div class="mtbottom">
         <div class="card"><h2>Jugador</h2><label class="field">Tu usuario de Showdown<input type="text" id="mtUser" value="${esc(SET.showdownName || '')}" placeholder="Por ejemplo: toto110"></label>
@@ -48,11 +42,33 @@ const MyTeam = (() => {
       </div>`;
   }
 
+  /** La ficha del Pokémon elegido: su set entero y, al lado, sus cálculos de Mi PC (ofensivos y defensivos) y sus notas. */
+  function detail(m, PC, name) {
+    if (!m) return '';
+    const it = m.item && P.itemInfo(m.item), en = typeof I18N !== 'undefined' && I18N.lang === 'en';
+    const c = P.myCalcs(PC, m.species);
+    const list = (k, L) => `<h3 class="mtck ${k}">${k === 'off' ? 'Cálculos ofensivos clave' : 'Cálculos defensivos clave'} <span class="note">${L.length || ''}</span></h3>${L.length ? `<ul class="mtcl">${L.map(t => `<li class="nolang">${esc(t)}</li>`).join('')}</ul>` : `<p class="note">${k === 'off' ? 'Ninguno. En la Calculadora, «Cálculo a Mi PC» cuando ataca.' : 'Ninguno. En la Calculadora, «Cálculo a Mi PC» cuando recibe el golpe.'}</p>`}`;
+    return `<div class="mtdet"><div class="mtc"><div class="mthead">${spr(m.species, 'huge')}<div class="mthn"><b class="nolang">${esc(name(m))}</b><div class="tytags">${P.typesOf(m.species).map(P.typeBadge).join('')}</div></div></div>
+        <div class="mtinfo">
+          <div class="mtik"><small>Objeto</small><span class="nolang">${it && it.img ? `<img src="${it.img}" alt="">` : ''}<b>${esc(m.item || '—')}</b></span>${it ? `<em class="nolang">${esc(en ? it.d : it.dEs || it.d)}</em>` : ''}</div>
+          <div class="mtik"><small>Habilidad</small><span class="nolang"><b>${esc(m.ability || '—')}</b></span></div>
+          <div class="mtik"><small>Naturaleza</small><span><b>${esc(P.natLabel(m.nature))}</b></span></div>
+        </div>
+        ${P.statBlock(m)}
+        <div class="mtmoves">${m.moves.map(x => { const info = x && P.moveInfo(x); return `<div class="mtmv">${P.moveTile(x)}${info && info.desc ? `<small class="mtmvd nolang">${esc(info.desc)}</small>` : ''}</div>`; }).join('')}</div></div>
+      <div class="card mtcalcs">${list('off', c.off)}${list('def', c.def)}
+        ${c.notes.length ? `<h3>Notas en Mi PC</h3>${c.notes.map(t => `<p class="mtpcn">${esc(t).split('\n').join('<br>')}</p>`).join('')}` : ''}
+        <div class="row-btns"><button class="btn sm" data-mtcalc="1">Abrir la Calculadora</button><button class="btn sm" data-mtpc="1">Ver en Mi PC</button></div></div></div>`;
+  }
+
   function say(msg, ok = true, link = '') { V.msg = msg; V.ok = ok; V.link = link; render(); }
 
   $('#v-miequipo').addEventListener('click', async e => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.mtsel != null) { V.sel = +b.dataset.mtsel; render(); return; }
+    if (b.dataset.mtcalc) { show('calc'); return; }
+    if (b.dataset.mtpc) { show('pc'); return; }
     const { s, team } = await teamOfSession();
     if (b.id === 'mtStart') Start.show('home');
     else if (b.id === 'mtEdit' && team) { Team.select(team.id); show('equipo'); }
@@ -87,7 +103,17 @@ const MyTeam = (() => {
       load();
     }
   });
-  $('#v-miequipo').addEventListener('input', e => { if (e.target.id === 'mtTxt') V.paste = e.target.value; if (e.target.id === 'mtUrl') V.url = e.target.value; });
+  let notesT = null;
+  $('#v-miequipo').addEventListener('input', e => {
+    if (e.target.id === 'mtTxt') V.paste = e.target.value;
+    if (e.target.id === 'mtUrl') V.url = e.target.value;
+    // Notas del equipo: las mismas del Teambuilder; se guardan en el equipo.
+    if (e.target.id === 'mtNotes') {
+      const v = e.target.value;
+      clearTimeout(notesT);
+      notesT = setTimeout(async () => { const { team } = await teamOfSession(); if (!team) return; team.notes = v; await P.saveTeam(team); const m = $('#mtNotesMsg'); if (m) m.textContent = 'Guardado'; }, 600);
+    }
+  });
 
   VIEWS.miequipo = () => { V.msg = ''; render(); };
   return { render };

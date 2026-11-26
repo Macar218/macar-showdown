@@ -336,7 +336,6 @@ function makeCalc(cfg) {
         <span style="flex:1"></span><button class="btn sm" data-edit="${side}" title="Editor completo: sets más usados, Mi PC, pegar el set">Editar</button><button class="btn sm${pcOpen ? ' on' : ''}" data-cpc="${side}" title="Guardar este Pokémon, tal cual está, en Mi PC con el nombre que quieras">→ Mi PC</button></div>
       ${pcOpen ? `<div class="cpcrow"><input id="cPcName-${side}" maxlength="80" placeholder="Nombre en Mi PC" value="${esc(m.nick && m.nick !== m.species ? m.nick : `${P.baseSpecies(m.species)} · ${m.item || 'sin objeto'}`)}"><button class="btn sm primary" data-cpcok="${side}">Guardar</button><button class="btn sm" data-cpc="${side}">Cancelar</button></div>` : ''}
       ${S.pcMsg && S.pcMsg[0] === side ? `<p class="okmsg cpcmsg">${esc(S.pcMsg[1])}</p>` : ''}
-      ${changed ? `<div class="cresetrow"><span>Cambiado respecto a tu equipo</span><button class="btn sm" data-creset="${side}" title="Vuelve a dejarlo como está en tu equipo (${esc(orig.team)}): objeto, habilidad, naturaleza, puntos y ataques">↺ Como en tu equipo</button></div>` : ''}
       ${mega !== m.species ? `<p class="note cforme">Forma Mega: <b class="nolang">${esc(mega)}</b> · habilidad ${esc(P.abilitiesOf(mega)[0] || '')}</p>` : ''}
       <div class="sdgrid">
         <div class="field">Objeto${q(m.item && !rv.item && m.live)}<button class="citem${itOpen ? ' on' : ''}" data-citem="${side}" title="Cambiar el objeto aquí mismo">${ii && ii.img ? `<img src="${ii.img}" alt="">` : ''}<span class="nolang">${esc(m.item || 'Sin objeto')}</span><i>▾</i></button></div>
@@ -353,6 +352,7 @@ function makeCalc(cfg) {
       <div class="sdhp"><span>PS</span><div class="hpline"><i style="width:${Math.max(0, Math.min(100, m.hp))}%" class="${hpCls(m.hp)}"></i></div><label><input type="number" min="0" max="100" step="1" value="${Math.round(m.hp)}" data-hp="${side}">%</label><span class="note">${st.hp ? `${Math.round((st.hp * m.hp) / 100)}/${st.hp}` : ''}</span></div>
       <div class="c2moves">${[0, 1, 2, 3].map(i => { const x = m.moves[i] || '', d = x && P.moveOf(x), on = mvOpen && S.mvPick[1] === i; return `<button class="c2mv${d ? ` t-${esc(d.type)}` : ' empty'}${on ? ' on' : ''}" data-cmv="${side}:${i}" title="Cambiar el movimiento">${x ? `<b class="nolang">${esc(x)}</b>${d ? P.typeBadge(d.type) : ''}<span class="c2cat">${d ? (d.category === 'Status' ? 'Estado' : d.category === 'Physical' ? 'Físico' : 'Especial') : ''}</span><span class="c2bp">${d && d.basePower ? d.basePower : '—'}</span>` : `<span class="note">Movimiento ${i + 1}</span>`}</button>`; }).join('')}</div>
       ${mvOpen ? P.movePanel(m.species, U, TT, S.mvQ || '', m.moves, m.moves[S.mvPick[1]] || '') : ''}
+      ${changed ? `<div class="cresetrow"><span>Cambiado respecto a tu equipo</span><button class="clink" data-creset="${side}" title="Vuelve a dejarlo como está en tu equipo (${esc(orig.team)}): objeto, habilidad, naturaleza, puntos y ataques">↺ Como en tu equipo</button></div>` : ''}
     </div>`;
   }
   function arena() {

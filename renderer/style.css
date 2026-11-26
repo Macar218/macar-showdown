@@ -1972,3 +1972,73 @@ body.w2 .nav [data-v=jugar],body.w2 #winNew,body.w2 #capState,body.w2 #updBox{di
 .cresetrow{display:flex;align-items:center;gap:8px;margin:4px 0;padding:4px 8px;border:1px dashed var(--gold);border-radius:8px;font-size:12px;color:var(--gold)}
 .cresetrow span{flex:1}
 @media (max-width:1100px){.pcwrap{grid-template-columns:1fr}.pcdetail{position:static}}
+/* 0.18 Visor: calculadora en todo el visor (la replay sigue detrás) y hoja que se esconde en una pestaña */
+.rvbody{position:relative}
+.rv.calcfull .rvcalc{display:flex;position:absolute;inset:0;z-index:6;border-left:0}
+.rvcturn{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);min-width:64px;text-align:center}
+.rv.sidehid .rvbody{grid-template-columns:minmax(0,1fr) 34px}
+.rv.sidehid.withcalc .rvbody{grid-template-columns:minmax(0,1fr) clamp(440px,44%,820px)}
+.rv.sidehid .rvside{padding:0;overflow:hidden}
+.rvsidetab{writing-mode:vertical-rl;transform:rotate(180deg);width:34px;height:100%;min-height:200px;border:0;background:var(--surface);color:var(--gold);font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.rvsidetab:hover{background:var(--accent-soft)}
+/* 0.18 Menú de la izquierda escondido (solo iconos), con su botón */
+body.navmini .side{width:64px;padding:10px 6px;gap:8px}
+body.navmini .side .brand b,body.navmini .side .navsep,body.navmini .sessbtn small,body.navmini .winbtn span{display:none}
+body.navmini .side .brand{align-items:center;padding:2px 0 8px}
+body.navmini .side .lens{width:34px;height:34px;border-width:3px}
+body.navmini .side .dexlights i{display:none}
+body.navmini .sessbtn{padding:6px 4px;font-size:10px}
+body.navmini .sessbtn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.navmini .nav button{font-size:0;justify-content:center;padding:9px 0;gap:0}
+body.navmini .nav button svg{width:22px;height:22px}
+body.navmini .winbtn{justify-content:center;padding:8px 0}
+body.navmini .cap span,body.navmini .cap{display:none}
+body.navmini .dexscreen button::before{display:none}
+body.navmini .updbox{font-size:10px;padding:6px}
+.navmin{position:absolute;top:8px;right:6px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:rgba(6,18,52,.8);color:var(--muted);cursor:pointer;font-size:13px;line-height:1;z-index:3}
+.navmin:hover{color:var(--ink);border-color:var(--accent)}
+body.navmini .navmin{position:static;width:100%;height:22px}
+@media (max-width:1100px){.navmin{display:none}}
+/* 0.18 Calculadora: volver a como está en tu equipo, discreto y debajo de los ataques */
+.cresetrow{border:0;padding:2px 2px 0;margin:4px 0 0;font-size:11px;color:var(--muted);justify-content:flex-end}
+.cresetrow span{flex:none}
+.clink{border:0;background:none;padding:0;font:inherit;font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.clink:hover{color:var(--ink)}
+/* 0.18 Matchups: rival arriba; Plan A encima del Plan B, del mismo tamaño, y al lado de cada uno sus notas (igual al abrirlo en grande) */
+.mubody,.murow.big .mubody{grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto 1fr 1fr;grid-template-areas:"riv riv" "pa notes" "pb bn";align-items:stretch}
+@container (min-width:1100px){.mubody{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"riv riv" "pa notes" "pb bn"}}
+.mubody .murival{grid-area:riv;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px}
+.mubody .muplan.a{grid-area:pa}
+.mubody .muplan.b{grid-area:pb}
+.mubody .munotes{grid-area:notes}
+.mubody .munotes.mubn{grid-area:bn}
+.mubody .muplan{min-width:0;justify-content:center}
+.mubody .munotes textarea{min-height:88px}
+.murow.big .mubody .munotes textarea,.murow.big .mubody .mubn textarea{min-height:200px;font-size:14.5px;line-height:1.55}
+@media (max-width:760px){.mubody,.murow.big .mubody{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"riv" "pa" "notes" "pb" "bn"}}
+/* 0.18 Documento: cada matchup como en la pantalla Matchups (Plan A y B del mismo tamaño, uno encima del otro, y sus notas al lado) */
+.dsheet .dmugrid{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr);gap:6px 10px;margin-top:6px}
+.dsheet .dmup,.dsheet .dmun{padding:6px 8px;border:1px solid rgba(120,140,180,.3);border-radius:8px}
+.dsheet .dmup>b,.dsheet .dmun>b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.dsheet .dmup.a>b{color:#38d4ff}.dsheet .dmup.b>b{color:#c9a8ff}
+.dsheet.light .dmup.a>b{color:#0369a1}.dsheet.light .dmup.b>b{color:#6d28d9}
+.dsheet .dmun p{margin:0;font-size:13px}
+.dsheet .dmup .dsub{margin:2px 0 0}
+/* 0.18 Tu equipo: pulsa un Pokémon para ver su ficha, sus cálculos y notas; notas del equipo abajo */
+.mtpicks{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+.mtpk{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border:1px solid var(--line);border-radius:12px;background:var(--shell);color:var(--ink);cursor:pointer;min-width:0}
+.mtpk:hover{border-color:var(--accent)}
+.mtpk.on{border-color:var(--gold);background:rgba(255,226,122,.08);box-shadow:0 0 0 1px var(--gold) inset}
+.mtpk .spr{width:64px;height:64px}
+.mtpk b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mtpk span{display:flex;align-items:center;gap:3px;font-size:11.5px;color:var(--muted);max-width:100%;overflow:hidden;white-space:nowrap}
+.mtpk span img{width:18px;height:18px}
+.mtpk small{font-size:10.5px;color:var(--accent)}
+.mtdet{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;align-items:start}
+.mtcalcs h3{margin:6px 0 4px;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.mtcalcs h3.off{color:var(--good)}.mtcalcs h3.def{color:var(--accent)}
+.mtcl{margin:0 0 8px;padding-left:18px;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.mtpcn{margin:4px 0;font-size:13px;white-space:normal}
+.mtnotes{margin-top:12px}
+.mtnotes textarea{width:100%;min-height:90px;font:inherit;font-size:14px;color:var(--ink);background:#081639;border:1px solid var(--line);border-radius:8px;padding:8px}
+@media (max-width:1100px){.mtpicks{grid-template-columns:repeat(3,minmax(0,1fr))}.mtdet{grid-template-columns:1fr}}

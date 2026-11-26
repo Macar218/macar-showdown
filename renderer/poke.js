@@ -549,6 +549,18 @@ const P = (() => {
     if (i < 0 || !b) return 'off';
     return t.slice(0, i).toLowerCase().includes(b) ? 'off' : 'def';
   }
+  /** Los cálculos que guardaste en Mi PC para un Pokémon tuyo, en ofensivos y defensivos (sin repetir), y sus notas. */
+  function myCalcs(PC, species) {
+    const id = toID(baseSpecies(species)), out = { off: [], def: [], notes: [] };
+    for (const x of PC) {
+      if ((x.side || 'me') !== 'me') continue;
+      const s = parseSet(x.text);
+      if (!s || s.bad || toID(baseSpecies(s.species)) !== id) continue;
+      if (x.notes && String(x.notes).trim()) out.notes.push(String(x.notes).trim());
+      for (const c of x.calcs || []) { const k = calcRole(c, s.species); if (!out[k].includes(c.t)) out[k].push(c.t); }
+    }
+    return out;
+  }
   /* ---------- objetos: nombre en español, descripción, grupo e icono ---------- */
   const IDATA = Object.fromEntries((window.ITEMS_DATA || []).map(x => [toID(x.n), x]));
   const itemInfo = name => IDATA[toID(name)] || null;
@@ -879,7 +891,7 @@ const P = (() => {
   }
 
   return {
-    pickMon, openInfo, itemInfo, calcRole,
+    pickMon, openInfo, itemInfo, calcRole, myCalcs,
     G, toID, STATS, SL, PS_STAT, SP_MAX, SP_TOTAL, STATUS, WEATHERS, TERRAINS, SIDE_FX, TYPES, TYPES_ES,
     NATURES, NAT, SPECIES, MOVES, ITEMS, spOf, moveOf, nameOf, natLabel, natMult, abilitiesOf, topAbility, archetypeOf, ARCHETYPES, typesOf, effectiveness,
     calcSpecies, baseSpecies, blankMon, clone, cleanSet, parseSet, parseTeam, exportSet, exportTeam, stats, solveSP,
