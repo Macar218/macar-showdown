@@ -405,5 +405,13 @@ t('análisis: momentos clave del registro, motivos (análisis y notas) y filtro'
   st.flushIndex();
   assert.strictEqual(new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), idx).list().length, 0);
   ok++; console.log('✓ índice de partidas: arranque rápido, cambios de fuera y guardado durante la lectura');
+  // Copia automática: sin bloquear, una por semana.
+  const backup = require('../src/backup');
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-'));
+  const a1 = await backup.auto(dir, folder, 'x');
+  assert.ok(a1 && a1.matches === 2 && fs.existsSync(a1.file));
+  assert.strictEqual(await backup.auto(dir, folder, 'x'), null);
+  assert.strictEqual(backup.peek(a1.file).matches, 2);
+  ok++; console.log('✓ copia automática semanal sin bloquear');
   console.log(`\n${ok} pruebas correctas`);
 })().catch(e => { console.error(e); process.exit(1); });

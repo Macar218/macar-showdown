@@ -2200,3 +2200,5 @@ body.hubon .view{top:48px}
 .strel b{font-family:var(--mono)}
 .strel i{font-style:normal;font-size:11.5px;color:var(--muted)}
 .strel.ko b{color:var(--bad)}.strel.mid b{color:var(--warn)}.strel.low b{color:var(--muted)}
+/* Teambuilder en ventana estrecha: la fila de puntos encoge para que el ± de naturaleza quepa. */
+@media (max-width:1000px){.srow{grid-template-columns:30px 52px minmax(40px,1fr) 96px 38px 56px;gap:4px}}

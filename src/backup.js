@@ -64,15 +64,34 @@ function restore(dir, file, before, version) {
   return { restored: n, before: saved.file };
 }
 
+/** Como create, pero leyendo y comprimiendo sin bloquear (para la copia automática, con miles de partidas). */
+async function createAsync(dir, file, version) {
+  const fsp = fs.promises;
+  const rels = (await fsp.readdir(dir)).filter(f => f.endsWith('.json'));
+  const pd = path.join(dir, 'partidas');
+  if (fs.existsSync(pd)) for (const f of await fsp.readdir(pd)) if (f.endsWith('.json')) rels.push(`partidas/${f}`);
+  const files = {};
+  const ok = rels.filter(r => OK(r) && !SKIP.has(r));
+  for (let i = 0; i < ok.length; i += 100) {
+    await Promise.all(ok.slice(i, i + 100).map(async rel => { try { files[rel] = await fsp.readFile(path.join(dir, rel), 'utf8'); } catch (e) { /* nada */ } }));
+  }
+  const gz = await new Promise((res, rej) => zlib.gzip(JSON.stringify({ app: 'macar-showdown', v: 1, version, created: Date.now(), files }), (e, b) => (e ? rej(e) : res(b))));
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp-${process.pid}`;
+  await fsp.writeFile(tmp, gz);
+  await fsp.rename(tmp, file);
+  return { file, matches: Object.keys(files).filter(k => k.startsWith('partidas/')).length, files: Object.keys(files).length, bytes: gz.length };
+}
+
 /** Copia automática local: una por semana, se quedan las 4 últimas. */
-function auto(dir, folder, version) {
+async function auto(dir, folder, version) {
   fs.mkdirSync(folder, { recursive: true });
   const list = fs.readdirSync(folder).filter(f => /^auto-.*\.macarbackup$/.test(f)).sort();
   const last = list.length ? fs.statSync(path.join(folder, list[list.length - 1])).mtimeMs : 0;
   if (Date.now() - last < 7 * 24 * 3600 * 1000) return null;
-  const r = create(dir, path.join(folder, `auto-${new Date().toISOString().slice(0, 10)}.macarbackup`), version);
+  const r = await createAsync(dir, path.join(folder, `auto-${new Date().toISOString().slice(0, 10)}.macarbackup`), version);
   for (const f of fs.readdirSync(folder).filter(f => /^auto-.*\.macarbackup$/.test(f)).sort().slice(0, -4)) { try { fs.unlinkSync(path.join(folder, f)); } catch (e) { /* nada */ } }
   return r;
 }
 
-module.exports = { create, peek, restore, auto, collect };
+module.exports = { create, createAsync, peek, restore, auto, collect };

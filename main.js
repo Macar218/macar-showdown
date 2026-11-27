@@ -567,7 +567,7 @@ app.whenReady().then(async () => {
   usage = new Usage(store.dir, () => regOf(store.settings()).id);
   tours = new Tournaments(store.dir, () => regOf(store.settings()).limitless);
   // Copia automática local (fuera de OneDrive): una por semana, las 4 últimas.
-  setTimeout(() => { try { backup.auto(store.dir, path.join(app.getPath('userData'), 'copias'), app.getVersion()); } catch (e) { /* nada */ } }, 20000);
+  setTimeout(() => { backup.auto(store.dir, path.join(app.getPath('userData'), 'copias'), app.getVersion()).catch(() => {}); }, 20000);
   dex = new MacarDex(store.dir);
   // Visor de replays: la partida guardada en el reproductor oficial de Showdown (sin tener que subirla).
   const rs = session.fromPartition(REPLAY_PARTITION);
