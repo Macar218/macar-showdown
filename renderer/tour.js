@@ -9,8 +9,8 @@
 const Tour = (() => {
   const STEPS = [
     { t: 'Macar Showdown en 2 minutos', d: 'Juegas en Showdown dentro de la app y ella guarda cada partida, te deja apuntar notas y calcular daño mientras juegas, y te ayuda a preparar el equipo. Vamos parte por parte.' },
-    { v: 'inicio', sel: '#v-inicio', t: 'Inicio: tu plan', d: 'La app se abre aquí. Hoy: tu sesión (empezarla o cerrarla), cómo va la semana y tu foco. Semana: tu objetivo de horas, el foco y las sesiones que piensas hacer. Calendario, Temporada (cada regulación y tus reglas) y Torneos (CP, premios y gastos).' },
-    { sel: '#sessBtn', t: 'Tu sesión', d: 'Mientras una sesión está abierta, la app cuenta el tiempo de cada pilar (jugar, análisis, TB) y sus partidas se apuntan en ella. Al cerrarla apuntas si cumpliste el objetivo y lo que te llevas.' },
+    { v: 'inicio', sel: '#v-inicio', t: 'Inicio: tu plan', d: 'La app se abre aquí. Hoy: escribe el objetivo y empieza; cómo va la semana (horas y Jugar : Análisis frente a tu base) y tu foco. Calendario: tus sesiones, partidas y torneos, y planear un día. Temporada y Torneos.' },
+    { sel: '#sessBtn', t: 'Tu sesión', d: 'Con una sesión abierta sale abajo su cronómetro: pulsa lo que estás haciendo (Jugar, Juego serio, Análisis o TB) y cuenta para eso. Al cerrarla, el tiempo ya está puesto: apunta si cumpliste el objetivo y lo que te llevas.' },
     { v: 'jugar', sel: '#sd', t: 'Jugar', d: 'Showdown, tal cual. Juega como siempre: al terminar cada combate la partida se guarda sola, con su registro completo. Con − / + (o Ctrl + / Ctrl −) cambias su tamaño.' },
     { v: 'jugar', sel: '#capState', t: 'Captura', d: 'Aquí ves si la app está leyendo Showdown y cuántas partidas ha guardado hoy. Si pone algo en rojo, recarga Showdown con ⟳.' },
     { v: 'jugar', sel: '#notesBar', t: 'Notas de la partida', d: 'Apunta mientras juegas. «+ Nota del turno» empieza una línea con el turno de ahora ([T5]) en amarillo; luego, en la replay, esa línea salta a ese turno.' },

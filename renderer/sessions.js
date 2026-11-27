@@ -1,14 +1,13 @@
 'use strict';
 /*
  * Macar Showdown · sesiones y equipo con el que juegas.
- * Una sesión es un rato de práctica con un tipo (Jugar + Análisis, Juego serio, TB…), un objetivo y, si la planeas,
- * un día y una duración (Inicio → Semana). Se empieza con «Empezar» y se cierra con «Cerrar sesión» (lo que hiciste,
- * si cumpliste el objetivo y lo que te llevas). Mientras está abierta, la app cuenta los minutos de cada pilar según
- * la pantalla en la que estás (Jugar = jugar, replays y Dashboard = análisis, Equipo, Calculadora, Mi PC y Dex = TB)
- * y deja de contar si no tocas el ordenador en 5 minutos o la ventana está minimizada. Al cerrarla los puedes cambiar.
+ * Una sesión es un rato de práctica con un objetivo (y, si la planeas, un día). Se empieza con «Empezar» y se cierra
+ * con «Cerrar sesión» (si cumpliste el objetivo, lo que hiciste y lo que te llevas). Mientras está abierta, el
+ * cronómetro de la barra de abajo cuenta el tiempo de lo que le digas que estás haciendo (Jugar, Juego serio, Análisis
+ * o TB); la duración y el reparto salen de ahí. Sin horas fijas: no hay que planear cuánto.
  * No va atada a un equipo: dentro puedes cambiar de equipo y cada partida guarda con cuál la jugaste.
  */
-/* global api, DB, P, $, SET, Calc, F, load, show, VIEW, W2, Viewer, Season, Home, newId, I18N */
+/* global api, DB, P, $, SET, Calc, F, load, show, W2, Season, Home, newId, I18N */
 
 const Sess = (() => {
   async function list() { const v = await DB.get('sesiones'); return Array.isArray(v) ? v : []; }
@@ -43,6 +42,8 @@ const Sess = (() => {
       s.used = Date.now(); s.up = Date.now();
       await save(all);
     }
+    await flush();
+    setAct(s ? 'play' : 'pause');
     const patch = { sessionId: s ? s.id : '' };
     if (s && s.teamId && (await P.teamById(s.teamId))) patch.teamId = s.teamId;
     Object.assign(SET, await api.setSettings(patch));
@@ -100,19 +101,19 @@ const Sess = (() => {
     load();
   }
 
-  /* ---------- cronómetro de la sesión abierta ---------- */
-  const HUBV = new Set(['miequipo', 'equipo', 'mu', 'estudio', 'opt', 'doc', 'calc', 'pc', 'dex']);
-  /** En qué pilar estás ahora (null = no cuenta: Inicio, Ajustes). */
-  function pillarNow(s) {
-    if (s.type === 'coach') return 'an';
-    if (typeof Viewer !== 'undefined' && Viewer.isOpen && Viewer.isOpen()) return 'an';
-    if (VIEW === 'jugar') return s.type === 'serious' || s.type === 'tour' ? 'serious' : 'play';
-    if (VIEW === 'dash') return 'an';
-    if (HUBV.has(VIEW)) return 'tb';
-    return null;
+  /*
+   * ---------- cronómetro de la sesión abierta ----------
+   * Tú dices qué estás haciendo (Jugar, Juego serio, Análisis o TB) en la barra de abajo y cuenta para eso hasta que
+   * cambies o pauses. Al abrir la app empieza en pausa. Si pasas 20 minutos sin tocar el ordenador, se pausa solo.
+   */
+  let act = 'pause';
+  const getAct = () => act;
+  function setAct(k) {
+    act = Season.PK.includes(k) ? k : 'pause';
+    if (typeof Home !== 'undefined' && Home.bar) Home.bar();
   }
-  // Lo contado se guarda cada 5 minutos (y al cerrar la sesión o la app), no en cada minuto.
-  let last = Date.now(), pend = { id: '', m: Season.zero() }, ticks = 0;
+  // Lo contado se guarda cada 5 minutos (y al cambiar de actividad, al cerrar la sesión o la app).
+  let last = Date.now(), pend = { id: '', m: Season.zero() }, ticks = 0, idlePaused = false;
   async function flush() {
     if (!pend.id || !Season.sum(pend.m)) return;
     const { id, m } = pend;
@@ -132,23 +133,22 @@ const Sess = (() => {
   async function tick() {
     const now = Date.now(), dt = Math.min(2, (now - last) / 60000); // minutos desde la última vez (como mucho 2: si el ordenador durmió, no cuenta)
     last = now;
-    if (W2 || !SET.sessionId || document.visibilityState !== 'visible') return;
+    if (W2 || !SET.sessionId || act === 'pause') return;
     const idle = await api.idle().catch(() => 0);
-    if (idle > 300) return;
+    if (idle > 1200) { idlePaused = true; setAct('pause'); return; }
     const s = await current();
     if (!s || (s.state && s.state !== 'open')) return;
-    const k = pillarNow(s);
-    if (!k) return;
     if (pend.id !== s.id) { await flush(); pend = { id: s.id, m: Season.zero() }; }
-    pend.m[k] += dt;
-    if (++ticks % 5 === 0) await flush();
+    pend.m[act] += dt;
+    if (++ticks % 20 === 0) await flush();
     if (typeof Home !== 'undefined' && Home.tick) Home.tick(s);
   }
+  const wasIdle = () => { const v = idlePaused; idlePaused = false; return v; };
   window.addEventListener('beforeunload', () => { flush(); });
-  if (!W2) setInterval(tick, 60000);
+  if (!W2) setInterval(tick, 15000);
 
   $('#sessBtn').addEventListener('click', () => show('inicio'));
   DB.onChange(k => { if (k === 'sesiones' || k === 'equipos') paintButton(); });
   paintButton();
-  return { list, save, current, open, create, update, finish, remove, useTeam, paintButton, defName, pillarNow, flush, trackOf };
+  return { list, save, current, open, create, update, finish, remove, useTeam, paintButton, defName, flush, trackOf, act: getAct, setAct, wasIdle };
 })();

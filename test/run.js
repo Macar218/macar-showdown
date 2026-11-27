@@ -451,6 +451,17 @@ t('modo predicción: aciertos en las notas', () => {
   assert.strictEqual(Stats.tagOf('[T1] 🎯 ✔ Protect'), null); // no es una nota de análisis
 });
 
+t('base Jugar : Análisis (referencia, no regla)', () => {
+  const S = require('../renderer/season');
+  assert.strictEqual(S.ratio({ play: 90, serious: 30, an: 50 }), 2.4);
+  assert.strictEqual(S.ratio({ play: 0, an: 0 }), null);
+  assert.strictEqual(S.ratio({ play: 60, an: 0 }), Infinity);
+  assert.strictEqual(S.ratioLight(2.4, {}), 'good'); assert.strictEqual(S.ratioLight(3.5, {}), 'warn'); assert.strictEqual(S.ratioLight(6, {}), 'bad'); assert.strictEqual(S.ratioLight(1, {}), 'bad');
+  assert.strictEqual(S.ratioLight(1.6, { cfg: { ratio: [1.5, 2] } }), 'good');
+  assert.ok(/analizar/.test(S.ratioAdvice(6, {}))); assert.ok(/jugar más/.test(S.ratioAdvice(1, {})));
+  assert.strictEqual(S.ratioTxt(2.44, 'es-ES'), '2,4 : 1');
+});
+
 t('torneos: CP con el cupo de jugadores, Best Finish Limit y dinero', () => {
   const S = require('../renderer/season');
   assert.deepStrictEqual(S.cpFor('regional', 5, 620), { cp: 280, usd: 1000, kick: false });

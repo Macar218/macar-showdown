@@ -41,7 +41,7 @@
       <span class="tools"><span class="sdzoom" title="Tamaño de Showdown, como en el navegador (también Ctrl + / Ctrl − / Ctrl 0)"><button class="btn sm" id="sdZoomOut" aria-label="Más pequeño">−</button><button class="btn sm" id="sdZoomVal" title="Volver al 100%">100%</button><button class="btn sm" id="sdZoomIn" aria-label="Más grande">+</button></span><button class="btn ibtn mute" id="sdMute"></button><button class="btn" id="sdTeam" title="Tu equipo, en la carpeta «Macar Showdown» del teambuilder de Showdown">Llevar mi equipo a Showdown</button><button class="btn primary" id="sdSearch" title="Busca partida en el ladder con tu equipo">Buscar partida (Reg M-C)</button><button class="btn" id="reloadSd" title="Recargar Showdown">⟳</button></span>
     </div>
     <div class="playwrap">
-      <div class="sdcol"><div class="playfocus hide" id="playFocus"></div><div class="rivknown hide" id="rivKnown" aria-live="polite"></div>
+      <div class="sdcol"><div class="rivknown hide" id="rivKnown" aria-live="polite"></div>
         <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
         <div class="notesbar" id="notesBar">
           <div class="nbtop"><button class="nbhead" id="nbToggle" title="Mostrar u ocultar las notas"><b>Notas de la partida</b><span id="nbWho">Abre un combate para tomar notas</span><span class="nbsaved" id="nbSaved"></span><i aria-hidden="true">▾</i></button></div>
@@ -66,6 +66,7 @@
   <section class="view" id="v-ajustes"></section>
 </main>
 
+<div class="sessbar hide" id="sessBar" aria-label="Cronómetro de la sesión"></div>
 <div id="rvCalcHold" hidden><div class="cbody" id="rvCalcBody"></div></div>
 <div class="modal hide" id="modal" role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
 

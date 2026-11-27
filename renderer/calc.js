@@ -61,12 +61,20 @@ function makeCalc(cfg) {
   let lastHash = '';
 
   try { Object.assign(S, JSON.parse(localStorage.getItem(cfg.key) || '{}'), { battleId: null, edits: { me: {}, foe: {} } }); } catch (e) { /* nada */ }
-  if (LIVE) { S.manual = { me: [], foe: [] }; S.teamFoe = ''; S.meMode = 'team'; }
+  if (LIVE) { S.manual = { me: [], foe: [], tme: [] }; S.teamFoe = ''; S.meMode = 'team'; }
+  // En la de estudio, «Tu equipo» es el que tienes puesto (el de la sesión), no el último que miraste: se pone en cuanto se sabe.
+  let followSet = !LIVE;
   const freeMe = () => !LIVE && S.meMode === 'free';
+  /*
+   * Los añadidos a mano de tu lado van aparte en cada modo: con «Tu equipo», solo ese equipo (y lo que le añadas,
+   * para luego actualizarlo o guardarlo como otro); con «Los que tú elijas», tu propia lista, que no toca el equipo.
+   */
+  if (!Array.isArray(S.manual.tme)) S.manual.tme = [];
+  const man = side => (side === 'me' && !freeMe() ? S.manual.tme : S.manual[side]);
   if (!S.field || !S.field.me) S.field = P.blankField();
   if (!S.hide || !Array.isArray(S.hide.me) || !Array.isArray(S.hide.foe)) S.hide = { me: [], foe: [] };
   const persist = () => {
-    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, hide: LIVE ? { me: [], foe: [] } : S.hide, field: S.field, built: LIVE ? null : S.built || null })); } catch (e) { /* nada */ }
+    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [], tme: [] } : S.manual, hide: LIVE ? { me: [], foe: [] } : S.hide, field: S.field, built: LIVE ? null : S.built || null })); } catch (e) { /* nada */ }
   };
 
   /* ---------- sets ---------- */
@@ -75,6 +83,16 @@ function makeCalc(cfg) {
    * Barra para construir un equipo con «Los que tú elijas»: tus Pokémon, el nombre y un botón grande para guardarlo
    * (la primera vez, como equipo nuevo; después, los cambios en ese mismo equipo, o como otro).
    */
+  /** Con «Tu equipo»: si le has cambiado algo, actualizar ese equipo o guardarlo como uno nuevo. */
+  function teamBar() {
+    if (LIVE || freeMe()) return '';
+    const t = teamById(S.teamMe);
+    if (!t) return S.teamMsg ? `<p class="okmsg cbmsg">${esc(S.teamMsg)}</p>` : '';
+    const changed = Object.values(S.edits.me).some(e => Object.keys(e).some(k => !['hp', 'boosts', 'status', 'src'].includes(k))) || S.hide.me.length || S.manual.tme.length;
+    if (!changed) return S.teamMsg ? `<p class="okmsg cbmsg">${esc(S.teamMsg)}</p>` : '';
+    return `<div class="cbuild"><div class="cbhead"><b>Has cambiado «<span class="nolang">${esc(t.name)}</span>»</b><span class="cbmons">${S.me.slice(0, 6).map(m => spr(m.species, 'sm')).join('')}</span></div>
+      <div class="cbrow"><button class="btn primary cbsave" data-cteamsave="upd">💾 Actualizar el equipo</button><button class="btn" data-cteamsave="new">Guardar como equipo nuevo</button><span style="flex:1"></span><button class="btn sm" data-cteamsave="undo" title="Vuelve a poner el equipo como está guardado">Deshacer los cambios</button></div></div>`;
+  }
   function buildBar() {
     if (LIVE || S.meMode !== 'free' || !S.manual.me.length) return '';
     const b = S.built && teamById(S.built.id) ? S.built : null;
@@ -193,13 +211,14 @@ function makeCalc(cfg) {
   }
   function applyManual() {
     // Un equipo que ya no existe (borrado, otra carpeta de datos): el de tu sesión.
+    if (followSet && TEAMS.length && typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) { S.teamMe = SET.teamId; followSet = false; }
     if (TEAMS.length && S.teamMe && !teamById(S.teamMe)) S.teamMe = (typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) ? SET.teamId : '';
     if (!freeMe() && TEAMS.length && !S.teamMe && typeof SET !== 'undefined' && SET.teamId && teamById(SET.teamId)) S.teamMe = SET.teamId;
     if (!LIVE && TEAMS.length && S.teamFoe && !teamById(S.teamFoe)) S.teamFoe = '';
     if (LIVE && S.battleId) { S.edits = { me: {}, foe: {} }; S.selMove = null; S.field = P.blankField(); }
     S.battleId = null; S.format = ''; S.turn = 0; S.spectator = false; S.sheet = false;
     const fromTeam = (id, extra, side) => { const t = teamById(id); const hid = LIVE ? [] : S.hide[side] || []; return [...(t ? P.parseTeam(t.text).sets.filter(m => !hid.includes(m.species)) : []), ...extra.map(x => ({ ...x }))]; };
-    S.me = withEdits('me', fromTeam(freeMe() ? '' : S.teamMe, LIVE ? [] : S.manual.me, 'me').map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
+    S.me = withEdits('me', fromTeam(freeMe() ? '' : S.teamMe, LIVE ? [] : man('me'), 'me').map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     // En Jugar, sin combate no hay rival: los del combate se van al terminar.
     S.foe = LIVE ? [] : withEdits('foe', fromTeam(S.teamFoe, S.manual.foe, 'foe').map(m => ({ ...m, src: m.src === 'pegado' ? 'equipo' : m.src })));
     S.meActive = S.meActive && S.meActive.length && S.meActive.every(i => S.me[i]) ? S.meActive : S.me.slice(0, 2).map((_, i) => i);
@@ -394,7 +413,7 @@ function makeCalc(cfg) {
     const fresh = { ...P.clone(o), species: m.species, src: 'equipo' };
     delete fresh.team;
     Object.assign(m, fresh);
-    if (!LIVE) { const k = S.manual[side].findIndex(x => x.species === m.species); if (k >= 0) { S.manual[side][k] = { ...S.manual[side][k], ...fresh }; persist(); } }
+    if (!LIVE) { const k = man(side).findIndex(x => x.species === m.species); if (k >= 0) { man(side)[k] = { ...man(side)[k], ...fresh }; persist(); } }
     lastHash = '';
   }
   /** Cambiar algo del Pokémon desde la calculadora (se recuerda como cambio a mano). */
@@ -411,7 +430,7 @@ function makeCalc(cfg) {
     if (key !== 'boost' && key !== 'status' && m.src !== 'exacto') m.src = 'manual';
     S.edits[side][m.species] = { ...(S.edits[side][m.species] || {}), ...patch, ...(m.src === 'manual' ? { src: 'manual' } : {}) };
     // En la de estudio, lo que añadiste a mano se recuerda con el cambio.
-    if (!LIVE) { const k = S.manual[side].findIndex(x => x.species === m.species); if (k >= 0) { Object.assign(S.manual[side][k], patch); persist(); } }
+    if (!LIVE) { const k = man(side).findIndex(x => x.species === m.species); if (k >= 0) { Object.assign(man(side)[k], patch); persist(); } }
   }
   /** Campo como en Showdown: botones. */
   function fieldPanel() {
@@ -442,7 +461,7 @@ function makeCalc(cfg) {
     return `<div class="ctop"><span class="pill">ESTUDIO</span><span>Tus equipos, Mi PC y los rivales de tus partidas</span><span style="flex:1"></span><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
       <div class="cmode"><span class="note">Tus Pokémon:</span><div class="seg">${[['team', 'Tu equipo'], ['free', 'Los que tú elijas']].map(([k, l]) => `<button data-cmode="${k}" aria-pressed="${(S.meMode || 'team') === k}" title="${k === 'team' ? 'Un equipo tuyo: por defecto, el de tu sesión' : 'Empieza vacío y añade con + los Pokémon que quieras: de Mi PC, de tus equipos o nuevos'}">${l}</button>`).join('')}</div>
         ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? '<button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>' : ''}` : ''}</div>
-      ${buildBar()}
+      ${buildBar()}${teamBar()}
       <div class="cteams">${S.meMode === 'free' ? '' : `<select data-cteam="me" title="Tu equipo">${teamOpt('me', S.teamMe)}</select>`}
         <select data-cteam="foe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" data-cmatch="1" title="Los rivales de una partida tuya: su hoja de equipo (OTS) con el reparto más común">De una partida</button>
@@ -491,10 +510,10 @@ function makeCalc(cfg) {
   function addManual(side, m) {
     if (side === 'foe' || side === 'me') {
       const base = toID(P.baseSpecies(m.species));
-      const k = S.manual[side].findIndex(x => toID(P.baseSpecies(x.species)) === base);
-      if (k >= 0) S.manual[side].splice(k, 1);
+      const k = man(side).findIndex(x => toID(P.baseSpecies(x.species)) === base);
+      if (k >= 0) man(side).splice(k, 1);
     }
-    S.manual[side].push(P.clone(m));
+    man(side).push(P.clone(m));
     applyManual();
     const i = S[side].findIndex(x => x.species === m.species);
     if (side === 'me') S.selMe = Math.max(0, i); else S.selFoe = Math.max(0, i);
@@ -520,7 +539,7 @@ function makeCalc(cfg) {
         if (keep.src !== 'exacto' && keep.src !== 'pc') keep.src = 'manual';
         S.edits[side][was.species] = keep;
         S[side][idx] = { ...S[side][idx], ...keep };
-        if (!LIVE) { const k = S.manual[side].findIndex(x => x.species === was.species); if (k >= 0) S.manual[side][k] = { ...S.manual[side][k], ...keep }; }
+        if (!LIVE) { const k = man(side).findIndex(x => x.species === was.species); if (k >= 0) man(side)[k] = { ...man(side)[k], ...keep }; }
         persist(); lastHash = ''; render();
       }
     });
@@ -528,8 +547,8 @@ function makeCalc(cfg) {
   function removeMon(side, idx) {
     const m = S[side][idx];
     if (!m) return;
-    const k = S.manual[side].findIndex(x => x.species === m.species);
-    if (k >= 0) S.manual[side].splice(k, 1);
+    const k = man(side).findIndex(x => x.species === m.species);
+    if (k >= 0) man(side).splice(k, 1);
     else if (!LIVE && !S.hide[side].includes(m.species)) S.hide[side].push(m.species);
     S[side].splice(idx, 1);
     const sel = side === 'me' ? 'selMe' : 'selFoe', act = side === 'me' ? 'meActive' : 'foeActive';
@@ -675,6 +694,30 @@ function makeCalc(cfg) {
           S.buildMsg = upd ? `Cambios guardados en «${v.name}».` : `Guardado como equipo «${v.name}»: ya está en el Teambuilder y en Mi PC.`;
           persist(); if (typeof Calc !== 'undefined') Calc.reloadTeams(); render();
         });
+        return;
+      }
+      if (t.dataset.cteamsave) {
+        const k = t.dataset.cteamsave, team = teamById(S.teamMe);
+        const clear = () => { S.edits.me = {}; S.hide.me = []; S.manual.tme = []; S.meActive = []; persist(); lastHash = ''; };
+        if (k === 'undo' || !team) { clear(); S.teamMsg = ''; tick(true); return; }
+        const sets = S.me.slice(0, 6).map(m => { const c = P.clone(m); delete c.hp; delete c.boosts; delete c.status; delete c.src; return c; });
+        (async () => {
+          if (k === 'upd') {
+            if (typeof Undo !== 'undefined') await Undo.snap('equipos', `Equipo «${team.name}» actualizado`);
+            const base = await P.teamById(team.id);
+            await P.saveTeam({ ...(base || {}), id: team.id, name: team.name, side: 'me', text: P.exportTeam(sets) });
+            S.teamMsg = `Equipo «${team.name}» actualizado.`;
+          } else {
+            const name = `${team.name} (2)`;
+            const v = await P.saveTeam({ name, side: 'me', text: P.exportTeam(sets) });
+            S.teamMe = v.id;
+            if (typeof Sess !== 'undefined') await Sess.useTeam(v.id);
+            S.teamMsg = `Guardado como «${name}»: ahora juegas con él (cámbiale el nombre en Construir equipo).`;
+          }
+          clear();
+          if (typeof Calc !== 'undefined') Calc.reloadTeams();
+          tick(true);
+        })();
         return;
       }
       if (t.dataset.cbuildnew) { S.built = null; S.buildMsg = ''; S.buildName = null; persist(); render(); return; }

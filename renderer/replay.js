@@ -39,11 +39,11 @@ const Viewer = (() => {
         <button class="btn sm ibtn mute" data-rv="mute" id="rvMute"></button>
       </div>
       <div class="rvpred hide" id="rvPred"></div>
-      <div class="rvtx nolang" id="rvTx">${txHTML()}</div>
+      <div class="rvlow"><div class="rvtx nolang" id="rvTx">${txHTML()}</div>
       <div class="rvnotes">
-        <div class="rvnhead"><h3>Notas</h3><button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button><span class="note">Pulsa una línea que empiece por [T5] para saltar a ese turno.</span><span class="rvlegend"><i class="bad">${tt('Rojo: mal hecho', 'Red: done badly')}</i><i class="good">${tt('Verde: bien hecho', 'Green: done well')}</i></span><span style="flex:1"></span><span class="note" id="rvSaved"></span></div>
+        <div class="rvnhead"><h3 title="Pulsa una línea que empiece por [T5] para saltar a ese turno">Notas</h3><button class="btn sm primary" id="rvMark">+ Nota en el turno 0</button><span class="rvlegend"><i class="bad">${tt('Rojo: mal hecho', 'Red: done badly')}</i><i class="good">${tt('Verde: bien hecho', 'Green: done well')}</i></span><span style="flex:1"></span><span class="note" id="rvSaved"></span></div>
         <textarea id="rvNotes" placeholder="Pulsa «+ Nota» o una línea de la transcripción para apuntar con el turno de la replay…">${esc(V.notes)}</textarea>
-      </div>`;
+      </div></div>`;
   }
 
   /* ---------- hoja de equipo (OTS): la del rival por defecto, con pestaña para ver la tuya ---------- */
@@ -101,11 +101,32 @@ const Viewer = (() => {
     const A = V.add, W = Stats.ALL, w = W.find(x => x.k === A.k);
     const opt = g => W.filter(x => x.g === g).map(x => `<option value="${x.k}"${x.k === A.k ? ' selected' : ''}>${wLabel(x)}</option>`).join('');
     return `<div class="rvadd${w ? (w.g === 3 ? ' good' : ' bad') : ''}">
-      <div class="rvaddrow"><div class="seg rvwhere">${[['turn', `${tt('Turno', 'Turn')} <span id="rvAddTurn">${V.turn || 0}</span>`], ['gen', tt('General', 'General')]].map(([k, l]) => `<button data-rvwhere="${k}" aria-pressed="${A.where === k}" title="${k === 'turn' ? tt('En el turno que estás viendo en la replay', 'At the turn you are watching in the replay') : tt('Sobre la partida entera, sin turno', 'About the whole game, no turn')}">${l}</button>`).join('')}</div>
+      <div class="rvaddrow"><div class="seg rvwhere">${[['turn', `${tt('Turno', 'Turn')} <span id="rvAddTurn">${addTurn()}</span>`], ['gen', tt('General', 'General')]].map(([k, l]) => `<button data-rvwhere="${k}" aria-pressed="${A.where === k}" title="${k === 'turn' ? tt('En el turno que estás viendo en la replay', 'At the turn you are watching in the replay') : tt('Sobre la partida entera, sin turno', 'About the whole game, no turn')}">${l}</button>`).join('')}</div>
         <select id="rvAddK" title="${tt('Rojo: mal hecho · Verde: bien hecho', 'Red: done badly · Green: done well')}"><option value="">${tt('Elige qué es…', 'Choose what it is…')}</option><optgroup label="${tt('✗ Mal hecho', '✗ Done badly')}">${opt(0)}${opt(1)}${opt(2)}</optgroup><optgroup label="${tt('✓ Bien hecho', '✓ Done well')}">${opt(3)}</optgroup></select></div>
+      ${A.where === 'turn' ? `<select id="rvAddAct" class="rvaddact" title="${tt('Sobre qué acción del turno (o pulsa una línea de la transcripción)', 'Which action of the turn (or click a line of the transcript)')}">${actOpts()}</select>` : ''}
       ${w ? `<p class="rvaddguide">${esc(tt(...GUIDE[w.k]))}</p>` : ''}
       <textarea id="rvAddTxt" rows="2" placeholder="${tt('Qué pasó y qué harías la próxima vez…', 'What happened and what you would do next time…')}">${esc(A.text)}</textarea>
       <div class="row-btns"><button class="btn sm primary" data-rvadd="1"${w ? '' : ' disabled'}>${tt('Añadir a las notas', 'Add to the notes')}</button><span class="note" id="rvAddMsg">${esc(A.msg || '')}</span></div></div>`;
+  }
+  /** El turno del apunte: el que elegiste en la transcripción o el que estás viendo. */
+  const addTurn = () => (V.add.pin != null ? V.add.pin : V.turn || 0);
+  /** Las acciones de un turno, en una línea cada una (movimientos, cambios, megas, no se mueve). */
+  function actsOf(n) {
+    const t = (V.tx || []).find(x => x.turn === n);
+    if (!t) return [];
+    const out = [];
+    for (const e of t.ev) {
+      if (e.k === 'move') out.push(`${e.who.sp} · ${e.move}${e.tgt && !(e.tgt.sp === e.who.sp && e.tgt.side === e.who.side) ? ` → ${e.tgt.sp}` : ''}`);
+      else if (e.k === 'switch') out.push(`${e.who.sp} ${e.drag ? tt('sale a la fuerza', 'is dragged out') : tt('entra', 'comes in')}`);
+      else if (e.k === 'mega') out.push(`${e.who.sp} ${tt('megaevoluciona', 'mega evolves')}`);
+      else if (e.k === 'cant') out.push(`${e.who.sp} ${tt('no se mueve', 'cannot move')}`);
+    }
+    return [...new Set(out)];
+  }
+  function actOpts() {
+    const A = V.add, list = actsOf(addTurn());
+    if (A.act && !list.includes(A.act)) list.unshift(A.act);
+    return `<option value="">${tt('Todo el turno', 'The whole turn')}</option>${list.map(x => `<option value="${esc(x)}"${x === A.act ? ' selected' : ''}>${esc(x)}</option>`).join('')}`;
   }
   /** Lo que ya has apuntado (las líneas de análisis de las notas), en su color. */
   function tagsHTML() {
@@ -154,8 +175,8 @@ const Viewer = (() => {
     const A = V.add, w = Stats.ALL.find(x => x.k === A.k);
     if (!w) return;
     const text = String(A.text || '').trim().replace(/\s*\n\s*/g, ' ');
-    const turn = A.where === 'turn' ? V.turn || 0 : null;
-    const line = `${turn != null ? `[T${turn}] ` : ''}${wLabel(w)}: ${text}`;
+    const turn = A.where === 'turn' ? addTurn() : null;
+    const line = `${turn != null ? `[T${turn}] ` : ''}${wLabel(w)}: ${turn != null && A.act ? `${A.act} — ` : ''}${text}`;
     const L = V.notes ? V.notes.split('\n') : [];
     let at;
     if (turn == null) { at = 0; while (at < L.length && Stats.tagOf(L[at]) && Stats.tagOf(L[at]).turn == null) at++; }
@@ -167,7 +188,8 @@ const Viewer = (() => {
     V.notes = L.join('\n').replace(/\n+$/, '');
     const ta = document.querySelector('#rvNotes');
     if (ta) { ta.value = V.notes; NoteHL.sync(ta); }
-    A.text = ''; A.msg = tt('Añadida a las notas', 'Added to the notes');
+    A.text = ''; A.act = ''; A.pin = null; A.msg = tt('Añadida a las notas', 'Added to the notes');
+    document.querySelectorAll('#rvTx .txrow.sel').forEach(r => r.classList.remove('sel'));
     save();
     redrawOts();
   }
@@ -292,23 +314,24 @@ const Viewer = (() => {
   }
   /** El combate y su registro, a todo el hueco del reproductor. */
   function fit() {
-    // El combate mide 640×360 y su registro va al lado: se escala todo para llenar el hueco.
-    // Si así el combate sale bastante más grande, el registro va debajo.
+    // El combate (640×360) lo más grande que quepa; su registro, al lado solo si sobra sitio (abajo ya está la
+    // transcripción de la app).
     run(`(() => {
       const W = innerWidth, H = innerHeight, b = document.querySelector('.battle'), l = document.querySelector('.battle-log');
       if (!b || !l) return 0;
-      const side = Math.min(W / 1000, H / 364), stack = Math.min(W / 644, H / 520);
-      const st = stack > side * 1.12, z = Math.max(0.4, st ? stack : side);
+      const z = Math.max(0.4, Math.min(W / 644, H / 364));
       document.body.style.zoom = z;
-      const w = W / z, h = H / z;
-      const bl = Math.max(0, (w - (st ? 640 : 1000)) / 2);
-      Object.assign(b.style, { left: bl + 'px', top: '2px' });
+      const w = W / z, h = H / z, spare = w - 644;
+      const withLog = spare >= 260;
+      const bl = withLog ? 2 : Math.max(0, (w - 640) / 2);
+      Object.assign(b.style, { left: bl + 'px', top: Math.max(2, (h - 362) / 2) + 'px' });
       document.querySelector('.wrapper').style.height = (h - 2) + 'px';
-      if (st) Object.assign(l.style, { left: '2px', top: '366px', right: 'auto', bottom: '2px', width: (w - 4) + 'px', height: 'auto', maxHeight: 'none' });
-      else Object.assign(l.style, { left: (bl + 642) + 'px', top: '2px', right: 'auto', width: (w - bl * 2 - 642) + 'px', height: '360px' });
+      if (withLog) Object.assign(l.style, { display: '', left: (bl + 642) + 'px', top: '2px', right: 'auto', bottom: 'auto', width: (w - bl - 646) + 'px', height: (h - 6) + 'px', maxHeight: 'none' });
+      else l.style.display = 'none';
       l.scrollTop = l.scrollHeight;
       return z; })()`);
   }
+
   async function poll() {
     if (!V) return;
     const st = await run('[Replays.battle.turn, Replays.battle.paused, Replays.battle.atQueueEnd]');
@@ -332,7 +355,8 @@ const Viewer = (() => {
     if (p) p.textContent = paused || end ? '▶ Play' : '⏸ Pausa';
     const m = document.querySelector('#rvMark');
     if (m) m.textContent = `+ Nota en el turno ${V.turn}`;
-    const at = document.querySelector('#rvAddTurn'); if (at) at.textContent = V.turn;
+    const at = document.querySelector('#rvAddTurn'); if (at) at.textContent = addTurn();
+    if (V.turn !== prev && V.add.pin == null) { const s = document.querySelector('#rvAddAct'); if (s) s.innerHTML = actOpts(); }
     if (V.calc) { const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `Turno ${V.turn}`; if (V.turn !== prev) CalcReplay.tick(); }
   }
   /* ---------- calculadora del turno (la misma de Jugar, siguiendo la replay) ---------- */
@@ -541,7 +565,7 @@ const Viewer = (() => {
     else if (d.rvotsopen) { V.otsOpen = V.otsOpen === false; try { localStorage.setItem('msRvOts', V.otsOpen ? '1' : '0'); } catch (e) { /* nada */ } document.querySelector('#rvOts').innerHTML = otsHTML(); document.querySelector('#rvWrap .rv').classList.toggle('sidehid', !V.otsOpen); }
     else if (d.rvots) { V.otsSide = d.rvots; document.querySelector('#rvOts').innerHTML = otsHTML(); }
     else if (d.rvwhy) { const w = new Set(V.review.why); if (w.has(d.rvwhy)) w.delete(d.rvwhy); else w.add(d.rvwhy); V.review.why = Stats.ALL.map(x => x.k).filter(k => w.has(k)); saveReview(); redrawOts(); }
-    else if (d.rvwhere) { V.add.where = d.rvwhere; V.add.msg = ''; redrawOts(); }
+    else if (d.rvwhere) { V.add.where = d.rvwhere; V.add.msg = ''; if (d.rvwhere === 'gen') { V.add.pin = null; V.add.act = ''; } redrawOts(); }
     else if (d.rvadd) addTag();
     else if (d.rvdone) { const mk = { ...(V.s.mark || {}) }; mk.a = mk.a === 'done' ? false : 'done'; V.s.mark = mk.r || mk.a ? mk : null; api.setMark(V.id, V.s.mark || {}); const x = typeof M !== 'undefined' ? M.find(y => y.id === V.id) : null; if (x) x.mark = V.s.mark; redrawOts(); }
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
@@ -560,10 +584,19 @@ const Viewer = (() => {
     const r = e.target.closest('#rvTx .txrow');
     if (!r) return;
     const n = +r.dataset.txt;
-    run(`Replays.battle.seekTurn(${n})`);
-    mark(r.dataset.txline || '', n);
+    run(`(Replays.battle.pause(), Replays.battle.seekTurn(${n}), 1)`);
+    if (!V.s.me || !r.dataset.txline) { mark(r.dataset.txline || '', n); return; }
+    // Apuntar sobre esa acción: se elige en el análisis (que se abre) y el cursor va al texto.
+    document.querySelectorAll('#rvTx .txrow.sel').forEach(x => x.classList.remove('sel'));
+    r.classList.add('sel');
+    Object.assign(V.add, { where: 'turn', pin: n, act: r.dataset.txline, msg: '' });
+    V.otsSide = 'rev'; V.otsOpen = true;
+    document.querySelector('#rvWrap .rv').classList.remove('sidehid');
+    redrawOts();
+    const t = document.querySelector('#rvAddTxt'); if (t) t.focus();
   });
   document.addEventListener('change', e => {
+    if (V && e.target.id === 'rvAddAct') { V.add.act = e.target.value; return; }
     if (V && e.target.id === 'rvAddK') { V.add.k = e.target.value; V.add.msg = ''; redrawOts(); const t = document.querySelector('#rvAddTxt'); if (t) t.focus(); run('Replays.battle.pause()'); }
     if (V && e.target.id === 'rvSpeed') { V.speed = e.target.value; run(`Replays.changeSetting('speed', ${JSON.stringify(V.speed)})`); }
   });

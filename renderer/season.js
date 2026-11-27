@@ -32,7 +32,7 @@ const Season = (() => {
   const TYPE = Object.fromEntries(TYPES.map(t => [t.k, t]));
   const FOCUS = [['', '—'], ['mix', 'Mixta'], ['tb', 'TB / Teoría'], ['play', 'Jugar'], ['serious', 'Juego serio'], ['an', 'Análisis']];
   const DURS = [30, 45, 60, 90, 120, 150, 180, 210, 240];
-  const CFG = { avg: 8, green: [30, 50], yellow: [20, 60], gap: 3, rate: 1.08 };
+  const CFG = { avg: 8, green: [30, 50], yellow: [20, 60], gap: 3, rate: 1.08, ratio: [2, 3] };
 
   /* ---------- fechas (día local 'AAAA-MM-DD') ---------- */
   const pad = n => String(n).padStart(2, '0');
@@ -151,6 +151,25 @@ const Season = (() => {
     if (l === 'warn') return hi ? 'Mucho estudio: se recomienda foco Jugar.' : 'Poco estudio: se recomienda más Análisis antes de jugar más.';
     return hi ? 'Demasiado estudio: esta semana, foco Jugar.' : 'Muy poco estudio: esta semana, foco Análisis o TB.';
   }
+  /*
+   * Base (no regla): por cada hora de análisis, entre 2 y 3 de juego (Jugar + Juego serio). TB va aparte.
+   * ratio(m) = juego / análisis (null sin análisis ni juego; Infinity con juego y sin análisis).
+   */
+  function ratio(m) { const g = (+m.play || 0) + (+m.serious || 0), a = +m.an || 0; if (!g && !a) return null; return a ? g / a : Infinity; }
+  function ratioLight(r, plan) {
+    if (r == null) return '';
+    const [lo, hi] = cfgOf(plan).ratio || CFG.ratio;
+    if (r >= lo && r <= hi) return 'good';
+    if (r >= lo * 0.75 && r <= hi * 1.25) return 'warn';
+    return 'bad';
+  }
+  function ratioAdvice(r, plan) {
+    const l = ratioLight(r, plan);
+    if (!l || l === 'good') return l ? 'Dentro de tu base.' : '';
+    return r > cfgOf(plan).ratio[1] ? 'Juegas mucho para lo que analizas: dedica más rato a analizar.' : 'Analizas mucho para lo que juegas: toca jugar más.';
+  }
+  /** «2,6 : 1» (o «solo juego» / «solo análisis»). */
+  const ratioTxt = (r, loc) => (r == null ? '—' : r === Infinity ? 'Solo juego' : r === 0 ? 'Solo análisis' : `${(Math.round(r * 10) / 10).toLocaleString(loc || 'es-ES')} : 1`);
   /** Último día en que jugaste (partidas tuyas o sesiones con minutos de juego) y días desde entonces. */
   function lastPlay(sessions, matches, openId, now) {
     let last = '';
@@ -267,6 +286,6 @@ const Season = (() => {
     return 0;
   }
 
-  return { PILLARS, PK, TYPES, TYPE, FOCUS, DURS, CFG, CP_TABLE, TIERS, TIER, GROUPS, dayOf, isDay, parseDay, addDays, weekOf, diffDays, today, cfgOf, zero, sum, split, round5, stateOf, dayCount, tracked, realMin, planMin, estimate, week, study, light, advice, lastPlay, next, pendingPast, reg, regOf, cpFor, seasonOf, tour, seasonSum, dur, parseDur };
+  return { ratio, ratioLight, ratioAdvice, ratioTxt, PILLARS, PK, TYPES, TYPE, FOCUS, DURS, CFG, CP_TABLE, TIERS, TIER, GROUPS, dayOf, isDay, parseDay, addDays, weekOf, diffDays, today, cfgOf, zero, sum, split, round5, stateOf, dayCount, tracked, realMin, planMin, estimate, week, study, light, advice, lastPlay, next, pendingPast, reg, regOf, cpFor, seasonOf, tour, seasonSum, dur, parseDur };
 })();
 if (typeof module !== 'undefined') module.exports = Season;

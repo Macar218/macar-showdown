@@ -36,19 +36,23 @@ const Study = (() => {
       ${rows.map(x => `<tr><td>${spr(x.m.species, 'xs')} ${N(formOf(x.m).sp)}</td><td><b>${x.v}</b></td><td>${x.v * 2}</td><td>${tr.indexOf(x) + 1}º</td></tr>`).join('')}
       </tbody></table></div>`;
   }
+  /**
+   * Cobertura ofensiva de un vistazo: los 18 tipos y, en cada uno, cuántos de tus Pokémon le pegan supereficaz
+   * (con qué). Rojo = nadie, amarillo = solo uno, verde = dos o más.
+   */
   function coverageCard(S) {
-    const off = Team.offense(S);
-    const types = new Set();
-    const row = m => {
-      const mv = m.moves.filter(Boolean).map(x => ({ x, d: P.moveOf(x) })).filter(o => o.d && o.d.category !== 'Status');
-      mv.forEach(o => types.add(o.d.type));
-      return `<tr><td>${spr(m.species, 'xs')} ${N(formOf(m).sp)}</td><td>${mv.length ? mv.map(o => `<span class="stmv">${P.typeBadge(o.d.type)} ${N(o.x)} <i>${o.d.basePower || '—'}</i></span>`).join('') : '<span class="note">solo movimientos de estado</span>'}</td></tr>`;
-    };
-    const body = S.map(row).join('');
-    const miss = off.filter(o => !o.hit);
-    return `<div class="card stcard"><h3>Potencia y cobertura</h3>
-      <table class="sttab stcov"><tbody>${body}</tbody></table>
-      <p class="stline"><span class="note">Supereficaz contra ${18 - miss.length} de 18 tipos.</span> ${miss.length ? `<span class="note">Sin supereficaz contra:</span> ${miss.map(o => P.typeBadge(o.def)).join(' ')}` : '<span class="okc">Cubres todos los tipos.</span>'}</p></div>`;
+    // El tipo con el que pega de verdad: -ate (Pixilate…) cambia los Normal, y Weather Ball va con el clima que pone él.
+    const ATE = { Pixilate: 'Fairy', Aerilate: 'Flying', Refrigerate: 'Ice', Galvanize: 'Electric' }, WX = { Drought: 'Fire', Drizzle: 'Water', 'Sand Stream': 'Rock', 'Snow Warning': 'Ice' };
+    const typeOf = (d, ab) => (d.name === 'Weather Ball' && WX[ab] ? WX[ab] : d.type === 'Normal' && ATE[ab] ? ATE[ab] : d.type);
+    const atk = S.map(m => { const ab = formOf(m).ab; return { m, mv: m.moves.filter(Boolean).map(x => ({ x, d: P.moveOf(x) })).filter(o => o.d && o.d.category !== 'Status').map(o => ({ ...o, t: typeOf(o.d, ab) })) }; });
+    const cells = P.TYPES.map(def => {
+      const who = atk.map(a => ({ m: a.m, o: a.mv.filter(o => P.effectiveness(o.t, [def]) > 1).sort((x, y) => (y.d.basePower || 0) - (x.d.basePower || 0))[0] })).filter(w => w.o);
+      return { def, who, cls: who.length >= 2 ? 'ok' : who.length === 1 ? 'one' : 'none' };
+    });
+    const none = cells.filter(c => c.cls === 'none'), one = cells.filter(c => c.cls === 'one');
+    return `<div class="card stcard"><h3>Cobertura ofensiva <span class="note">· a qué tipos pegas supereficaz</span></h3>
+      <div class="covgrid">${cells.map(c => `<div class="covcell ${c.cls}" title="${esc(c.who.map(w => `${w.m.species}: ${w.o.x}`).join(' · ') || 'Nadie le pega supereficaz')}">${P.typeBadge(c.def)}<span class="covwho">${c.who.slice(0, 4).map(w => spr(w.m.species, 'xs')).join('')}</span></div>`).join('')}</div>
+      <p class="stline">${none.length ? `<span class="note">Nadie le pega supereficaz a:</span> ${none.map(c => P.typeBadge(c.def)).join(' ')}` : '<span class="okc">Le pegas supereficaz a todos los tipos.</span>'}${one.length ? ` <span class="note">· Solo uno de tus Pokémon contra ${one.length === 1 ? '1 tipo' : `${one.length} tipos`}.</span>` : ''}</p></div>`;
   }
   function defenseCard(S) {
     const forms = S.map(m => { const f = formOf(m); return { m, sp: f.sp, ab: f.ab, ty: P.typesOf(f.sp) }; });
