@@ -1,6 +1,6 @@
 'use strict';
 /* Macar Showdown · Teambuilder: tus equipos, el equipo con el que juegas y su análisis. */
-/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId */
+/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId, Sess */
 
 const Team = (() => {
   const T = { id: null, msg: '' };
@@ -253,11 +253,7 @@ const Team = (() => {
     $('#modal').classList.remove('hide');
     $('#imTxt').focus();
   }
-  async function setMine(id) {
-    const s = await api.setSettings({ teamId: id });
-    Object.assign(SET, s);
-    Calc.setTeams(id);
-  }
+  async function setMine(id) { await Sess.useTeam(id); }
 
   /** Enviar al teambuilder de Showdown (en la pestaña Jugar). */
   async function toShowdown(team) {

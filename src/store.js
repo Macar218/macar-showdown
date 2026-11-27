@@ -96,7 +96,7 @@ class Store {
    */
   data(key) {
     if (!Store.KEYS.includes(key)) throw new Error(`Colección desconocida: ${key}`);
-    const fallback = key === 'equipos' || key === 'pc' || key === 'sesiones' ? [] : {};
+    const fallback = key === 'equipos' || key === 'pc' || key === 'sesiones' || key === 'misTorneos' ? [] : {};
     const v = this.readJSON(path.join(this.dir, `${key}.json`), fallback);
     return v == null ? fallback : v;
   }
@@ -212,7 +212,9 @@ class Store {
     try { live = (this.data('liveNotes') || {})[mid] || ''; } catch (e) { live = ''; }
     const m = { log, clientName: clientName || (prev && prev.clientName) || null, source: prev ? prev.source : source, notes: (prev && prev.notes) || live, replay: prev ? prev.replay || null : null, mark: (prev && prev.mark) || null,
       // La partida se apunta en la sesión abierta al jugarla.
-      session: prev ? prev.session || null : (this.settings().sessionId || null) };
+      session: prev ? prev.session || null : (this.settings().sessionId || null),
+      // Y con el equipo que tenías puesto (así en una sesión puedes cambiar de equipo y cada partida sabe el suyo).
+      team: prev ? prev.team || null : (this.settings().teamId || null), review: (prev && prev.review) || null };
     m.summary = this.summarize(mid, m, endedAt || (prev && prev.summary.endedAt) || Date.now());
     this.writeMatch(mid, m);
     this.cache.set(mid, m.summary);
@@ -225,6 +227,7 @@ class Store {
     s.notes = m.notes || '';
     s.replay = m.replay || null;
     s.session = m.session || null;
+    s.team = m.team || null;
     s.rounds = m.rounds || null;
     s.mark = m.mark || null;
     s.review = m.review || null;
@@ -318,7 +321,7 @@ class Store {
   }
 }
 
-Store.WHY = ['team', 'preview', 'mechanic', 'expect', 'predict', 'macro', 'detail', 'play', 'luck', 'other'];
-Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes', 'sesiones', 'bo3Notes', 'matchups'];
+Store.WHY = ['team', 'preview', 'mechanic', 'expect', 'predict', 'macro', 'detail', 'play', 'luck', 'other', 'gplay', 'gpredict', 'gplan', 'gteam'];
+Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes', 'sesiones', 'bo3Notes', 'matchups', 'plan', 'misTorneos'];
 
 module.exports = { Store, matchId };

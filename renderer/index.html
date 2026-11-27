@@ -15,9 +15,10 @@
 <aside class="side">
   <button class="navmin" id="navMin" title="Esconder el menú: solo iconos y más sitio">‹</button>
   <div class="brand"><div class="dexlights" aria-hidden="true"><span class="lens"></span><i class="r"></i><i class="y"></i><i class="g"></i></div><b>MACAR <span>SHOWDOWN</span></b></div>
-  <button class="sessbtn" id="sessBtn" title="Tu sesión: aquí se apuntan las partidas. Cambia a otra o crea una nueva."><small>Tu sesión</small><b id="sessName">Sin sesión</b></button>
+  <button class="sessbtn" id="sessBtn" title="Tu sesión: aquí se apuntan las partidas. Pulsa para ver tu plan y tus sesiones."><small>Tu sesión</small><b id="sessName">Sin sesión</b><span id="sessTeam" class="sessteam">Sin equipo</span></button>
   <nav class="nav dexscreen" aria-label="Secciones">
-    <button data-v="jugar" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
+    <button data-v="inicio" aria-current="page" title="Tu plan: la sesión de hoy, tu semana, el calendario, la temporada y tus torneos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Inicio</button>
+    <button data-v="jugar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
     <button data-v="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Dashboard</button>
     <button data-v="miequipo" data-hub="1" title="Tu equipo y todo su proceso: elegir y construir, estudiar, repartos, matchups y documento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>Equipo</button>
     <button data-v="pc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h4M7 11h7"/></svg>Mi PC</button>
@@ -33,13 +34,14 @@
 
 <main class="main">
   <nav class="teamhub hide" id="teamHub" aria-label="Equipo"></nav>
-  <section class="view on" id="v-jugar">
+  <section class="view on" id="v-inicio"></section>
+  <section class="view" id="v-jugar">
     <div class="playbar">
       <span class="pstat" id="playStat">Juega como siempre: al terminar cada combate, la partida se guarda sola.</span>
       <span class="tools"><span class="sdzoom" title="Tamaño de Showdown, como en el navegador (también Ctrl + / Ctrl − / Ctrl 0)"><button class="btn sm" id="sdZoomOut" aria-label="Más pequeño">−</button><button class="btn sm" id="sdZoomVal" title="Volver al 100%">100%</button><button class="btn sm" id="sdZoomIn" aria-label="Más grande">+</button></span><button class="btn ibtn mute" id="sdMute"></button><button class="btn" id="sdTeam" title="Tu equipo, en la carpeta «Macar Showdown» del teambuilder de Showdown">Llevar mi equipo a Showdown</button><button class="btn primary" id="sdSearch" title="Busca partida en el ladder con tu equipo">Buscar partida (Reg M-C)</button><button class="btn" id="reloadSd" title="Recargar Showdown">⟳</button></span>
     </div>
     <div class="playwrap">
-      <div class="sdcol"><div class="rivknown hide" id="rivKnown" aria-live="polite"></div>
+      <div class="sdcol"><div class="playfocus hide" id="playFocus"></div><div class="rivknown hide" id="rivKnown" aria-live="polite"></div>
         <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
         <div class="notesbar" id="notesBar">
           <div class="nbtop"><button class="nbhead" id="nbToggle" title="Mostrar u ocultar las notas"><b>Notas de la partida</b><span id="nbWho">Abre un combate para tomar notas</span><span class="nbsaved" id="nbSaved"></span><i aria-hidden="true">▾</i></button></div>
@@ -71,6 +73,7 @@
 <script src="../node_modules/@smogon/calc/dist/production.min.js"></script>
 <script src="i18n.js"></script>
 <script src="stats.js"></script>
+<script src="season.js"></script>
 <script src="app.js"></script>
 <script src="items-data.js"></script>
 <script src="poke.js"></script>
@@ -90,7 +93,7 @@
 <script src="dash.js"></script>
 <script src="myteam.js"></script>
 <script src="study.js"></script>
-<script src="start.js"></script>
+<script src="home.js"></script>
 <script src="tour.js"></script>
 </body>
 </html>

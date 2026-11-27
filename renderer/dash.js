@@ -5,7 +5,7 @@
  * cuentan son las de la sesión abierta, las de todo su equipo o todas (arriba a la derecha). Pulsar un Pokémon,
  * un lead o un rival filtra todo el panel.
  */
-/* global $, esc, spr, pill, wrRow, monLabel, pairLabel, unusedMoves, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, Viewer, wrp, shortFormat, DASH, I18N */
+/* global $, esc, spr, pill, wrRow, monLabel, pairLabel, unusedMoves, M, F, SET, SESS, LADDER, Stats, P, groupBo3, openSet, importModal, insights, eloChart, emptyState, render, scopeIds, scopeInfo, sessionMatches, teamOf, TEAMS_ME, Viewer, wrp, shortFormat, DASH, I18N */
 
 const Dash = (() => {
   const D = { tab: 'res', rv: '', cal: false, shown: 150 }; // shown: sets que se pintan en Partidas (con miles, «Mostrar más»)
@@ -54,7 +54,7 @@ const Dash = (() => {
       ${sel('rival', 'Rival con', [['', o.rivals]])}
       ${sel('oppLead', 'Lead rival', [[EN() ? 'One Pokémon' : 'Un Pokémon', o.oppLeads], [EN() ? 'Pair' : 'Pareja', r.oppLeads.map(x => x.key)]])}
       <label class="field">Marcas<select data-fs="mark" title="Tus marcas y notas de cada partida">${MK.map(([v, l]) => `<option value="${v}"${(F.mark || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
-      <label class="field">Motivo<select data-fs="why" title="Por qué fue así, según tu análisis (en el visor) o tus notas «[T5] Macro: …»"><option value="">Cualquiera</option>${Stats.WHY.map(w => `<option value="${w.k}"${F.why === w.k ? ' selected' : ''}>${EN() ? w.en : w.es}</option>`).join('')}</select></label>
+      <label class="field">Motivo<select data-fs="why" title="Por qué fue así, según tu análisis (en el visor) o tus notas «[T5] Macro: …»"><option value="">Cualquiera</option>${[[EN() ? 'Done badly' : 'Mal hecho', Stats.WHY], [EN() ? 'Done well' : 'Bien hecho', Stats.GOOD]].map(([g, L]) => `<optgroup label="${g}">${L.map(w => `<option value="${w.k}"${F.why === w.k ? ' selected' : ''}>${EN() ? w.en : w.es}</option>`).join('')}</optgroup>`).join('')}</select></label>
       <label class="field">ELO mín.<input type="number" class="delo" data-fn="minElo" min="0" max="3000" step="50" placeholder="—" value="${F.minElo || ''}" title="Solo partidas contra rivales con este ELO o más"></label>
       ${any ? '<button class="btn sm ibtn dfx" data-fclear="1" title="Quitar filtros">✕</button>' : ''}
     </div>`;
@@ -223,7 +223,8 @@ const Dash = (() => {
   /* ---------- Tu equipo ---------- */
   function equipo(ms) {
     const r = Stats.compute(ms);
-    const sets = (DASH.teamSets && DASH.teamSets.sets) || [];
+    const ft = F.team && TEAMS_ME.find(t => t.id === F.team);
+    const sets = ft ? ft.sets : (DASH.teamSets && DASH.teamSets.sets) || [];
     const species = sets.length ? sets.map(m => m.species) : r.myMons.slice(0, 6).map(x => x.key);
     if (!species.length) return '<div class="card"><p class="note">Elige tu equipo al empezar la sesión y aquí verás cómo rinde cada Pokémon.</p></div>';
     const cards = Stats.teamCards(ms, species);
@@ -315,8 +316,14 @@ const Dash = (() => {
     const el = $('#v-dash');
     const top = el.scrollTop;
     const info = scopeInfo();
-    const seg = `<div class="seg dscope" role="group" title="Qué partidas cuentan">${info.session ? `<button data-f="scope" data-val="session" aria-pressed="${F.scope === 'session'}">Esta sesión</button>` : ''}${info.team ? `<button data-f="scope" data-val="team" aria-pressed="${F.scope === 'team'}">Todo el equipo</button>` : ''}<button data-f="scope" data-val="all" aria-pressed="${F.scope === 'all' || (!info.session && !info.team)}">Todas</button></div>`;
-    const sub = info.session ? `<span>${F.scope === 'all' ? 'Todas tus partidas' : F.scope === 'team' ? `Todas las sesiones de <span class="nolang">${esc(info.team)}</span>` : `<span class="nolang">${esc(info.session.name)}</span>${info.session.goal ? ` · Objetivo: <span class="nolang">${esc(info.session.goal)}</span>` : ''}`}</span>` : '<span>Todas tus partidas</span>';
+    // Qué partidas cuentan: la sesión o todas y, dentro, con qué equipo (los que tienen partidas ahí).
+    const inSess = info.session && F.scope !== 'all';
+    const seg = `<div class="seg dscope" role="group" title="Qué partidas cuentan">${info.session ? `<button data-f="scope" data-val="session" aria-pressed="${inSess}">${F.sid && F.sid !== SET.sessionId ? 'Esa sesión' : 'Esta sesión'}</button>` : ''}<button data-f="scope" data-val="all" aria-pressed="${!inSess}">Todas</button></div>`;
+    const tcount = new Map();
+    for (const s of sessionMatches()) { const t = s.me ? teamOf(s) : ''; if (t) tcount.set(t, (tcount.get(t) || 0) + 1); }
+    const tlist = TEAMS_ME.filter(t => tcount.has(t.id) || t.id === F.team);
+    const tsel = tlist.length ? `<select class="dteamsel" data-fs="team" title="Solo las partidas jugadas con este equipo"><option value="">Con todos tus equipos</option>${tlist.map(t => `<option value="${esc(t.id)}"${F.team === t.id ? ' selected' : ''}>${esc(t.name)} (${tcount.get(t.id) || 0})</option>`).join('')}</select>` : '';
+    const sub = `<span>${inSess ? `<span class="nolang">${esc(info.session.name)}</span>${info.session.goal ? ` · Objetivo: <span class="nolang">${esc(info.session.goal)}</span>` : ''}` : 'Todas tus partidas'}${info.team ? ` · con <span class="nolang">${esc(info.team)}</span>` : ''}</span>`;
     if (!M.length) { el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1></div></div>${emptyState()}`; return; }
     const ids = scopeIds();
     const base = Stats.usable(M).filter(s => !ids || ids.has(s.id));
@@ -329,11 +336,11 @@ const Dash = (() => {
       games = groupBo3(all).filter(g => g.games.some(s => hit.has(s.id))).flatMap(g => g.games);
     }
     const body = D.tab === 'games' ? partidas(games) : D.tab === 'riv' ? rivales(ms) : D.tab === 'team' ? equipo(ms) : D.tab === 'hab' ? habitos(ms) : resumen(ms);
-    el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1><p class="note" style="margin-top:4px">${sub}</p></div><div class="row-btns" style="margin:0">${seg}<button class="btn sm" data-go="doc" title="Documento de preparación">PDF</button></div></div>
+    el.innerHTML = `<div class="head"><div><h1>Dash<span>board</span></h1><p class="note" style="margin-top:4px">${sub}</p></div><div class="row-btns" style="margin:0">${seg}${tsel}<button class="btn sm" data-go="doc" title="Documento de preparación">PDF</button></div></div>
       <div class="seg dtabs">${TABS.map(([k, l]) => `<button data-dtab="${k}" aria-pressed="${D.tab === k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>${l}</button>`).join('')}</div>
       ${unknown ? `<div class="warnbox"><span>${unknown} partida${unknown === 1 ? '' : 's'} sin identificar: no sé qué jugador eras. Pon tu usuario de Showdown en Tu equipo.</span><button class="btn" data-go="miequipo">Ir a Tu equipo</button></div>` : ''}
       ${filtersHTML(base)}
-      ${!ms.length && D.tab !== 'games' ? `<div class="card"><p class="note">${!base.length && info.session && F.scope === 'session' ? 'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todo el equipo».' : 'Aún no hay partidas con estos filtros.'}</p></div>` : body}`;
+      ${!ms.length && D.tab !== 'games' ? `<div class="card"><p class="note">${!base.length && info.session && F.scope === 'session' ? 'Esta sesión aún no tiene partidas: juega en Jugar o mira «Todas».' : 'Aún no hay partidas con estos filtros.'}</p></div>` : body}`;
     el.scrollTop = top;
     const imp = $('#dImport'); if (imp) imp.onclick = importModal;
     const c = $('#dCsv'); if (c) c.onclick = () => csv(ms);

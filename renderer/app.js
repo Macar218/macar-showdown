@@ -8,7 +8,7 @@ const { toID, leadKey } = Stats;
 
 let M = [];          // resúmenes de partidas
 let SET = {};        // ajustes
-let VIEW = 'jugar';
+let VIEW = 'inicio';
 /** Otra ventana (en el otro monitor o al lado): la misma app sin Showdown, abierta en una sección. */
 const QS = new URLSearchParams(location.search);
 const W2 = QS.get('w') === '2';
@@ -17,8 +17,11 @@ if (W2) {
   const sd = document.querySelector('#sd');
   if (sd) { const d = document.createElement('div'); d.id = 'sd'; d.className = 'sdoff'; sd.replaceWith(d); }
 }
-/** Filtros del Dashboard. scope: qué partidas cuentan (la sesión abierta, todo su equipo o todas). */
-const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', why: '', scope: 'session' };
+/**
+ * Filtros del Dashboard. scope: qué partidas cuentan (la sesión abierta o todas); team: solo las jugadas con ese
+ * equipo tuyo ('' = con cualquiera). Una sesión puede tener partidas con varios equipos.
+ */
+const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', why: '', scope: 'session', team: '', sid: '' };
 const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', why: '' };
 
 /* ---------- sprites ---------- */
@@ -72,7 +75,7 @@ const VIEWS = {};
  * Sección Equipo: tu proceso en pestañas (resumen, elegir y construir, estudiar, repartos, matchups y documento).
  * En el menú es una sola entrada; abre la última pestaña que usaste.
  */
-const HUB = [['miequipo', 'Resumen'], ['equipo', 'Elegir y construir'], ['estudio', 'Estudiar'], ['opt', 'Repartos (SP)'], ['mu', 'Matchups'], ['doc', 'Documento']];
+const HUB = [['miequipo', 'Resumen'], ['equipo', 'Construir equipo'], ['mu', 'Matchups'], ['estudio', 'Estudiar'], ['opt', 'Repartos (SP)'], ['doc', 'Documento']];
 const HUB_TIP = { miequipo: 'Tu equipo de un vistazo: ficha, cálculos y notas de cada Pokémon', equipo: 'Elige con qué equipo juegas, crea uno (a partir de un Pokémon o estrategia) o importa uno, y edítalo', estudio: 'Fuerza propia (velocidad, cobertura, sinergia defensiva) y fuerza relativa (contra lo más usado del meta)', opt: 'Repartos de puntos (SP) con cálculos: qué aguantar y qué tumbar', mu: 'Tu plan contra cada equipo rival', doc: 'El documento de preparación, para imprimir o repasar' };
 const isHub = v => HUB.some(([k]) => k === v);
 function hubBar(v) {
@@ -98,7 +101,7 @@ function show(v) {
 $('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.hub ? 'hub' : b.dataset.v); });
 $('#teamHub').addEventListener('click', e => { const b = e.target.closest('[data-hub]'); if (b) show(b.dataset.hub); });
 document.addEventListener('keydown', e => {
-  const ORDER = ['jugar', 'dash', 'hub', 'pc', 'calc', 'dex', 'ajustes'];
+  const ORDER = ['inicio', 'jugar', 'dash', 'hub', 'pc', 'calc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
 });
 
@@ -111,7 +114,10 @@ async function load() {
   await loadTeams();
   loadLadder();
   try { DASH.teamSets = await P.myTeam(); } catch (e) { DASH.teamSets = { sets: [] }; }
-  if (!SESS.some(x => x.id === SET.sessionId) && F.scope !== 'all') F.scope = 'all';
+  if (F.sid && !SESS.some(x => x.id === F.sid)) F.sid = '';
+  if (!SESS.some(x => x.id === (F.sid || SET.sessionId)) && F.scope !== 'all') F.scope = 'all';
+  if (F.team && !TEAMS_ME.some(t => t.id === F.team)) F.team = '';
+  if (typeof Sess !== 'undefined') Sess.paintButton();
   render(false);
   if (typeof Start !== 'undefined') Start.refresh();
 }
@@ -171,37 +177,42 @@ async function loadLadder() {
 }
 async function loadTeams() {
   try {
-    TEAMS_ME = ((await DB.get('equipos')) || []).filter(t => t.side === 'me').map(t => ({ id: t.id, name: t.name, mons: P.parseTeam(t.text).sets.map(m => Stats.toID(P.baseSpecies(m.species))) }));
+    TEAMS_ME = ((await DB.get('equipos')) || []).filter(t => t.side === 'me').map(t => { const sets = P.parseTeam(t.text).sets; return { id: t.id, name: t.name, sets, mons: sets.map(m => Stats.toID(P.baseSpecies(m.species))) }; });
     MATCH_TEAM = (await DB.get('partidaTeam')) || {};
     SESS = await DB.get('sesiones'); if (!Array.isArray(SESS)) SESS = [];
   } catch (e) { TEAMS_ME = []; MATCH_TEAM = {}; }
 }
+/** Con qué equipo tuyo se jugó: el que pusiste a mano, el que tenías puesto al jugarla (si cuadra) o el que más se parece. */
 function teamOf(s) {
   if (MATCH_TEAM[s.id]) return MATCH_TEAM[s.id];
   const me = Stats.mine(s);
   if (!me) return '';
   const mine = (me.preview.length ? me.preview : me.brought).map(x => Stats.toID(String(x).split('-')[0]));
+  const rec = s.team && TEAMS_ME.find(t => t.id === s.team);
+  if (rec && mine.filter(x => rec.mons.includes(x)).length >= Math.min(3, mine.length)) return rec.id;
   let best = '', bn = 0;
   for (const t of TEAMS_ME) { const n = mine.filter(x => t.mons.includes(x)).length; if (n > bn) { bn = n; best = t.id; } }
   return bn >= Math.min(3, mine.length) ? best : '';
 }
 const teamName = id => (TEAMS_ME.find(t => t.id === id) || {}).name || '';
 const DASH = { teamSets: { sets: [] } };
-/** La sesión abierta y su equipo (para elegir qué partidas cuentan en el Dashboard). */
+/** La sesión abierta y el equipo elegido en el filtro (para saber qué partidas cuentan en el Dashboard). */
 function scopeInfo() {
-  const session = SESS.find(x => x.id === SET.sessionId) || null;
-  const team = session && session.teamId ? teamName(session.teamId) || 'tu equipo' : '';
-  return { session, team };
+  // La sesión que se mira: una elegida en Inicio (F.sid) o la abierta (de la lista más reciente).
+  const all = typeof DB !== 'undefined' && Array.isArray(DB.peek('sesiones')) ? DB.peek('sesiones') : SESS;
+  const session = all.find(x => x.id === (F.sid || SET.sessionId)) || null;
+  return { session, teamId: F.team || '', team: F.team ? teamName(F.team) : '' };
 }
-/** Partidas que cuentan según F.scope: null = todas. */
+/** Partidas de la sesión (si está elegida) sin mirar el equipo. */
+function sessionMatches() {
+  const { session } = scopeInfo();
+  return session && F.scope !== 'all' ? M.filter(s => s.session === session.id) : M;
+}
+/** Partidas que cuentan según F.scope y F.team: null = todas. */
 function scopeIds() {
   const { session } = scopeInfo();
-  if (!session || F.scope === 'all') return null;
-  if (F.scope === 'team' && session.teamId) {
-    const sids = new Set(SESS.filter(x => x.teamId === session.teamId).map(x => x.id));
-    return new Set(M.filter(s => (s.session ? sids.has(s.session) : teamOf(s) === session.teamId)).map(s => s.id));
-  }
-  return new Set(M.filter(s => s.session === session.id).map(s => s.id));
+  if ((!session || F.scope === 'all') && !F.team) return null;
+  return new Set(sessionMatches().filter(s => !F.team || teamOf(s) === F.team).map(s => s.id));
 }
 const wrp = x => (x && x.n ? Math.round((x.w / x.n) * 100) : 0);
 const vsTxt = (a, b) => `${wrp(a)}% (${a.n}) frente a ${wrp(b)}% (${b.n})`;
@@ -249,7 +260,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-go]'); if (g) { closeModal(); show(g.dataset.go); return; }
   const f = e.target.closest('[data-f]');
-  if (f) { F[f.dataset.f] = f.dataset.f === 'days' ? +f.dataset.val : f.dataset.val; if (f.dataset.f === 'days' && +f.dataset.val !== -1) { F.from = 0; F.to = 0; } render(); }
+  if (f) { F[f.dataset.f] = f.dataset.f === 'days' ? +f.dataset.val : f.dataset.val; if (f.dataset.f === 'days' && +f.dataset.val !== -1) { F.from = 0; F.to = 0; } if (f.dataset.f === 'scope' && f.dataset.val === 'all') F.sid = ''; render(); }
 });
 document.addEventListener('change', e => { const s = e.target.closest('[data-fs]'); if (s) { F[s.dataset.fs] = s.value; render(); } });
 
@@ -629,7 +640,8 @@ api.onChanged(d => {
 });
 if (W2) VIEW = /^[a-z]+$/.test(QS.get('view') || '') && QS.get('view') !== 'jugar' ? QS.get('view') : 'calc';
 // En la otra ventana, su sección cuando ya están los datos y todas las pantallas (los otros archivos se cargan después).
-Promise.all([load(), new Promise(r => (document.readyState === 'complete' ? r() : window.addEventListener('load', r)))]).then(() => { if (W2) show(VIEW); });
+// Con todos los archivos cargados (DB y P están en poke.js): si no, la lista de sesiones y equipos se quedaba vacía al arrancar.
+new Promise(r => (document.readyState === 'complete' ? r() : window.addEventListener('load', r))).then(load).then(() => show(VIEW));
 pollStatus();
 /** El menú de la izquierda se puede esconder (solo iconos) y volver a sacar; se recuerda. */
 (() => {

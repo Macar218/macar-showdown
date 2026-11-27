@@ -1,6 +1,6 @@
 'use strict';
 /* Macar Showdown · Mi PC: tus sets guardados (por cajas) y el Team Box (todos los equipos, tuyos y de rivales). */
-/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId, I18N, Team */
+/* global P, DB, api, $, $$, esc, spr, closeModal, VIEWS, show, Calc, SET, newId, I18N, Team, Sess */
 
 const PC = (() => {
   const V = { tab: 'sets', q: '', side: '', box: '', sort: 'new', page: 0, tq: '', tmine: false, tpage: 0, T: null, U: null, sel: null, msg: '' };
@@ -302,7 +302,7 @@ const PC = (() => {
       const txt = teams.map(x => `=== [${(typeof SET !== 'undefined' && SET.reg && SET.reg.id) || 'gen9championsvgc2026regmc'}] ${x.side === 'me' ? '' : 'Rival/'}${x.name} ===\n\n${x.text}`).join('\n\n\n');
       navigator.clipboard.writeText(txt); t.textContent = 'Copiado al portapapeles';
     } else if (d.tbopen) { show('equipo'); Team && (await Team.current()); setTimeout(() => $(`[data-tsel="${d.tbopen}"]`) && $(`[data-tsel="${d.tbopen}"]`).click(), 50); }
-    else if (d.tbmine) { Object.assign(SET, await api.setSettings({ teamId: d.tbmine })); Calc.setTeams(d.tbmine); render(); }
+    else if (d.tbmine) { await Sess.useTeam(d.tbmine); render(); }
     else if (d.tbrival) { Calc.setTeams(undefined, d.tbrival); show('calc'); }
     else if (d.tbside) { await Undo.snap('equipos', 'Equipo cambiado de lado'); const tm = await P.teamById(d.tbside); tm.side = tm.side === 'me' ? 'foe' : 'me'; await P.saveTeam(tm); Calc.reloadTeams(); render(); }
     else if (d.tbcopy) { navigator.clipboard.writeText((await P.teamById(d.tbcopy)).text); t.textContent = 'Copiado'; }

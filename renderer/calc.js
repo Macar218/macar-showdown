@@ -6,7 +6,7 @@
  * - La de la página Calculadora es para estudiar: tus equipos, Mi PC, el Teambuilder y los rivales de tus partidas.
  * Las dos tienen Daño (estilo calculadora de Showdown), Multicalc y Árbol.
  */
-/* global P, DB, api, $, esc, spr, sprBack, closeModal, Multi, show, SET, M, fmtDate */
+/* global P, DB, api, $, esc, spr, sprBack, closeModal, Multi, show, SET, M, fmtDate, Team, Sess, Calc */
 
 const CalcParts = (() => {
   const { toID, WEATHERS, TERRAINS } = P;
@@ -66,11 +66,28 @@ function makeCalc(cfg) {
   if (!S.field || !S.field.me) S.field = P.blankField();
   if (!S.hide || !Array.isArray(S.hide.me) || !Array.isArray(S.hide.foe)) S.hide = { me: [], foe: [] };
   const persist = () => {
-    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, hide: LIVE ? { me: [], foe: [] } : S.hide, field: S.field })); } catch (e) { /* nada */ }
+    try { localStorage.setItem(cfg.key, JSON.stringify({ tab: S.tab, setSrc: S.setSrc, teamMe: S.teamMe, meMode: S.meMode, teamFoe: LIVE ? '' : S.teamFoe, manual: LIVE ? { me: [], foe: [] } : S.manual, hide: LIVE ? { me: [], foe: [] } : S.hide, field: S.field, built: LIVE ? null : S.built || null })); } catch (e) { /* nada */ }
   };
 
   /* ---------- sets ---------- */
   const teamById = id => TEAMS.find(t => t.id === id);
+  /**
+   * Barra para construir un equipo con «Los que tú elijas»: tus Pokémon, el nombre y un botón grande para guardarlo
+   * (la primera vez, como equipo nuevo; después, los cambios en ese mismo equipo, o como otro).
+   */
+  function buildBar() {
+    if (LIVE || S.meMode !== 'free' || !S.manual.me.length) return '';
+    const b = S.built && teamById(S.built.id) ? S.built : null;
+    const def = b ? b.name : S.me.slice(0, 3).map(m => P.baseSpecies(m.species)).join(' / ');
+    const n = Math.min(6, S.me.length);
+    return `<div class="cbuild${b ? ' saved' : ''}">
+      <div class="cbhead"><b>${b ? 'Equipo guardado' : 'Construyendo un equipo'}</b><span class="cbmons">${S.me.slice(0, 6).map(m => spr(m.species, 'sm')).join('')}${Array.from({ length: 6 - n }, () => '<i class="cbslot"></i>').join('')}</span><span class="note">${n}/6</span></div>
+      <div class="cbrow"><input type="text" id="cTeamName" placeholder="Nombre del equipo" maxlength="100" value="${esc(S.buildName != null ? S.buildName : def)}">
+        ${b ? `<button class="btn primary cbsave" data-csavego="upd" title="Guarda los sets de ahora en «${esc(b.name)}»">💾 Guardar cambios</button><button class="btn" data-csavego="new" title="Guarda una copia como otro equipo">Guardar como otro</button>`
+    : '<button class="btn primary cbsave" data-csavego="new" title="Lo guarda como un equipo tuyo: sale en el Teambuilder, en Equipo y en Mi PC">💾 Guardar equipo</button>'}</div>
+      ${b ? `<div class="cbrow"><button class="btn sm" data-copenteam="${esc(b.id)}">Abrir en el Teambuilder</button>${typeof SET !== 'undefined' && SET.teamId === b.id ? '<span class="pill win">Juegas con él</span>' : `<button class="btn sm" data-cplaywith="${esc(b.id)}">Jugar con él</button>`}<span style="flex:1"></span><button class="btn sm" data-cbuildnew="1" title="Lo siguiente que guardes será un equipo nuevo">Empezar otro equipo</button></div>` : ''}
+      ${S.buildMsg ? `<p class="okmsg cbmsg">${esc(S.buildMsg)}</p>` : ''}</div>`;
+  }
   function setFromTeam(teamId, species) {
     const t = teamById(teamId);
     if (!t) return null;
@@ -424,9 +441,8 @@ function makeCalc(cfg) {
     const teamOpt = (side, v) => `<option value="">${side === 'me' ? 'Tu equipo…' : 'Equipo rival…'}</option>${TEAMS.filter(t => t.side === side).map(t => `<option value="${esc(t.id)}"${t.id === v ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}`;
     return `<div class="ctop"><span class="pill">ESTUDIO</span><span>Tus equipos, Mi PC y los rivales de tus partidas</span><span style="flex:1"></span><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
       <div class="cmode"><span class="note">Tus Pokémon:</span><div class="seg">${[['team', 'Tu equipo'], ['free', 'Los que tú elijas']].map(([k, l]) => `<button data-cmode="${k}" aria-pressed="${(S.meMode || 'team') === k}" title="${k === 'team' ? 'Un equipo tuyo: por defecto, el de tu sesión' : 'Empieza vacío y añade con + los Pokémon que quieras: de Mi PC, de tus equipos o nuevos'}">${l}</button>`).join('')}</div>
-        ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? `<button class="btn sm primary" data-csaveteam="1" title="Guárdalos como un equipo tuyo: sale en el Teambuilder y en Mi PC">Guardar como equipo</button><button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>` : ''}` : ''}</div>
-      ${S.meMode === 'free' && S.saveTeam ? `<div class="csaveteam"><input type="text" id="cTeamName" placeholder="Nombre del equipo" value="${esc(S.saveTeam.name || '')}"><button class="btn sm primary" data-csavego="1">Guardar</button><button class="btn sm" data-csaveno="1">Cancelar</button></div>` : ''}
-      ${S.savedTeam ? `<div class="csaveteam ok"><span>Guardado como equipo «<span class="nolang">${esc(S.savedTeam.name)}</span>»: ya está en el Teambuilder y en Mi PC.</span><button class="btn sm" data-copenteam="${esc(S.savedTeam.id)}">Abrir en el Teambuilder</button><button class="btn sm" data-csaveno="1">×</button></div>` : ''}
+        ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? '<button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>' : ''}` : ''}</div>
+      ${buildBar()}
       <div class="cteams">${S.meMode === 'free' ? '' : `<select data-cteam="me" title="Tu equipo">${teamOpt('me', S.teamMe)}</select>`}
         <select data-cteam="foe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" data-cmatch="1" title="Los rivales de una partida tuya: su hoja de equipo (OTS) con el reparto más común">De una partida</button>
@@ -648,15 +664,22 @@ function makeCalc(cfg) {
       if (t.dataset.cpaste) { quickRival(); return; }
       if (t.dataset.cclear === 'me') { S.hide.me = []; S.manual.me = []; S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return; }
       if (t.dataset.cclear) { S.hide.foe = []; S.teamFoe = ''; S.manual.foe = []; S.edits.foe = {}; S.foeActive = []; persist(); lastHash = ''; tick(true); return; }
-      if (t.dataset.csaveteam) { S.saveTeam = { name: S.me.slice(0, 3).map(m => P.baseSpecies(m.species)).join(' / ') }; S.savedTeam = null; render(); setTimeout(() => { const i = q1('#cTeamName'); if (i) { i.focus(); i.select(); } }, 0); return; }
-      if (t.dataset.csaveno) { S.saveTeam = null; S.savedTeam = null; render(); return; }
       if (t.dataset.csavego) {
-        const name = ((q1('#cTeamName') || {}).value || '').trim() || S.saveTeam.name || 'Equipo';
+        // Guardar el equipo que estás montando: la primera vez, como equipo nuevo; luego, sus cambios en ese mismo.
+        const upd = t.dataset.csavego === 'upd' && S.built && teamById(S.built.id);
+        const name = ((q1('#cTeamName') || {}).value || '').trim() || (S.built && S.built.name) || S.me.slice(0, 3).map(m => P.baseSpecies(m.species)).join(' / ');
         const sets = S.me.slice(0, 6).map(m => P.clone(m));
-        P.saveTeam({ name, side: 'me', text: P.exportTeam(sets) }).then(v => { S.saveTeam = null; S.savedTeam = { id: v.id, name }; if (typeof Calc !== 'undefined') Calc.reloadTeams(); render(); });
+        // Al actualizarlo se conserva lo demás del equipo (sus notas, por ejemplo).
+        (upd ? P.teamById(S.built.id) : Promise.resolve(null)).then(base => P.saveTeam({ ...(base || {}), id: base ? base.id : undefined, name, side: 'me', text: P.exportTeam(sets) })).then(v => {
+          S.built = { id: v.id, name: v.name }; S.buildName = null;
+          S.buildMsg = upd ? `Cambios guardados en «${v.name}».` : `Guardado como equipo «${v.name}»: ya está en el Teambuilder y en Mi PC.`;
+          persist(); if (typeof Calc !== 'undefined') Calc.reloadTeams(); render();
+        });
         return;
       }
-      if (t.dataset.copenteam) { S.savedTeam = null; if (typeof Team !== 'undefined') Team.select(t.dataset.copenteam); show('equipo'); return; }
+      if (t.dataset.cbuildnew) { S.built = null; S.buildMsg = ''; S.buildName = null; persist(); render(); return; }
+      if (t.dataset.cplaywith) { if (typeof Sess !== 'undefined') Sess.useTeam(t.dataset.cplaywith).then(() => { S.buildMsg = 'Ahora juegas con este equipo.'; render(); }); return; }
+      if (t.dataset.copenteam) { if (typeof Team !== 'undefined') Team.select(t.dataset.copenteam); show('equipo'); return; }
       if (t.dataset.cmode) {
         S.meMode = t.dataset.cmode === 'free' ? 'free' : 'team';
         // Con tu equipo, el de la sesión si no habías elegido otro; a mano, empiezas con lo que ya hubieras puesto.
@@ -697,6 +720,7 @@ function makeCalc(cfg) {
     el.addEventListener('click', e => { const c = e.target.closest('[data-det]'); if (c) { S.det = c.dataset.det.split('|'); render(); setTimeout(() => { const d = q1('.ddet'); if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 30); } });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' && /^cPcName-/.test(e.target.id || '')) { e.preventDefault(); toPC(e.target.id.split('-')[1]); } });
     el.addEventListener('input', e => {
+      if (e.target.id === 'cTeamName') { S.buildName = e.target.value; return; }
       if (e.target.id === 'itQ' && S.itPick) {
         S.itQ = e.target.value;
         clearTimeout(S.itT);

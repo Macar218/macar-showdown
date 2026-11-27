@@ -123,7 +123,7 @@ const Study = (() => {
     const head = `<div class="head"><div><h1>Estu<span>diar</span></h1><p class="note" style="margin-top:4px">Fuerza propia del equipo y cómo le va contra lo más usado del meta.</p></div>
       <div class="row-btns"><select id="stTeam" title="Equipo que estudias">${all.map(t => `<option value="${esc(t.id)}"${t.id === V.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
       <button class="btn" data-go="opt" title="Repartos de puntos (SP) con cálculos">Repartos (SP)</button><button class="btn" data-go="calc">Calculadora</button></div></div>`;
-    if (!S.length) { el.innerHTML = `${head}<div class="card"><p class="note">Elige o crea un equipo en «Elegir y construir».</p></div>`; return; }
+    if (!S.length) { el.innerHTML = `${head}<div class="card"><p class="note">Elige o crea un equipo en «Construir equipo».</p></div>`; return; }
     el.innerHTML = `${head}
       <h2 class="sth">Fuerza propia</h2>
       <div class="stgrid">${speedCard(S)}${coverageCard(S)}${defenseCard(S)}</div>

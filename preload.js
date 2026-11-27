@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('macar', {
   setData: (key, value) => ipcRenderer.invoke('ms:setData', key, value),
   matchLog: id => ipcRenderer.invoke('ms:matchLog', id),
   dataDir: () => ipcRenderer.invoke('ms:dataDir'),
+  idle: () => ipcRenderer.invoke('ms:idle'),
+  importExcel: () => ipcRenderer.invoke('ms:importExcel'),
   setDataDir: mode => ipcRenderer.invoke('ms:setDataDir', mode),
   fetchPaste: url => ipcRenderer.invoke('ms:fetchPaste', url),
   createPaste: (title, text) => ipcRenderer.invoke('ms:createPaste', title, text),

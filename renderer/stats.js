@@ -318,13 +318,38 @@
     { k: 'luck', g: 2, es: 'Mala suerte', en: 'Bad luck' },
     { k: 'other', g: 2, es: 'Otra cosa', en: 'Something else' }
   ];
-  const WHY_TAG = new Map(WHY.flatMap(w => [[w.es.toLowerCase(), w.k], [w.en.toLowerCase(), w.k]]));
-  /** Los motivos de una partida: los marcados en el análisis y los de sus notas por turno. */
+  // Lo que hiciste bien (en verde en las notas), para repetirlo.
+  const GOOD = [
+    { k: 'gplay', g: 3, es: 'Buena jugada', en: 'Good play' },
+    { k: 'gpredict', g: 3, es: 'Buena lectura', en: 'Good read' },
+    { k: 'gplan', g: 3, es: 'Buen plan', en: 'Good plan' },
+    { k: 'gteam', g: 3, es: 'Buen equipo', en: 'Good team' }
+  ];
+  const ALL = WHY.concat(GOOD);
+  const WHY_TAG = new Map(ALL.flatMap(w => [[w.es.toLowerCase(), w.k], [w.en.toLowerCase(), w.k]]));
+  const GOOD_K = new Set(GOOD.map(w => w.k));
+  /** Una línea de notas de análisis: «[T5] Macro: …» (en un turno) o «Macro: …» (general). Devuelve su motivo o null. */
+  const TAG_RX = /^\s*(?:\[T(\d+)\]\s*)?([^:\n[\]]{2,30}):(.*)$/;
+  function tagOf(line) {
+    const m = String(line || '').match(TAG_RX);
+    const k = m && WHY_TAG.get(m[2].trim().toLowerCase());
+    return k ? { k, good: GOOD_K.has(k), turn: m[1] != null ? +m[1] : null, label: m[2].trim(), text: m[3].trim() } : null;
+  }
+  /** Predicciones del modo predicción del visor: «[T5] 🎯 ✔ texto» (✔ acerté, ≈ a medias, ✘ fallé). */
+  const PRED_RX = /^\s*\[T(\d+)\]\s*🎯\s*([✔≈✘])\s*(.*)$/u;
+  const predsOf = notes => String(notes || '').split('\n').map(l => l.match(PRED_RX)).filter(Boolean).map(m => ({ turn: +m[1], r: m[2] === '✔' ? 1 : m[2] === '≈' ? 0.5 : 0, text: m[3] }));
+  /** Tu lectura en varias partidas: turnos predichos y aciertos (a medias cuenta medio). */
+  function predCount(ms) {
+    let n = 0, hit = 0, games = 0;
+    for (const s of ms) { const p = predsOf(s.notes); if (!p.length) continue; games++; n += p.length; hit += p.reduce((a, x) => a + x.r, 0); }
+    return { n, hit, games, pct: n ? hit / n : null };
+  }
+  /** Las notas de análisis de una partida, línea a línea. */
+  const tagsOf = notes => String(notes || '').split('\n').map(tagOf).filter(Boolean);
+  /** Los motivos de una partida: los marcados en el análisis y los de sus notas (por turno o generales). */
   function whyOf(s) {
     const out = new Set(((s && s.review && s.review.why) || []));
-    const re = /\[T\d+\]\s*([^:\n[]{2,30}):/g;
-    let m;
-    while ((m = re.exec(String((s && s.notes) || '')))) { const k = WHY_TAG.get(m[1].trim().toLowerCase()); if (k) out.add(k); }
+    for (const t of tagsOf(s && s.notes)) out.add(t.k);
     return out;
   }
   /** Cuántas partidas tienen cada motivo (por defecto, solo las derrotas) y las últimas lecciones. */
@@ -332,10 +357,10 @@
     const L = ms.filter(s => !onlyLosses || s.result === 'loss');
     const n = Object.fromEntries(WHY.map(w => [w.k, 0]));
     let done = 0;
-    for (const s of L) { const w = whyOf(s); if (w.size) done++; for (const k of w) n[k]++; }
+    for (const s of L) { const w = whyOf(s); if (w.size) done++; for (const k of w) if (k in n) n[k]++; }
     const lessons = ms.filter(s => s.review && String(s.review.lesson || '').trim()).sort((a, b) => b.endedAt - a.endedAt).slice(0, 8).map(s => ({ id: s.id, t: s.endedAt, result: s.result, text: s.review.lesson.trim() }));
     return { total: L.length, done, n, lessons };
   }
 
-  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr, isOTS, overview, rival, teamCards, habits, WHY, whyOf, whyCount };
+  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr, isOTS, overview, rival, teamCards, habits, WHY, GOOD, ALL: ALL, tagOf, tagsOf, whyOf, whyCount, predsOf, predCount };
 });

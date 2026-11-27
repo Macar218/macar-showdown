@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, screen, powerMonitor } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Store } = require('./src/store');
@@ -249,6 +249,22 @@ function copyMissing(from, to) {
   return n;
 }
 
+/**
+ * Carpeta de datos al arrancar: la elegida o, si en este ordenador no se ha elegido ninguna y ya hay datos de
+ * Macar Showdown en OneDrive (de otro ordenador tuyo), esa, para ver lo mismo en todos sin tener que tocar nada.
+ * Lo que hubiera solo aquí se copia allí sin pisar nada.
+ */
+function startDataDir() {
+  const loc = readLocation();
+  if (loc) return loc;
+  const od = oneDriveDir();
+  const t = od && path.join(od, 'Macar Showdown');
+  if (t && (fs.existsSync(path.join(t, 'partidas')) || fs.existsSync(path.join(t, 'equipos.json')))) {
+    try { copyMissing(defaultDataDir(), t); writeLocation(t); return t; } catch (e) { console.error('[datos]', e); }
+  }
+  return defaultDataDir();
+}
+
 function registerIpc() {
   ipcMain.handle('ms:list', () => store.listAsync());
   // Solo la lista si ha cambiado desde la versión que ya tiene la ventana (al volver a ella no se manda todo otra vez).
@@ -400,6 +416,18 @@ function registerIpc() {
     try { return { ok: true, ...(await usage.get(String(tier || ''))) }; } catch (e) { return { ok: false, why: e.message }; }
   });
   ipcMain.handle('ms:data', (_e, key) => store.data(String(key)));
+  // Plan de temporada: segundos sin tocar el ordenador (para no contar el tiempo de la sesión si te vas) e importar tus Excel.
+  ipcMain.handle('ms:idle', () => { try { return powerMonitor.getSystemIdleTime(); } catch (e) { return 0; } });
+  ipcMain.handle('ms:importExcel', async e => {
+    const dev = !app.isPackaged && process.env.MACAR_EXCEL; // pruebas: archivos fijos (separados por ;), sin diálogo
+    const r = dev ? { canceled: false, filePaths: dev.split(';') } : await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { title: 'Importar tus Excel (plan y torneos)', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Excel', extensions: ['xlsx'] }] });
+    if (r.canceled || !r.filePaths.length) return { ok: false };
+    const out = [];
+    for (const f of r.filePaths) {
+      try { out.push({ file: path.basename(f), ...require('./src/rtw').parse(fs.readFileSync(f)) }); } catch (err) { out.push({ file: path.basename(f), kind: 'error', why: err.message }); }
+    }
+    return { ok: true, files: out };
+  });
   ipcMain.handle('ms:setData', (e, key, value) => { const r = store.setData(String(key), value); notify({ data: String(key) }, e.sender); return r; });
   ipcMain.handle('ms:newWindow', (e, view) => { const from = BrowserWindow.fromWebContents(e.sender); return from ? openExtra(from, view) : false; });
   ipcMain.handle('ms:replayReader', (_e, mine) => REPLAY(String(mine || 'p1')));
@@ -562,7 +590,7 @@ let daily = Math.floor(Date.now()/1000/60/60/24);document.write('<script src="ht
 app.whenReady().then(async () => {
   app.setAppUserModelId('app.macar.showdown');
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
-  store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir(), path.join(app.getPath('userData'), 'indice-partidas.json'));
+  store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || startDataDir(), path.join(app.getPath('userData'), 'indice-partidas.json'));
   app.on('before-quit', () => { try { store.flushIndex(); } catch (e) { /* nada */ } });
   usage = new Usage(store.dir, () => regOf(store.settings()).id);
   tours = new Tournaments(store.dir, () => regOf(store.settings()).limitless);

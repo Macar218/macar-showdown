@@ -377,9 +377,132 @@ t('análisis: momentos clave del registro, motivos (análisis y notas) y filtro'
   assert.strictEqual(Stats.filter([s2], { why: 'luck' }).length, 0);
   const w = Stats.whyCount([{ ...s2, result: 'loss' }]);
   assert.strictEqual(w.n.macro, 1); assert.strictEqual(w.lessons[0].text, 'Guardar a Garchomp para Charizard');
+  // Notas generales (sin turno) y lo bien hecho (verde): cuentan para el filtro, no para «Por qué pierdes».
+  assert.deepStrictEqual(Stats.tagOf('Buena jugada: Protect en el T3'), { k: 'gplay', good: true, turn: null, label: 'Buena jugada', text: 'Protect en el T3' });
+  assert.strictEqual(Stats.tagOf('[T4] Macro: cambio malo').turn, 4);
+  assert.strictEqual(Stats.tagOf('[T1] Garchomp entra:'), null);
+  st.setNotes(s.id, 'Macro: sin plan para Charizard\n[T5] Good read: Protect');
+  const s3 = st.list()[0];
+  assert.deepStrictEqual([...Stats.whyOf(s3)].sort(), ['gpredict', 'macro']);
+  assert.strictEqual(Stats.filter([s3], { why: 'gpredict' }).length, 1);
+  assert.ok(!('gpredict' in Stats.whyCount([{ ...s3, result: 'loss' }]).n));
+  assert.ok(st.setReview(s.id, { why: ['gplan', 'team'], lesson: '' }));
+  assert.deepStrictEqual(st.list()[0].review.why, ['gplan', 'team']);
+  // Si el registro crece (se vuelve a guardar), no se pierden el análisis ni el equipo con que se jugó.
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), st2 = new Store(dir2);
+  st2.setSettings({ showdownName: 'Macar Test', teamId: 't-uno' });
+  st2.saveLog({ id: 'battle-gen9championsvgc2026regmc-8', log: LOG.split('\n').slice(0, 20).join('\n') });
+  st2.setSettings({ teamId: 't-dos' });
+  st2.setReview('gen9championsvgc2026regmc-8', { why: ['luck'], lesson: 'x' });
+  st2.saveLog({ id: 'battle-gen9championsvgc2026regmc-8', log: LOG });
+  const s4 = st2.list()[0];
+  assert.strictEqual(s4.team, 't-uno');
+  assert.deepStrictEqual(s4.review.why, ['luck']);
 });
 
 // El índice local de partidas: arranca sin abrir los archivos, ve los cambios de fuera y no pierde lo guardado mientras lee.
+t('plan de temporada: reparto, semanas, estudio, días sin jugar y regulación', () => {
+  const S = require('../renderer/season');
+  // Reparto de 5 en 5 que suma el total.
+  assert.deepStrictEqual(S.split(90, 'play'), { tb: 0, play: 65, serious: 0, an: 25 });
+  assert.deepStrictEqual(S.split(90, 'tbplay'), { tb: 45, play: 30, serious: 0, an: 15 });
+  for (const t of S.TYPES) for (const m of [30, 45, 60, 95, 120, 150]) assert.strictEqual(S.sum(S.split(m, t.k)), m);
+  assert.strictEqual(S.weekOf('2026-11-29'), '2026-11-23');
+  assert.strictEqual(S.weekOf('2026-11-23'), '2026-11-23');
+  assert.strictEqual(S.parseDur('2h30'), 150); assert.strictEqual(S.parseDur('1h'), 60); assert.strictEqual(S.parseDur("45'"), 45); assert.strictEqual(S.parseDur(0.0625), 90);
+  const plan = { cfg: { avg: 8 }, weeks: { '2026-11-23': { target: 6, focus: 'play' } }, regs: [{ id: 'r', name: 'M-C', start: '2026-11-09', end: '2026-12-06' }] };
+  const sess = [
+    { id: 'a', type: 'tb', state: 'done', day: '2026-11-10', planMin: 120, realDay: '2026-11-10', realMin: 150, min: { tb: 150, play: 0, serious: 0, an: 0 } },
+    { id: 'b', type: 'play', state: 'done', day: '2026-11-24', planMin: 120, realDay: '2026-11-24', realMin: 120 },
+    { id: 'c', type: 'serious', state: 'plan', day: '2026-11-27', planMin: 90 },
+    { id: 'd', type: 'play', state: 'skip', day: '2026-11-25', planMin: 60 },
+    { id: 'e', type: 'play', state: 'done', realDay: '2026-11-26', realMin: 0, track: { tb: 0, play: 40.4, serious: 0, an: 10.2 } },
+    { id: 'f', type: 'serious', state: 'done', day: '2026-11-21', planMin: 60, realDay: '2026-11-24', realMin: 60 } // prevista una semana, hecha la siguiente
+  ];
+  const w = S.week('2026-11-23', sess, plan, [], '');
+  assert.strictEqual(w.target, 6);
+  assert.deepStrictEqual(w.done, { tb: 0, play: 90 + 40, serious: 40, an: 30 + 10 + 20 });
+  assert.strictEqual(w.prevH, (120 + 90) / 60); // la saltada no cuenta en lo previsto; la de la semana anterior, tampoco
+  assert.strictEqual(w.doneN, 3);
+  const w0 = S.week('2026-11-16', sess, plan, [], '');
+  assert.strictEqual(w0.prevH, 1); assert.strictEqual(w0.doneH, 0);
+  assert.strictEqual(S.week('2026-11-30', sess, plan, [], '').target, 8);
+  const st = S.study('2026-11-23', sess, plan, [], '');
+  assert.ok(st.real > 0.5 && st.real < 0.6); // (150 + 60) / (150 + 220)
+  assert.strictEqual(S.light(0.4, plan), 'good'); assert.strictEqual(S.light(0.25, plan), 'warn'); assert.strictEqual(S.light(0.1, plan), 'bad');
+  assert.ok(/Jugar/.test(S.advice(0.7, plan)));
+  const lp = S.lastPlay(sess, [{ me: 'p1', endedAt: new Date(2026, 10, 20, 20).getTime() }], '', '2026-11-29');
+  assert.deepStrictEqual(lp, { last: '2026-11-26', days: 3 });
+  assert.strictEqual(S.next(sess, '2026-11-26').id, 'c');
+  assert.deepStrictEqual(S.pendingPast(sess, '2026-11-28').map(s => s.id), ['c']);
+  const r = S.reg(plan.regs[0], sess, plan, [], '', '2026-11-29');
+  assert.strictEqual(r.weeks.length, 4); assert.strictEqual(r.closed, 2); // la del 23 acaba el 29: aún no está cerrada
+  assert.strictEqual(Math.round(r.doneH * 10), Math.round(((150 + 120 + 50 + 60) / 60) * 10));
+  // Sesión antigua (sin estado): hecha, con lo jugado estimado por sus partidas.
+  const old = S.realMin({ id: 'o', created: Date.now() }, [{ session: 'o', me: 'p1', turns: 6 }], '');
+  assert.ok(old.est && old.play === 7);
+});
+
+t('modo predicción: aciertos en las notas', () => {
+  const notes = ['[T1] 🎯 ✔ Protect y Heat Wave', 'Macro: algo', '[T2] 🎯 ≈ Fake Out al Charizard', '[T3] 🎯 ✘ cambio a Garchomp', '[T4] nota normal'].join('\n');
+  assert.deepStrictEqual(Stats.predsOf(notes).map(p => [p.turn, p.r]), [[1, 1], [2, 0.5], [3, 0]]);
+  const c = Stats.predCount([{ notes }, { notes: '' }, { notes: '[T5] 🎯 ✔ x' }]);
+  assert.deepStrictEqual([c.n, c.hit, c.games], [4, 2.5, 2]);
+  assert.strictEqual(Stats.tagOf('[T1] 🎯 ✔ Protect'), null); // no es una nota de análisis
+});
+
+t('torneos: CP con el cupo de jugadores, Best Finish Limit y dinero', () => {
+  const S = require('../renderer/season');
+  assert.deepStrictEqual(S.cpFor('regional', 5, 620), { cp: 280, usd: 1000, kick: false });
+  assert.deepStrictEqual(S.cpFor('regional', 5, 10), { cp: 0, usd: 0, kick: true }); // pocos jugadores para ese puesto
+  assert.strictEqual(S.cpFor('limitless', 1, 500).cp, 0);
+  assert.strictEqual(S.seasonOf('2026-09-01'), 2027); assert.strictEqual(S.seasonOf('2026-08-30'), 2026);
+  const list = [1, 2, 3, 4, 5, 6].map(i => ({ id: `r${i}`, tier: i % 2 ? 'regional' : 'intl', place: i * 3, players: 2000, date: `2026-10-0${i}` }))
+    .concat([{ id: 'w', tier: 'regional', place: 1, players: 900, entry: 50, extra: 0, costs: { travel: 100 } }, { id: 'l', tier: 'limitless', place: 1, extra: 20 }]);
+  const s = S.seasonSum(list, { cfg: { rate: 1.25 } });
+  const ri = s.groups.find(g => g.g === 'ri');
+  assert.strictEqual(ri.played, 7); assert.strictEqual(ri.counted, 5);
+  assert.ok(ri.ids.includes('w'));
+  assert.ok(s.invite); // ganó un Regional
+  const w = s.list.find(t => t.id === 'w');
+  assert.strictEqual(w.prize, 6000 / 1.25); assert.strictEqual(w.cost, 150); assert.strictEqual(w.net, 6000 / 1.25 - 150);
+  assert.strictEqual(s.list.find(t => t.id === 'l').won, 20);
+  assert.strictEqual(S.tour({ tier: 'cup', place: 1, players: 10, cp: 33 }, {}).cp, 33); // el CP que pongas manda
+});
+
+t('importar los Excel del plan y de torneos', () => {
+  const X = require('../src/xlsx');
+  const R = require('../src/rtw');
+  const book = X.read(fs.readFileSync(path.join(__dirname, 'fixtures', 'plan.xlsx')));
+  assert.ok(book.Sesiones && book.Semanas);
+  assert.strictEqual(X.excelDay(46335), '2026-11-09');
+  const p = R.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'plan.xlsx')));
+  assert.strictEqual(p.kind, 'plan');
+  assert.strictEqual(p.sessions.length, 4);
+  const [a, b, c, d] = p.sessions;
+  assert.deepStrictEqual([a.type, a.day, a.planMin, a.state, a.realDay, a.realMin, a.ok, a.goal], ['play', '2026-03-03', 120, 'done', '2026-03-03', 150, true, 'Menos errores de macro']);
+  assert.deepStrictEqual(a.min, { tb: 0, play: 110, serious: 0, an: 40 });
+  assert.deepStrictEqual([b.type, b.state, b.realDay], ['serious', 'skip', '']);
+  assert.deepStrictEqual([c.type, c.day, c.planMin, c.state, c.ok], ['tb', '', 0, 'done', false]); // hecha sin prever
+  assert.deepStrictEqual([d.type, d.state, d.day], ['coach', 'plan', '2026-03-10']);
+  assert.deepStrictEqual(p.weeks['2026-03-02'], { focus: 'play', target: 8, note: 'Buena semana' });
+  assert.ok(p.weeks['2026-03-09']); // tiene una sesión prevista
+  assert.deepStrictEqual(p.regs[0].eval, { tb: 'Corto', play: 'Bien', serious: '', an: 'Largo' });
+  assert.strictEqual(p.regs[0].ok, true);
+  assert.deepStrictEqual(p.cfg, { avg: 7, green: [25, 45], gap: 4 });
+  // Importar dos veces da los mismos ids (sustituye, no duplica).
+  assert.deepStrictEqual(R.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'plan.xlsx'))).sessions.map(s => s.id), p.sessions.map(s => s.id));
+  const t = R.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'torneos.xlsx')));
+  assert.strictEqual(t.kind, 'tours');
+  assert.deepStrictEqual(t.tours.map(x => x.name), ['Regional Madrid', 'Limitless #3']); // sin el ejemplo ni el resumen
+  const m = t.tours[0];
+  assert.deepStrictEqual([m.tier, m.mode, m.players, m.place, m.entry, m.date], ['regional', 'inperson', 700, 7, 40, '2026-03-14']);
+  assert.deepStrictEqual(m.costs, { travel: 100, lodging: 150, food: 50, other: 0 });
+  assert.strictEqual(t.tours[1].tier, 'limitless'); assert.strictEqual(t.tours[1].extra, 15);
+  assert.strictEqual(t.cfg.rate, 1.1);
+  assert.throws(() => R.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'partida.log'))));
+});
+
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), idx = dir + '-indice.json';
   let st = new Store(dir, idx);

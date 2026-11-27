@@ -2,14 +2,18 @@
 /*
  * Macar Showdown · notas con marcas de turno en color.
  * Un textarea normal (se escribe igual) con una capa detrás que pinta cada línea: la marca de turno y lo que
- * pasó ("[T1] Kingambit entra:") en amarillo y lo que escribes tú en blanco.
+ * pasó ("[T1] Kingambit entra:") en amarillo y lo que escribes tú en blanco. Las de análisis, en rojo (mal hecho) o verde (bien hecho).
  */
-/* global esc */
+/* global esc, Stats */
 
 const NoteHL = (() => {
   const RX = /^(\s*\[T\d+\](?:[^:\n]*:)?)(.*)$/i;
+  // Notas de análisis («[T5] Macro: …» o «Macro: …»): en rojo lo mal hecho y en verde lo bien hecho, la línea entera.
+  const tag = l => (typeof Stats !== 'undefined' && Stats.tagOf ? Stats.tagOf(l) : null);
   function paint(text) {
     return String(text || '').split('\n').map(l => {
+      const a = tag(l);
+      if (a) { const i = l.indexOf(':') + 1; return `<span class="nhlan ${a.good ? 'good' : 'bad'}"><span class="nhlak">${esc(l.slice(0, i))}</span>${esc(l.slice(i))}</span>`; }
       const m = l.match(RX);
       return m ? `<span class="nhltag">${esc(m[1])}</span>${esc(m[2])}` : esc(l);
     }).join('\n') + '\n';
