@@ -2098,3 +2098,105 @@ body.navmini .navmin{position:static;width:100%;height:22px}
 /* Menú bajo: el nombre no pisa el botón ‹ y sin las tres luces. */
 @media (max-height:860px){.side .brand{padding-right:30px}.side .dexlights i{display:none}}
 .dmore{display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 4px}
+/* Teambuilder (0.20): lista de equipos más estrecha y compacta; el ± de naturaleza siempre cabe. */
+.tblayout{grid-template-columns:190px minmax(0,1fr)}
+.tblist{gap:4px}
+.tbitem{padding:6px 8px;gap:2px;border-radius:10px}
+.tbitem b{font-size:12px}
+.srow{grid-template-columns:34px 70px minmax(60px,1fr) 100px 42px 56px;gap:6px}
+.srow.shead span:last-child{text-align:center}
+.tbedgrid{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:1550px){.tbedgrid{grid-template-columns:minmax(0,1fr)}}
+/* Rival conocido (Jugar, 0.20): encima de Showdown, solo si ya has jugado contra él. */
+.rivknown{flex:none;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(255,210,31,.12),rgba(6,18,52,.92) 60%);padding:6px 12px;max-height:45%;overflow:auto}
+.rkhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.rkhead .pill{font-size:10px}
+.rkrec{color:var(--muted);font-size:12.5px}
+.rkbody{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.rkteams{display:flex;flex-direction:column;gap:4px}
+.rkteam{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rkmons{display:flex;gap:2px}
+.rknotes{font-size:12.5px}
+.rknotes b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--gold)}
+.rknotes p{margin:2px 0}
+.rkreps{display:flex;gap:4px;flex-wrap:wrap}
+/* Análisis de la partida (visor, 0.20) */
+.rvrev{display:flex;flex-direction:column;gap:8px;padding:2px 2px 10px}
+.rvrev h4{margin:6px 0 0;font-family:var(--display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.rvrev h4 .note{text-transform:none;letter-spacing:0;font-family:var(--body);color:var(--muted);font-weight:400}
+.rvwg small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px}
+.rvwchips{display:flex;flex-wrap:wrap;gap:4px}
+.rvw{padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:12px;cursor:pointer}
+.rvw:hover{border-color:var(--accent)}
+.rvw.on{background:rgba(255,107,107,.18);border-color:var(--bad);color:#ffd0d0;font-weight:700}
+.rvw.innotes{border-style:dashed;border-color:var(--gold)}
+.rvwguide{display:flex;flex-direction:column;gap:6px}
+.rvwguide>div{border-left:3px solid var(--bad);padding:4px 8px;background:rgba(0,0,0,.18);border-radius:0 8px 8px 0}
+.rvwguide b{font-size:12px}
+.rvwguide p{margin:2px 0 4px;font-size:12.5px;color:#cfe3ff}
+.rvrev textarea{width:100%;font:inherit;font-size:13px;color:var(--ink);background:#081639;border:1px solid var(--line);border-radius:8px;padding:6px 8px;resize:vertical}
+.rvkm{display:flex;flex-direction:column;gap:2px}
+.rvk{display:flex;gap:8px;align-items:baseline;text-align:left;padding:4px 8px;border:0;border-left:3px solid var(--line);border-radius:0 6px 6px 0;background:rgba(0,0,0,.15);color:var(--ink);font-size:12px;cursor:pointer}
+.rvk:hover{background:var(--accent-soft)}
+.rvk b{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none;width:26px}
+.rvk.ko{border-left-color:var(--bad)}.rvk.luck{border-left-color:var(--warn)}.rvk.info{border-left-color:var(--accent)}.rvk.field{border-left-color:var(--good)}
+.rvkside{font-style:normal;font-size:10px;padding:0 5px;border-radius:999px;background:rgba(255,107,107,.18);color:#ffb3b3}
+.rvkside.me{background:rgba(56,212,255,.18);color:#bdefff}
+/* Por qué pierdes (Hábitos, 0.20) */
+.whycard h3{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.whycard h3 .note{font-weight:400;font-size:12px}
+.whybars{display:flex;flex-direction:column;gap:4px}
+.whyrow{display:grid;grid-template-columns:150px minmax(0,1fr) 36px;gap:10px;align-items:center;padding:4px 6px;border:0;border-radius:6px;background:none;color:var(--ink);cursor:pointer;text-align:left;font-size:13px}
+.whyrow:hover{background:var(--accent-soft)}
+.whyrow i{height:10px;border-radius:5px;background:rgba(0,0,0,.35);overflow:hidden}
+.whyrow i b{display:block;height:100%;background:linear-gradient(90deg,#ff6b6b,#ffb36b)}
+.whyrow em{font-style:normal;font-family:var(--mono);text-align:right}
+.whyles{display:flex;flex-direction:column;gap:3px;margin-top:10px}
+.whyles small{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold)}
+.whyl{text-align:left;padding:4px 8px;border:0;border-left:3px solid var(--line);border-radius:0 6px 6px 0;background:rgba(0,0,0,.15);color:var(--ink);cursor:pointer;font-size:12.5px}
+.whyl.loss{border-left-color:var(--bad)}.whyl.win{border-left-color:var(--good)}
+.whyl:hover{background:var(--accent-soft)}
+/* Calculadora: guardar «Los que tú elijas» como equipo (0.20) */
+.csaveteam{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;padding:8px 10px;border:1px solid var(--accent);border-radius:10px;background:var(--accent-soft);font-size:13px}
+.csaveteam input{flex:1;min-width:180px}
+.csaveteam.ok{border-color:var(--good);background:rgba(79,224,138,.12)}
+.csaveteam.ok span{flex:1}
+/* ---------- Sección Equipo (0.20): pestañas del proceso arriba de sus pantallas ---------- */
+.teamhub{position:absolute;top:0;left:0;right:0;height:48px;z-index:3;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(6,18,52,.94);overflow-x:auto;scrollbar-width:none}
+.teamhub::-webkit-scrollbar{display:none}
+body.hubon .view{top:48px}
+.hubt{font-family:var(--display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);flex:none}
+.hubtabs{display:flex;gap:4px;flex:none}
+.hubtabs button{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:9px;border:1px solid transparent;background:none;color:#cfe3ff;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.hubtabs button small{font-family:var(--mono);font-size:10px;color:#5f86c9}
+.hubtabs button:hover{background:var(--surface)}
+.hubtabs button[aria-current=page]{background:linear-gradient(90deg,rgba(56,212,255,.28),rgba(56,212,255,.08));border-color:rgba(56,212,255,.45);color:#fff}
+.hubtabs button[aria-current=page] small{color:var(--accent)}
+@media (max-width:1100px){.hubt{display:none}.hubtabs button{padding:6px 8px;font-size:12px}}
+/* Estudiar */
+.sth{font-family:var(--display);font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 8px}
+.sth .note{text-transform:none;letter-spacing:0;font-family:var(--body);font-size:13px}
+.stgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.stwide{grid-column:1/-1}
+@media (max-width:1250px){.stgrid{grid-template-columns:minmax(0,1fr)}}
+.stcard h3{margin:0 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.stcard h3 .note{font-weight:400;font-size:12px}
+.stline{margin:4px 0;font-size:13px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.sttab{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.sttab th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:4px 6px;font-weight:700}
+.sttab td{padding:4px 6px;border-top:1px solid rgba(255,255,255,.05);vertical-align:middle}
+.stmv{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;white-space:nowrap}
+.stmv i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.stdefwrap{overflow-x:auto}
+.stdef th,.stdef td{text-align:center}
+.stdef td:first-child{text-align:left}
+.stdef td.w2{background:rgba(255,107,107,.18);color:#ffb3b3;font-weight:700}
+.stdef td.w4{background:rgba(255,107,107,.38);color:#fff;font-weight:700}
+.stdef td.res{background:rgba(79,224,138,.14);color:#a6f3c5}
+.stdef td.imm{background:rgba(56,212,255,.18);color:#bdefff;font-weight:700}
+.stdef tr.bad td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.strelt td{vertical-align:top}
+.strel{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.strel b{font-family:var(--mono)}
+.strel i{font-style:normal;font-size:11.5px;color:var(--muted)}
+.strel.ko b{color:var(--bad)}.strel.mid b{color:var(--warn)}.strel.low b{color:var(--muted)}

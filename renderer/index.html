@@ -19,14 +19,9 @@
   <nav class="nav dexscreen" aria-label="Secciones">
     <button data-v="jugar" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
     <button data-v="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Dashboard</button>
-    <button data-v="miequipo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>Tu equipo</button>
-    <span class="navsep">Preparar</span>
-    <button data-v="equipo"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c.5-3.5 3-5 6-5s5.5 1.5 6 5M13 15.3c.9-.2 1.9-.3 3-.3 3 0 5.5 1.5 6 5"/></svg>Teambuilder</button>
-    <button data-v="mu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l9 9M4 4v4M4 4h4M20 4l-9 9M20 4v4M20 4h-4"/><path d="M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/></svg>Matchups</button>
+    <button data-v="miequipo" data-hub="1" title="Tu equipo y todo su proceso: elegir y construir, estudiar, repartos, matchups y documento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>Equipo</button>
     <button data-v="pc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h4M7 11h7"/></svg>Mi PC</button>
     <button data-v="calc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M8 6h8v3H8zM8 13h1M12 13h.5M15.5 13h.5M8 17h1M12 17h.5M15.5 17h.5"/></svg>Calculadora</button>
-    <button data-v="opt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Optimizador SP</button>
-    <button data-v="doc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>Documento</button>
     <button data-v="dex"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="9" cy="8" r="2"/><path d="M8 14h8M8 17h5"/></svg>Macar Dex</button>
     <span class="navsep"></span>
     <button data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
@@ -37,13 +32,14 @@
 </aside>
 
 <main class="main">
+  <nav class="teamhub hide" id="teamHub" aria-label="Equipo"></nav>
   <section class="view on" id="v-jugar">
     <div class="playbar">
       <span class="pstat" id="playStat">Juega como siempre: al terminar cada combate, la partida se guarda sola.</span>
       <span class="tools"><span class="sdzoom" title="Tamaño de Showdown, como en el navegador (también Ctrl + / Ctrl − / Ctrl 0)"><button class="btn sm" id="sdZoomOut" aria-label="Más pequeño">−</button><button class="btn sm" id="sdZoomVal" title="Volver al 100%">100%</button><button class="btn sm" id="sdZoomIn" aria-label="Más grande">+</button></span><button class="btn ibtn mute" id="sdMute"></button><button class="btn" id="sdTeam" title="Tu equipo, en la carpeta «Macar Showdown» del teambuilder de Showdown">Llevar mi equipo a Showdown</button><button class="btn primary" id="sdSearch" title="Busca partida en el ladder con tu equipo">Buscar partida (Reg M-C)</button><button class="btn" id="reloadSd" title="Recargar Showdown">⟳</button></span>
     </div>
     <div class="playwrap">
-      <div class="sdcol">
+      <div class="sdcol"><div class="rivknown hide" id="rivKnown" aria-live="polite"></div>
         <webview id="sd" src="https://play.pokemonshowdown.com/" partition="persist:showdown"></webview>
         <div class="notesbar" id="notesBar">
           <div class="nbtop"><button class="nbhead" id="nbToggle" title="Mostrar u ocultar las notas"><b>Notas de la partida</b><span id="nbWho">Abre un combate para tomar notas</span><span class="nbsaved" id="nbSaved"></span><i aria-hidden="true">▾</i></button></div>
@@ -61,6 +57,7 @@
   <section class="view" id="v-mu"></section>
   <section class="view" id="v-pc"></section>
   <section class="view" id="v-calc"><div class="calcpage"><div class="cbody study" id="calcPage"></div></div></section>
+  <section class="view" id="v-estudio"></section>
   <section class="view" id="v-opt"></section>
   <section class="view" id="v-doc"></section>
   <section class="view" id="v-dex"></section>
@@ -92,6 +89,7 @@
 <script src="replay.js"></script>
 <script src="dash.js"></script>
 <script src="myteam.js"></script>
+<script src="study.js"></script>
 <script src="start.js"></script>
 <script src="tour.js"></script>
 </body>

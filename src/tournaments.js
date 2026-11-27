@@ -76,13 +76,16 @@ function summarize(tours) {
 }
 
 class Tournaments {
-  constructor(dir) { this.file = path.join(dir, 'torneos.json'); this.mem = null; this.pending = null; }
+  /** code: el código de Limitless de la regulación elegida en Ajustes (p. ej. 'M-C'). */
+  constructor(dir, code = () => FORMAT) { this.file = path.join(dir, 'torneos.json'); this.code = code; this.mem = null; this.pending = null; }
   read() {
     if (this.mem) return this.mem;
     try { this.mem = JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch (e) { this.mem = null; }
     return this.mem;
   }
   async download() {
+    const FORMAT = this.code();
+    if (!FORMAT) throw new Error('Pon el código de Limitless de tu regulación en Ajustes');
     const list = await getJSON(`${API}/tournaments?game=VGC&format=${encodeURIComponent(FORMAT)}&limit=150`);
     const since = Date.now() - DAYS * 86400000;
     const chosen = (Array.isArray(list) ? list : [])
@@ -96,7 +99,7 @@ class Tournaments {
     return out;
   }
   async get(force) {
-    const c = this.read();
+    const r = this.read(), c = r && r.format === this.code() ? r : null; // los de otra regulación no sirven
     if (c && !force && Date.now() - (c.checked || 0) < REFRESH) return c;
     if (!this.pending) this.pending = this.download().finally(() => { this.pending = null; });
     try { return await this.pending; } catch (e) { if (c) return c; throw e; }

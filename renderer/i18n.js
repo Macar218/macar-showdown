@@ -233,6 +233,44 @@ const I18N = (() => {
     '+ Nota del turno': '+ Note for this turn', '+ Nota del turno #': '+ Note for turn #', 'Combate grande': 'Big battle', 'Agranda el combate para que ocupe todo el hueco': 'Makes the battle bigger to fill the space',
     // 0.19
     'Mostrar más': 'Show more',
+    // 0.20: sección Equipo y Estudiar
+    'Elegir y construir': 'Choose and build', 'Estudiar': 'Study', 'Repartos (SP)': 'Spreads (SP)',
+    'Tu equipo y todo su proceso: elegir y construir, estudiar, repartos, matchups y documento': 'Your team and its whole process: choose and build, study, spreads, matchups and document',
+    'Tu equipo de un vistazo: ficha, cálculos y notas de cada Pokémon': 'Your team at a glance: sheet, calcs and notes of each Pokémon',
+    'Elige con qué equipo juegas, crea uno (a partir de un Pokémon o estrategia) o importa uno, y edítalo': 'Choose the team you play, create one (around a Pokémon or a strategy) or import one, and edit it',
+    'Fuerza propia (velocidad, cobertura, sinergia defensiva) y fuerza relativa (contra lo más usado del meta)': 'Inherent strength (speed, coverage, defensive synergy) and relative strength (against the most used in the meta)',
+    'Repartos de puntos (SP) con cálculos: qué aguantar y qué tumbar': 'Point spreads (SP) with calcs: what to survive and what to KO',
+    'Tu plan contra cada equipo rival': 'Your plan against each rival team', 'El documento de preparación, para imprimir o repasar': 'The prep document, to print or review',
+    'Fuerza propia': 'Inherent strength', 'Fuerza relativa': 'Relative strength', '· contra el meta': '· against the meta', 'Fuerza propia del equipo y cómo le va contra lo más usado del meta.': 'The team\'s inherent strength and how it does against the most used in the meta.',
+    'Equipo que estudias': 'Team you are studying', 'Repartos de puntos (SP) con cálculos': 'Point spreads (SP) with calcs', 'Control de velocidad': 'Speed control', 'Prioridad:': 'Priority:', 'sin movimientos con prioridad': 'no priority moves',
+    'En Trick Room': 'In Trick Room', 'Potencia y cobertura': 'Power and coverage', 'solo movimientos de estado': 'status moves only',
+    'Supereficaz contra # de # tipos.': 'Super effective against # of # types.', 'Sin supereficaz contra:': 'No super effective hit against:', 'Sinergia defensiva': 'Defensive synergy',
+    '· ×2 y ×4 débil, ½ y ¼ resiste, 0 inmune': '· ×2 and ×4 weak, ½ and ¼ resists, 0 immune', 'Débiles': 'Weak', 'Resisten': 'Resist', 'Su mejor golpe': 'Their best hit', '# de # más rápidos': '# of # faster',
+    'Los 12 más llevados en torneos de Limitless (30 días), con su set más común.': 'The 12 most brought in Limitless tournaments (30 days), with their most common set.', 'Los 12 más usados en Smogon, con su set más común.': 'The 12 most used on Smogon, with their most common set.',
+    'Objetivo único y sin campo: para el detalle, la Calculadora. Tus Pokémon ya en el meta no salen.': 'Single target and no field: for the details, the Calculator. Your Pokémon already in the meta are left out.',
+    'Sin datos del meta ahora mismo (torneos ni Smogon). Prueba más tarde.': 'No meta data right now (neither tournaments nor Smogon). Try later.', 'Calculando…': 'Calculating…', 'Elige o crea un equipo en «Elegir y construir».': 'Choose or create a team in «Choose and build».',
+    'Todo tu equipo en una sección, en el orden en que lo preparas: Resumen, Elegir y construir, Estudiar, Repartos (SP), Matchups y Documento. En el menú es una sola entrada y abre la última pestaña que usaste.': 'Your whole team in one section, in the order you prepare it: Overview, Choose and build, Study, Spreads (SP), Matchups and Document. It is a single menu entry and opens the last tab you used.',
+    'Elige con qué equipo juegas, crea uno nuevo o importa uno (un Pokepaste, por ejemplo de un equipo de torneo de la Macar Dex) y cambia puntos (SP), objeto, habilidad y movimientos.': 'Choose the team you play, create a new one or import one (a Pokepaste, for example a tournament team from the Macar Dex) and change points (SP), item, ability and moves.',
+    'Fuerza propia: control de velocidad, potencia y cobertura, y sinergia defensiva. Fuerza relativa: cómo le va contra lo más usado del meta, con cálculos de daño y velocidad.': 'Inherent strength: speed control, power and coverage, and defensive synergy. Relative strength: how it does against the most used in the meta, with damage and speed calcs.',
+    'Repartos (SP) y Documento': 'Spreads (SP) and Document', 'Repartos reparte los puntos para sobrevivir o ganar en velocidad a lo que elijas. El documento monta tu preparación y lo puedes sacar en PDF.': 'Spreads distributes the points to survive or outspeed what you choose. The document builds your preparation and you can export it as PDF.',
+    // 0.20: regulación, copia de seguridad, análisis, por qué pierdes y guardar como equipo
+    'Regulación': 'Regulation', 'Otra…': 'Other…', 'Formato de Showdown': 'Showdown format', 'Código de Limitless': 'Limitless code', 'Falta el formato de Showdown.': 'The Showdown format is missing.',
+    'Con la que juegas: la usan «Buscar partida», los sets de Smogon, los torneos de Limitless y el documento. Cuando cambie, elige la nueva o escríbela.': 'The one you play: used by «Find a battle», Smogon sets, Limitless tournaments and the document. When it changes, pick the new one or type it in.',
+    'Copia de seguridad': 'Backup', 'Todo lo tuyo (partidas, equipos, Mi PC, documentos, matchups, sesiones y ajustes) en un solo archivo. Además, la app guarda sola una copia cada semana en este ordenador (las 4 últimas).': 'Everything of yours (matches, teams, My PC, documents, matchups, sessions and settings) in a single file. The app also saves a copy every week on this computer by itself (the last 4).',
+    'Guardar una copia…': 'Save a backup…', 'Restaurar una copia…': 'Restore a backup…', 'Copias automáticas': 'Automatic backups', 'Restaurar': 'Restore',
+    'Copia guardada: # partidas y # archivos más.': 'Backup saved: # matches and # more files.', 'Restaurados # archivos. La app se recarga…': 'Restored # files. The app is reloading…', 'No se pudo restaurar.': 'Could not restore.',
+    'Se añaden las partidas de la copia (las que ya tengas se sustituyen por las de la copia) y se ponen sus equipos, Mi PC, documentos, matchups, sesiones y ajustes. Antes se guarda una copia de cómo está todo ahora.': 'The backup\'s matches are added (the ones you already have are replaced by the backup\'s) and its teams, My PC, documents, matchups, sessions and settings are put in place. A copy of how everything is now is saved first.',
+    'No es una copia de Macar Showdown o está dañada.': 'It is not a Macar Showdown backup or it is damaged.', 'No es una copia de Macar Showdown.': 'It is not a Macar Showdown backup.', 'Elige antes la copia': 'Pick the backup first', 'Pon el código de Limitless de tu regulación en Ajustes': 'Set your regulation\'s Limitless code in Settings',
+    'Análisis': 'Analysis', 'Motivo': 'Reason', 'Por qué fue así, según tu análisis (en el visor) o tus notas «[T5] Macro: …»': 'Why it went that way, from your analysis (in the viewer) or your notes «[T5] Macro: …»',
+    'Por qué pierdes': 'Why you lose', '# de # derrotas analizadas': '# of # losses analysed', 'Lo que te has llevado': 'What you have taken away', 'Ver estas partidas en Partidas': 'See these matches in Matches',
+    'Aún no has analizado ninguna derrota. En el visor de replays, pestaña Análisis, marca por qué fue así.': 'You have not analysed any loss yet. In the replay viewer, Analysis tab, mark why it went that way.',
+    'Guardar como equipo': 'Save as team', 'Guárdalos como un equipo tuyo: sale en el Teambuilder y en Mi PC': 'Save them as one of your teams: it shows up in the Teambuilder and in My PC',
+    'Guardado como equipo «': 'Saved as team «', '»: ya está en el Teambuilder y en Mi PC.': '»: it is now in the Teambuilder and in My PC.',
+    '#–# en # partidas · última el #/#/#': '#–# in # matches · last on #/#/#', '#–# en # partida · última el #/#/#': '#–# in # match · last on #/#/#',
+    '#–# · # sin resultado en # partidas · última el #/#/#': '#–# · # without result in # matches · last on #/#/#',
+    '# partidas · tú #–#': '# matches · you #–#', '# partida · tú #–#': '# match · you #–#',
+    '#/#/# · Victoria': '#/#/# · Win', '#/#/# · Derrota': '#/#/# · Loss', '#/#/# · Empate': '#/#/# · Tie',
+    '▶ #/#/# · Victoria': '▶ #/#/# · Win', '▶ #/#/# · Derrota': '▶ #/#/# · Loss', '▶ #/#/# · Empate': '▶ #/#/# · Tie', 'Rival conocido': 'Known rival', 'Ver qué pasó': 'What happened', 'Menos': 'Less', 'Esconderlo en este combate': 'Hide it for this battle', 'Tus notas': 'Your notes', 'Naturaleza: + sube esta estadística, − la baja': 'Nature: + raises this stat, − lowers it',
     // 0.18
     'Esconder la calculadora': 'Hide the calculator', '⤢ Pantalla completa': '⤢ Full screen', '⤡ Al lado de la replay': '⤡ Next to the replay',
     'La calculadora en todo el visor (la replay sigue detrás: «Ver la replay» o Ctrl+K para cambiar)': 'The calculator over the whole viewer (the replay stays behind: “Watch the replay” or Ctrl+K to switch)',
@@ -529,6 +567,9 @@ const I18N = (() => {
   for (const [k, v] of Object.entries(D)) if (/#/.test(k)) DN[k] = v;
 
   const RX = [
+    [/^· del (.+) · (\d+) partidas$/, '· from $1 · $2 matches'],
+    [/^Buscar partida \((.+)\)$/, 'Find a battle ($1)'], [/^Buscando una partida de la (.+?) con (.+)…$/, 'Searching a $1 battle with $2…'], [/^Regulación: (.+)\.$/, 'Regulation: $1.'],
+    [/^(\d+) partidas? · tú (\d+)–(\d+) · abrió con (.+?)(?: \((\d+) veces\))?$/, (all, n, w, l, ld, k) => `${n} match${n === '1' ? '' : 'es'} · you ${w}–${l} · led with ${ld}${k ? ` (${k} times)` : ''}`],
     [/\(ganas ([\d.,]+)% en (\d+)\)/g, '(you win $1% in $2)'],
     [/^(.+) ya está en el equipo: cada Pokémon solo puede ir una vez\.$/, '$1 is already in the team: each Pokémon can only be in it once.'],
     [/^Ya estaba en Mi PC: ahora se llama (.+).$/, 'It was already in My PC: now it is called $1.'],
@@ -569,7 +610,7 @@ const I18N = (() => {
     return m[1] + out + m[3];
   }
   /* títulos de página (dos colores) */
-  const H1 = { 'Tu equipo': ['Your ', 'team'], 'Partidas': ['Mat', 'ches'], 'Ajustes': ['Sett', 'ings'], 'Mi PC': ['My ', 'PC'], 'Documento de preparación': ['Prep ', 'document'], 'Optimizador SP': ['SP ', 'Optimizer'] };
+  const H1 = { 'Estudiar': ['Stu', 'dy'], 'Tu equipo': ['Your ', 'team'], 'Partidas': ['Mat', 'ches'], 'Ajustes': ['Sett', 'ings'], 'Mi PC': ['My ', 'PC'], 'Documento de preparación': ['Prep ', 'document'], 'Optimizador SP': ['SP ', 'Optimizer'] };
   const SKIP = '.dcontent, textarea, [contenteditable], webview, .dcalc, .dcalcprev, script, style, .nolang, #opTxt, .pastebox textarea';
   function trNode(n) {
     if (n.nodeType === 3) {

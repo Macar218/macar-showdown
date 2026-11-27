@@ -43,7 +43,7 @@ const Doc = (() => {
 
     // 1. Resumen: tu equipo de un vistazo
     pages.push(page([
-      block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · Reg M-C · ${new Date().toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
+      block('title', `<h1>${esc(team.name)}</h1><p class="dsub">Documento de preparación · Pokémon Champions VGC · ${esc((typeof SET !== 'undefined' && SET.reg && SET.reg.name) || 'Reg M-C')} · ${new Date().toLocaleDateString((typeof I18N !== 'undefined' && I18N.lang === 'en' ? 'en-GB' : 'es-ES'), { day: 'numeric', month: 'long', year: 'numeric' })}${SET.showdownName ? ` · ${esc(SET.showdownName.split(',')[0])}` : ''}</p>`),
       block('kv', `<p><b>Pokepaste del equipo:</b> ${MU.paste ? `<a href="${esc(MU.paste)}">${esc(MU.paste)}</a>` : fill('pega aquí el enlace')}</p><p><b>Código de alquiler:</b> ${MU.code ? esc(MU.code) : fill('—')}</p>${ms.length ? `<p><b>Récord con Macar Showdown:</b> ${pctTxt(r.w, r.n)} en ${r.n} partidas${r.eloNow ? ` · ELO ${r.eloNow}` : ''}</p>` : ''}`),
       block('h', '<h2>Mi equipo</h2>'),
       block('team', teamHTML(sets)),

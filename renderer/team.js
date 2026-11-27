@@ -81,7 +81,7 @@ const Team = (() => {
     const sp = P.spOf(m.species), st = P.stats(m) || {};
     const nat = natOf(m.nature), left = P.SP_TOTAL - spTotal(m);
     return `<div class="tbsp"><div class="tbsph"><h3>Puntos (SP)</h3><span class="tbleft ${left < 0 ? 'over' : left === 0 ? 'full' : ''}" id="tbLeft">Quedan ${left} de ${P.SP_TOTAL}</span></div>
-      <div class="srow shead"><span></span><span>Base</span><span>Puntos</span><span></span><span>Total</span><span>Naturaleza</span></div>
+      <div class="srow shead"><span></span><span>Base</span><span>Puntos</span><span></span><span>Total</span><span title="Naturaleza: + sube esta estadística, − la baja">Nat.</span></div>
       <div class="srows">${P.STATS.map((k, i) => {
         const base = sp ? sp.baseStats[k] : 0;
         const cls = P.natMult(m.nature, k) > 1 ? 'up' : P.natMult(m.nature, k) < 1 ? 'dn' : '';

@@ -341,7 +341,7 @@ const P = (() => {
   function koEs(ko) {
     if ((typeof I18N !== 'undefined' && I18N.lang) === 'en') return String(ko || '');
     return String(ko || '')
-.replace(/ after Sitrus Berry recovery/i, ' (contando la Sitrus Berry)')
+.replace(/ after Sitrus Berry recovery/i, ' (contando la Sitrus Berry)').replace(/ after Leftovers recovery/i, ' (contando Leftovers)').replace(/ after (.+?) recovery/i, ' (contando $1)')
       .replace(/guaranteed OHKO/i, 'KO seguro').replace(/guaranteed (\d)HKO/i, 'KO seguro en $1')
       .replace(/([\d.]+)% chance to OHKO/i, (_, p) => `${p.replace('.', DEC())}% de KO`)
       .replace(/([\d.]+)% chance to (\d)HKO/i, (_, p, n) => `${p.replace('.', DEC())}% de KO en ${n}`)

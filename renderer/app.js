@@ -18,8 +18,8 @@ if (W2) {
   if (sd) { const d = document.createElement('div'); d.id = 'sd'; d.className = 'sdoff'; sd.replaceWith(d); }
 }
 /** Filtros del Dashboard. scope: qué partidas cuentan (la sesión abierta, todo su equipo o todas). */
-const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', scope: 'session' };
-const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '' };
+const F = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', why: '', scope: 'session' };
+const F_CLEAR = { result: 'all', days: 0, from: 0, to: 0, lead: '', back: '', rival: '', oppLead: '', minElo: 0, mark: '', why: '' };
 
 /* ---------- sprites ---------- */
 const NOHYPHEN = new Set(['kommoo', 'hakamoo', 'jangmoo', 'hooh', 'porygonz', 'chiyu', 'chienpao', 'tinglu', 'wochien', 'mrmime', 'mimejr', 'typenull', 'mrrime', 'nidoranf', 'nidoranm']);
@@ -68,17 +68,37 @@ const pairLabel = x => `${x.key.split(' + ').map(n => spr(n, 'sm')).join('')}<sp
 /* ---------- navegación ---------- */
 /** Pantallas que pintan otros archivos (Teambuilder, Mi PC, Optimizador, Documento): VIEWS[nombre] = función. */
 const VIEWS = {};
+/*
+ * Sección Equipo: tu proceso en pestañas (resumen, elegir y construir, estudiar, repartos, matchups y documento).
+ * En el menú es una sola entrada; abre la última pestaña que usaste.
+ */
+const HUB = [['miequipo', 'Resumen'], ['equipo', 'Elegir y construir'], ['estudio', 'Estudiar'], ['opt', 'Repartos (SP)'], ['mu', 'Matchups'], ['doc', 'Documento']];
+const HUB_TIP = { miequipo: 'Tu equipo de un vistazo: ficha, cálculos y notas de cada Pokémon', equipo: 'Elige con qué equipo juegas, crea uno (a partir de un Pokémon o estrategia) o importa uno, y edítalo', estudio: 'Fuerza propia (velocidad, cobertura, sinergia defensiva) y fuerza relativa (contra lo más usado del meta)', opt: 'Repartos de puntos (SP) con cálculos: qué aguantar y qué tumbar', mu: 'Tu plan contra cada equipo rival', doc: 'El documento de preparación, para imprimir o repasar' };
+const isHub = v => HUB.some(([k]) => k === v);
+function hubBar(v) {
+  const el = $('#teamHub');
+  if (!el) return;
+  const on = isHub(v);
+  el.classList.toggle('hide', !on);
+  document.body.classList.toggle('hubon', on);
+  if (!on) return;
+  try { localStorage.setItem('msHubTab', v); } catch (e) { /* nada */ }
+  el.innerHTML = `<span class="hubt">Equipo</span><div class="hubtabs">${HUB.map(([k, l], i) => `<button data-hub="${k}" aria-current="${k === v ? 'page' : 'false'}" title="${HUB_TIP[k]}"><small>${i + 1}</small>${l}</button>`).join('')}</div>`;
+}
 function show(v) {
   if (W2 && v === 'jugar') v = 'dash'; // Showdown solo en la ventana principal
+  if (v === 'hub') { v = 'miequipo'; try { const t = localStorage.getItem('msHubTab'); if (isHub(t)) v = t; } catch (e) { /* nada */ } }
   VIEW = v;
-  $$('.nav [data-v]').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
+  hubBar(v);
+  $$('.nav [data-v]').forEach(b => b.setAttribute('aria-current', (b.dataset.hub ? isHub(v) : b.dataset.v === v) ? 'page' : 'false'));
   $$('.view').forEach(x => x.classList.toggle('on', x.id === `v-${v}`));
   window.dispatchEvent(new CustomEvent('ms:view', { detail: v }));
   render();
 }
-$('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.v); });
+$('.nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.hub ? 'hub' : b.dataset.v); });
+$('#teamHub').addEventListener('click', e => { const b = e.target.closest('[data-hub]'); if (b) show(b.dataset.hub); });
 document.addEventListener('keydown', e => {
-  const ORDER = ['jugar', 'dash', 'miequipo', 'equipo', 'mu', 'pc', 'calc', 'opt', 'doc', 'dex', 'ajustes'];
+  const ORDER = ['jugar', 'dash', 'hub', 'pc', 'calc', 'dex', 'ajustes'];
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(ORDER[+e.key - 1]); }
 });
 
@@ -87,6 +107,7 @@ async function load() {
   const [r, set] = await Promise.all([api.listIf(MVER), api.settings()]);
   if (!r.same) { M = r.list; MVER = r.ver; }
   SET = set;
+  if (typeof Play !== 'undefined' && Play.regLabel) Play.regLabel();
   await loadTeams();
   loadLadder();
   try { DASH.teamSets = await P.myTeam(); } catch (e) { DASH.teamSets = { sets: [] }; }
@@ -477,6 +498,15 @@ VIEWS.dex = () => {
 };
 
 /* ---------- Ajustes ---------- */
+/** Regulación: las conocidas y «Otra» con sus tres datos. */
+function regForm() {
+  const r = SET.reg || {}, regs = SET.regs || [], known = regs.some(x => x.id === r.id);
+  return `<div class="regform"><label class="field">Regulación<select id="regSel">${regs.map(x => `<option value="${esc(x.id)}"${x.id === r.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}<option value=""${known ? '' : ' selected'}>Otra…</option></select></label>
+    <div class="regother${known ? ' hide' : ''}"><label class="field">Formato de Showdown<input type="text" id="regId" value="${esc(known ? '' : r.id || '')}" placeholder="gen9championsvgc2026regmc"></label>
+    <label class="field">Nombre<input type="text" id="regName" value="${esc(known ? '' : r.name || '')}" placeholder="Reg M-C"></label>
+    <label class="field">Código de Limitless<input type="text" id="regLim" value="${esc(known ? '' : r.limitless || '')}" placeholder="M-C"></label>
+    <button class="btn primary" id="regSave">Guardar</button></div></div>`;
+}
 async function renderSettings() {
   const el = $('#v-ajustes');
   const [st, dd, ex] = await Promise.all([api.status(), api.dataDir(), api.extList()]);
@@ -510,6 +540,15 @@ async function renderSettings() {
       <div class="row-btns"><input type="text" id="extUrl" placeholder="Enlace de la Chrome Web Store o su identificador" style="flex:1"><button class="btn sm primary" id="extStore">Añadir desde la Chrome Web Store</button></div>
       <div class="row-btns"><span class="note">O desde tu ordenador:</span><button class="btn sm" id="extFile">.crx o .zip…</button><button class="btn sm" id="extFolder">Carpeta descomprimida…</button></div>
       <p id="extMsg" style="margin-top:6px"></p></div>
+    <div class="card"><h2>Regulación</h2>
+      <p class="note" style="margin-bottom:10px">Con la que juegas: la usan «Buscar partida», los sets de Smogon, los torneos de Limitless y el documento. Cuando cambie, elige la nueva o escríbela.</p>
+      ${regForm()}
+      <p id="regMsg" class="okmsg" style="margin-top:8px"></p></div>
+    <div class="card"><h2>Copia de seguridad</h2>
+      <p class="note" style="margin-bottom:10px">Todo lo tuyo (partidas, equipos, Mi PC, documentos, matchups, sesiones y ajustes) en un solo archivo. Además, la app guarda sola una copia cada semana en este ordenador (las 4 últimas).</p>
+      <div class="row-btns"><button class="btn primary" id="bkSave">Guardar una copia…</button><button class="btn" id="bkPick">Restaurar una copia…</button><button class="btn sm" id="bkFolder">Copias automáticas</button></div>
+      <div id="bkAsk"></div>
+      <p id="bkMsg" style="margin-top:8px"></p></div>
     <div class="card wide"><h2>Tus datos en todos tus ordenadores</h2>
       <p class="note" style="margin-bottom:10px">Partidas, equipos, Mi PC, documentos y ajustes viven en una carpeta. Ponla en OneDrive y elige la misma carpeta en cada ordenador donde juegues: verás lo mismo en todos. Al volver a la ventana de la app se leen los cambios del otro ordenador.</p>
       <dl class="kv"><dt>Carpeta</dt><dd>${esc(dd.dir || '')}</dd><dt>Estado</dt><dd>${dd.onedrive && dd.dir.toLowerCase().startsWith(dd.onedrive.toLowerCase()) ? 'En OneDrive: se sincroniza' : 'Solo en este ordenador'}</dd></dl>
@@ -529,6 +568,22 @@ async function renderSettings() {
   $('#extFolder').onclick = async () => extDone(await api.extAdd('folder'));
   $$('[data-extdel]').forEach(b => { b.onclick = async () => { if (!confirm('¿Quitar esta extensión?')) return; await api.extRemove(b.dataset.extdel); extDone({ ok: true }, 'Quitada. Showdown se ha recargado.'); }; });
   $$('[data-lang]').forEach(b => { b.onclick = () => { if (b.dataset.lang !== I18N.lang) I18N.setLang(b.dataset.lang); }; });
+  const regSet = async reg => { Object.assign(SET, await api.setSettings({ reg })); $('#regMsg').textContent = `Regulación: ${SET.reg.name}.`; if (typeof Play !== 'undefined' && Play.regLabel) Play.regLabel(); };
+  $('#regSel').onchange = e => { const x = (SET.regs || []).find(r => r.id === e.target.value); $('.regother').classList.toggle('hide', !!x); if (x) regSet(x); };
+  $('#regSave').onclick = () => { const id = $('#regId').value.trim(); if (!id) { $('#regMsg').textContent = 'Falta el formato de Showdown.'; return; } regSet({ id, name: $('#regName').value.trim(), limitless: $('#regLim').value.trim() }); };
+  const bkMsg = (t, ok) => { const m = $('#bkMsg'); m.className = ok ? 'okmsg' : 'errmsg'; m.textContent = t; };
+  $('#bkSave').onclick = async () => { const r = await api.backupSave(); if (r.ok) bkMsg(`Copia guardada: ${r.matches} partidas y ${r.files - r.matches} archivos más.`, true); else if (r.why) bkMsg(r.why); };
+  $('#bkFolder').onclick = () => api.backupFolder();
+  $('#bkPick').onclick = async () => {
+    const r = await api.backupPick();
+    if (!r.ok) { if (r.why) bkMsg(r.why); return; }
+    const when = new Date(r.created).toLocaleString(I18N.lang === 'en' ? 'en-GB' : 'es-ES');
+    $('#bkAsk').innerHTML = `<div class="bkask"><p><b class="nolang">${esc(r.name)}</b> · del ${esc(when)} · ${r.matches} partidas</p>
+      <p class="note">Se añaden las partidas de la copia (las que ya tengas se sustituyen por las de la copia) y se ponen sus equipos, Mi PC, documentos, matchups, sesiones y ajustes. Antes se guarda una copia de cómo está todo ahora.</p>
+      <div class="row-btns"><button class="btn primary" id="bkGo">Restaurar</button><button class="btn" id="bkNo">Cancelar</button></div></div>`;
+    $('#bkNo').onclick = () => { $('#bkAsk').innerHTML = ''; };
+    $('#bkGo').onclick = async () => { const x = await api.backupRestore(); $('#bkAsk').innerHTML = ''; if (!x.ok) { bkMsg(x.why || 'No se pudo restaurar.'); return; } bkMsg(`Restaurados ${x.restored} archivos. La app se recarga…`, true); setTimeout(() => location.reload(), 1200); };
+  };
   $('#sReplay').onchange = async e => { Object.assign(SET, await api.setSettings({ autoReplay: e.target.checked })); renderSettings(); };
   const setDir = async mode => {
     const r = await api.setDataDir(mode);

@@ -424,7 +424,9 @@ function makeCalc(cfg) {
     const teamOpt = (side, v) => `<option value="">${side === 'me' ? 'Tu equipo…' : 'Equipo rival…'}</option>${TEAMS.filter(t => t.side === side).map(t => `<option value="${esc(t.id)}"${t.id === v ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}`;
     return `<div class="ctop"><span class="pill">ESTUDIO</span><span>Tus equipos, Mi PC y los rivales de tus partidas</span><span style="flex:1"></span><button class="btn sm" data-dex="1" title="Info Pokémon: busca por nombre o número">Pokédex</button></div>
       <div class="cmode"><span class="note">Tus Pokémon:</span><div class="seg">${[['team', 'Tu equipo'], ['free', 'Los que tú elijas']].map(([k, l]) => `<button data-cmode="${k}" aria-pressed="${(S.meMode || 'team') === k}" title="${k === 'team' ? 'Un equipo tuyo: por defecto, el de tu sesión' : 'Empieza vacío y añade con + los Pokémon que quieras: de Mi PC, de tus equipos o nuevos'}">${l}</button>`).join('')}</div>
-        ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? '<button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>' : ''}` : ''}</div>
+        ${S.meMode === 'free' ? `<span class="note">Añade los tuyos con + en «Tus Pokémon».</span>${S.manual.me.length ? `<button class="btn sm primary" data-csaveteam="1" title="Guárdalos como un equipo tuyo: sale en el Teambuilder y en Mi PC">Guardar como equipo</button><button class="btn sm" data-cclear="me" title="Quitar todos tus Pokémon">Vaciar los tuyos</button>` : ''}` : ''}</div>
+      ${S.meMode === 'free' && S.saveTeam ? `<div class="csaveteam"><input type="text" id="cTeamName" placeholder="Nombre del equipo" value="${esc(S.saveTeam.name || '')}"><button class="btn sm primary" data-csavego="1">Guardar</button><button class="btn sm" data-csaveno="1">Cancelar</button></div>` : ''}
+      ${S.savedTeam ? `<div class="csaveteam ok"><span>Guardado como equipo «<span class="nolang">${esc(S.savedTeam.name)}</span>»: ya está en el Teambuilder y en Mi PC.</span><button class="btn sm" data-copenteam="${esc(S.savedTeam.id)}">Abrir en el Teambuilder</button><button class="btn sm" data-csaveno="1">×</button></div>` : ''}
       <div class="cteams">${S.meMode === 'free' ? '' : `<select data-cteam="me" title="Tu equipo">${teamOpt('me', S.teamMe)}</select>`}
         <select data-cteam="foe" title="Equipo del rival: sus sets mandan sobre los más usados">${teamOpt('foe', S.teamFoe)}</select>
         <button class="btn sm" data-cmatch="1" title="Los rivales de una partida tuya: su hoja de equipo (OTS) con el reparto más común">De una partida</button>
@@ -646,6 +648,15 @@ function makeCalc(cfg) {
       if (t.dataset.cpaste) { quickRival(); return; }
       if (t.dataset.cclear === 'me') { S.hide.me = []; S.manual.me = []; S.edits.me = {}; S.meActive = []; S.selMe = 0; persist(); lastHash = ''; tick(true); return; }
       if (t.dataset.cclear) { S.hide.foe = []; S.teamFoe = ''; S.manual.foe = []; S.edits.foe = {}; S.foeActive = []; persist(); lastHash = ''; tick(true); return; }
+      if (t.dataset.csaveteam) { S.saveTeam = { name: S.me.slice(0, 3).map(m => P.baseSpecies(m.species)).join(' / ') }; S.savedTeam = null; render(); setTimeout(() => { const i = q1('#cTeamName'); if (i) { i.focus(); i.select(); } }, 0); return; }
+      if (t.dataset.csaveno) { S.saveTeam = null; S.savedTeam = null; render(); return; }
+      if (t.dataset.csavego) {
+        const name = ((q1('#cTeamName') || {}).value || '').trim() || S.saveTeam.name || 'Equipo';
+        const sets = S.me.slice(0, 6).map(m => P.clone(m));
+        P.saveTeam({ name, side: 'me', text: P.exportTeam(sets) }).then(v => { S.saveTeam = null; S.savedTeam = { id: v.id, name }; if (typeof Calc !== 'undefined') Calc.reloadTeams(); render(); });
+        return;
+      }
+      if (t.dataset.copenteam) { S.savedTeam = null; if (typeof Team !== 'undefined') Team.select(t.dataset.copenteam); show('equipo'); return; }
       if (t.dataset.cmode) {
         S.meMode = t.dataset.cmode === 'free' ? 'free' : 'team';
         // Con tu equipo, el de la sesión si no habías elegido otro; a mano, empiezas con lo que ya hubieras puesto.

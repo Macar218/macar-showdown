@@ -43,7 +43,7 @@ const Dash = (() => {
     const sel = (key, label, groups) => `<label class="field">${label}<select data-fs="${key}"><option value="">Cualquiera</option>${groups.map(([g, list]) => (list.length ? (g ? `<optgroup label="${g}">${opts(list, F[key])}</optgroup>` : opts(list, F[key])) : '')).join('')}</select></label>`;
     const seg = (key, list) => `<div class="seg" role="group">${list.map(([v, l]) => `<button data-f="${key}" data-val="${v}" aria-pressed="${String(F[key]) === String(v)}">${l}</button>`).join('')}</div>`;
     const dstr = t => (t ? new Date(t).toISOString().slice(0, 10) : '');
-    const any = F.result !== 'all' || F.days || F.lead || F.back || F.rival || F.oppLead || F.minElo || F.mark;
+    const any = F.result !== 'all' || F.days || F.lead || F.back || F.rival || F.oppLead || F.minElo || F.mark || F.why;
     const MK = [['', 'Cualquiera'], ['notes', 'Con notas'], ['analyze', 'Por analizar'], ['analyzed', 'Ya analizadas'], ['good', 'Buenas'], ['meh', 'Indiferentes'], ['bad', 'Malas'], ['none', 'Sin marcar']];
     return `<div class="filters dfil">
       <div class="field">Resultado${seg('result', [['all', 'Todas'], ['win', 'Victorias'], ['loss', 'Derrotas']])}</div>
@@ -54,6 +54,7 @@ const Dash = (() => {
       ${sel('rival', 'Rival con', [['', o.rivals]])}
       ${sel('oppLead', 'Lead rival', [[EN() ? 'One Pokémon' : 'Un Pokémon', o.oppLeads], [EN() ? 'Pair' : 'Pareja', r.oppLeads.map(x => x.key)]])}
       <label class="field">Marcas<select data-fs="mark" title="Tus marcas y notas de cada partida">${MK.map(([v, l]) => `<option value="${v}"${(F.mark || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="field">Motivo<select data-fs="why" title="Por qué fue así, según tu análisis (en el visor) o tus notas «[T5] Macro: …»"><option value="">Cualquiera</option>${Stats.WHY.map(w => `<option value="${w.k}"${F.why === w.k ? ' selected' : ''}>${EN() ? w.en : w.es}</option>`).join('')}</select></label>
       <label class="field">ELO mín.<input type="number" class="delo" data-fn="minElo" min="0" max="3000" step="50" placeholder="—" value="${F.minElo || ''}" title="Solo partidas contra rivales con este ELO o más"></label>
       ${any ? '<button class="btn sm ibtn dfx" data-fclear="1" title="Quitar filtros">✕</button>' : ''}
     </div>`;
@@ -255,6 +256,16 @@ const Dash = (() => {
   }
 
   /* ---------- Hábitos: cada tarjeta, un dato y lo que significa ---------- */
+  /** Por qué pierdes: los motivos de tus derrotas analizadas (visor o notas) y lo último que te has llevado. */
+  function whyCard(ms) {
+    const W = Stats.whyCount(ms), max = Math.max(1, ...Object.values(W.n));
+    const top = Stats.WHY.filter(w => W.n[w.k]).sort((a, b) => W.n[b.k] - W.n[a.k]);
+    const body = top.length
+      ? `<div class="whybars">${top.map(w => `<button class="whyrow" data-fwhy="${w.k}" title="Ver estas partidas en Partidas"><span>${EN() ? w.en : w.es}</span><i><b style="width:${Math.round((W.n[w.k] / max) * 100)}%"></b></i><em>${W.n[w.k]}</em></button>`).join('')}</div>`
+      : '<p class="note">Aún no has analizado ninguna derrota. En el visor de replays, pestaña Análisis, marca por qué fue así.</p>';
+    const les = W.lessons.length ? `<div class="whyles"><small>Lo que te has llevado</small>${W.lessons.map(x => `<button class="whyl ${x.result || ''}" data-view="${esc(x.id)}" title="Ver la replay"><span class="note">${new Date(x.t).toLocaleDateString(EN() ? 'en-GB' : 'es-ES')}</span> <span class="nolang">${esc(x.text.slice(0, 160))}</span></button>`).join('')}</div>` : '';
+    return `<div class="card whycard"><h3>Por qué pierdes <span class="note">${W.done} de ${W.total} derrotas analizadas</span></h3>${body}${les}</div>`;
+  }
   function habitos(ms) {
     const H = Stats.habits(ms), r = Stats.compute(ms), a = Stats.advanced(ms);
     const d = (x, y) => (x.n >= 3 && y.n >= 3 ? wrp(x) - wrp(y) : null);
@@ -278,6 +289,7 @@ const Dash = (() => {
     const keyMons = a.mons.filter(m => m.n >= 3 && m.without.n >= 3).map(m => ({ key: m.key, w: m, wo: m.without, delta: wrp(m) - wrp(m.without) })).sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
     const un = unusedMoves(a);
     return `${H.n < 30 ? `<div class="warnbox hprog"><span><b>Con 30 partidas se ve claro qué te hace ganar o perder.</b> <span>Llevas ${H.n}: de momento son pistas, no conclusiones.</span></span><i><b style="width:${Math.min(100, (H.n / 30) * 100)}%"></b></i></div>` : ''}
+      ${whyCard(ms)}
       <p class="note hbase">Tu media: ${Math.round(H.base * 100)}% de victorias. Al lado, cuánto más o menos ganas en cada caso.</p>
       <div class="dgrid2">
         <div class="card"><h2 class="okh2">Lo que más te hace ganar</h2>${H.win.map(row).join('') || '<p class="note">Nada destaca todavía.</p>'}</div>
@@ -335,6 +347,7 @@ const Dash = (() => {
     if (!t) return;
     const d = t.dataset;
     if (d.view) { e.stopPropagation(); Viewer.open(d.view); return; }
+    if (d.fwhy) { F.why = d.fwhy; F.result = 'loss'; D.tab = 'games'; D.shown = 150; paint(); return; }
     if (d.dmore) { D.shown += 300; paint(); return; }
     if (d.dtab) { D.shown = 150; D.tab = d.dtab; try { localStorage.setItem('msDashTab', D.tab); } catch (x) { /* nada */ } $('#v-dash').scrollTop = 0; paint(); return; }
     if (d.dcal) { F.days = F.days === -1 ? 0 : -1; if (F.days !== -1) { F.from = 0; F.to = 0; } paint(); return; }

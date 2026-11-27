@@ -5,6 +5,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('macar', {
   list: () => ipcRenderer.invoke('ms:list'),
   listIf: ver => ipcRenderer.invoke('ms:listIf', ver),
+  backupSave: () => ipcRenderer.invoke('ms:backupSave'),
+  backupPick: () => ipcRenderer.invoke('ms:backupPick'),
+  backupRestore: () => ipcRenderer.invoke('ms:backupRestore'),
+  backupFolder: () => ipcRenderer.invoke('ms:backupFolder'),
   get: id => ipcRenderer.invoke('ms:get', id),
   remove: id => ipcRenderer.invoke('ms:delete', id),
   setNotes: (id, text) => ipcRenderer.invoke('ms:notes', id, text),
@@ -31,6 +35,7 @@ contextBridge.exposeInMainWorld('macar', {
   matchExists: id => ipcRenderer.invoke('ms:matchExists', id),
   downloadReplay: id => ipcRenderer.invoke('ms:downloadReplay', id),
   setMark: (id, mark) => ipcRenderer.invoke('ms:setMark', id, mark),
+  setReview: (id, review) => ipcRenderer.invoke('ms:setReview', id, review),
   setMatchSession: (id, sid) => ipcRenderer.invoke('ms:setMatchSession', id, sid),
   clearSession: sid => ipcRenderer.invoke('ms:clearSession', sid),
   replayNow: id => ipcRenderer.invoke('ms:replayNow', id),

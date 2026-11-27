@@ -35,6 +35,7 @@
       if (f.from && s.endedAt < f.from) return false;
       if (f.to && s.endedAt > f.to) return false;
       // Marcas: con notas, para analizar, buena, indiferente o mala.
+      if (f.why && !whyOf(s).has(f.why)) return false;
       if (f.mark) {
         const mk = s.mark || {};
         if (f.mark === 'notes' ? !String(s.notes || '').trim() : f.mark === 'analyze' ? mk.a !== true : f.mark === 'analyzed' ? mk.a !== 'done' : f.mark === 'none' ? !!(mk.r || mk.a) : mk.r !== f.mark) return false;
@@ -301,5 +302,40 @@
     };
   }
 
-  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr, isOTS, overview, rival, teamCards, habits };
+  /*
+   * Por qué ha ido así una partida (tu método de análisis). En el análisis del visor se marcan para la partida
+   * y en las notas se apuntan por turno con «[T5] Macro: …» (en español o en inglés): las dos cosas cuentan.
+   */
+  const WHY = [
+    { k: 'team', g: 0, es: 'Equipo', en: 'Team' },
+    { k: 'preview', g: 0, es: 'Team Preview', en: 'Team Preview' },
+    { k: 'mechanic', g: 1, es: 'Mecánica', en: 'Mechanic' },
+    { k: 'expect', g: 1, es: 'Expectativa', en: 'Expectation' },
+    { k: 'predict', g: 1, es: 'Predicción', en: 'Prediction' },
+    { k: 'macro', g: 1, es: 'Macro', en: 'Macro' },
+    { k: 'detail', g: 1, es: 'Detalle', en: 'Detail' },
+    { k: 'play', g: 1, es: 'Error de juego', en: 'Playing mistake' },
+    { k: 'luck', g: 2, es: 'Mala suerte', en: 'Bad luck' },
+    { k: 'other', g: 2, es: 'Otra cosa', en: 'Something else' }
+  ];
+  const WHY_TAG = new Map(WHY.flatMap(w => [[w.es.toLowerCase(), w.k], [w.en.toLowerCase(), w.k]]));
+  /** Los motivos de una partida: los marcados en el análisis y los de sus notas por turno. */
+  function whyOf(s) {
+    const out = new Set(((s && s.review && s.review.why) || []));
+    const re = /\[T\d+\]\s*([^:\n[]{2,30}):/g;
+    let m;
+    while ((m = re.exec(String((s && s.notes) || '')))) { const k = WHY_TAG.get(m[1].trim().toLowerCase()); if (k) out.add(k); }
+    return out;
+  }
+  /** Cuántas partidas tienen cada motivo (por defecto, solo las derrotas) y las últimas lecciones. */
+  function whyCount(ms, onlyLosses = true) {
+    const L = ms.filter(s => !onlyLosses || s.result === 'loss');
+    const n = Object.fromEntries(WHY.map(w => [w.k, 0]));
+    let done = 0;
+    for (const s of L) { const w = whyOf(s); if (w.size) done++; for (const k of w) n[k]++; }
+    const lessons = ms.filter(s => s.review && String(s.review.lesson || '').trim()).sort((a, b) => b.endedAt - a.endedAt).slice(0, 8).map(s => ({ id: s.id, t: s.endedAt, result: s.result, text: s.review.lesson.trim() }));
+    return { total: L.length, done, n, lessons };
+  }
+
+  return { toID, leadKey, usable, filter, compute, options, mine, theirs, advanced, leadsVs, wr, isOTS, overview, rival, teamCards, habits, WHY, whyOf, whyCount };
 });

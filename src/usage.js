@@ -16,11 +16,11 @@ const DAY = 24 * 3600 * 1000;
 const toID = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 /** "[Gen 9 Champions] VGC 2026 Reg M-C (Bo3)" → candidatos de nombre de archivo, del más concreto al más general. */
-function formatCandidates(tier) {
+function formatCandidates(tier, def = DEFAULT_FORMAT) {
   const id = toID(tier);
   const out = [];
   if (id) { out.push(id); if (id.endsWith('bo3')) out.push(id.slice(0, -3)); }
-  if (!out.includes(DEFAULT_FORMAT)) out.push(DEFAULT_FORMAT);
+  if (def && !out.includes(def)) out.push(def);
   return out;
 }
 
@@ -56,7 +56,9 @@ async function getText(url) {
 }
 
 class Usage {
-  constructor(dir) {
+  /** format: la regulación elegida en Ajustes (su formato de Showdown), para cuando no se sabe el del combate. */
+  constructor(dir, format = () => DEFAULT_FORMAT) {
+    this.format = format;
     this.dir = path.join(dir, 'uso');
     fs.mkdirSync(this.dir, { recursive: true });
     this.mem = new Map();
@@ -97,7 +99,7 @@ class Usage {
   /** Sets del formato del combate. Usa la copia guardada y, si toca, busca un mes nuevo. */
   async get(tier) {
     let firstErr = null;
-    for (const format of formatCandidates(tier)) {
+    for (const format of formatCandidates(tier, this.format())) {
       const cached = this.readCache(format);
       if (cached && Date.now() - (cached.checked || 0) < DAY) return cached;
       if (!this.pending.has(format)) {

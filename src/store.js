@@ -227,6 +227,7 @@ class Store {
     s.session = m.session || null;
     s.rounds = m.rounds || null;
     s.mark = m.mark || null;
+    s.review = m.review || null;
     return s;
   }
 
@@ -259,6 +260,22 @@ class Store {
     const a = mark && mark.a === 'done' ? 'done' : !!(mark && mark.a);
     m.mark = r || a ? { r, a } : null;
     m.summary.mark = m.mark;
+    this.writeMatch(id, m);
+    if (this.cache) this.cache.set(id, m.summary);
+    return true;
+  }
+
+  /**
+   * Análisis de la partida: why = por qué fue así (equipo, team preview, mecánica, expectativa, predicción, macro,
+   * detalle, error de juego, suerte, otra cosa) y lesson = lo que te llevas.
+   */
+  setReview(id, review) {
+    const m = this.get(id);
+    if (!m) return false;
+    const why = [...new Set((review && Array.isArray(review.why) ? review.why : []).filter(k => Store.WHY.includes(k)))];
+    const lesson = String((review && review.lesson) || '').slice(0, 1000);
+    m.review = why.length || lesson.trim() ? { why, lesson } : null;
+    m.summary.review = m.review;
     this.writeMatch(id, m);
     if (this.cache) this.cache.set(id, m.summary);
     return true;
@@ -301,6 +318,7 @@ class Store {
   }
 }
 
+Store.WHY = ['team', 'preview', 'mechanic', 'expect', 'predict', 'macro', 'detail', 'play', 'luck', 'other'];
 Store.KEYS = ['equipos', 'pc', 'docs', 'partidaTeam', 'liveNotes', 'sesiones', 'bo3Notes', 'matchups'];
 
 module.exports = { Store, matchId };

@@ -329,6 +329,56 @@ if (process.env.REPLAYS) {
     t(`replay real ${f.slice(0, 40)}`, () => { assert.ok(r && r.summary.finished && r.summary.p1.preview.length === 6); });
   }
 }
+t('regulación: la de por defecto, una elegida y una escrita a mano', () => {
+  const { regOf, REGS } = require('../src/regs');
+  assert.strictEqual(regOf({}).id, REGS[0].id);
+  assert.deepStrictEqual(regOf({ reg: { id: 'Gen9 Champions VGC 2027 Reg X', name: 'Reg X', limitless: 'X' } }), { id: 'gen9championsvgc2027regx', name: 'Reg X', limitless: 'X' });
+  assert.strictEqual(regOf({ reg: { id: '' } }).id, REGS[0].id);
+});
+
+t('copia de seguridad: guarda todo, se lee y se restaura sin perder lo de antes', () => {
+  const backup = require('../src/backup');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), out = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-'));
+  const st = new Store(dir);
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-7', log: LOG });
+  st.setData('equipos', [{ id: 't1', name: 'Mío', side: 'me', text: '' }]);
+  fs.writeFileSync(path.join(dir, 'torneos.json'), '{}'); // caché: no entra
+  const f = path.join(out, 'copia.macarbackup');
+  const r = backup.create(dir, f, 'x');
+  assert.strictEqual(r.matches, 1);
+  assert.deepStrictEqual(backup.peek(f).matches, 1);
+  assert.ok(!Object.keys(backup.collect(dir)).includes('torneos.json'));
+  // En otra carpeta con una partida propia: se añaden las de la copia y se conserva la propia.
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), st2 = new Store(dir2);
+  st2.saveLog({ id: 'battle-gen9championsvgc2026regmc-8', log: LOG });
+  const x = backup.restore(dir2, f, path.join(out, 'antes.macarbackup'), 'x');
+  assert.ok(fs.existsSync(x.before));
+  assert.strictEqual(new Store(dir2).list().length, 2);
+  assert.strictEqual(new Store(dir2).data('equipos')[0].name, 'Mío');
+  fs.writeFileSync(path.join(out, 'mala.macarbackup'), 'nada');
+  assert.throws(() => backup.peek(path.join(out, 'mala.macarbackup')));
+});
+
+t('análisis: momentos clave del registro, motivos (análisis y notas) y filtro', () => {
+  const Transcript = require('../renderer/transcript');
+  const km = Transcript.keyMoments(Transcript.parse(LOG));
+  assert.ok(km.some(k => k.t === 'ko' && k.sp === 'Garchomp' && k.by === 'Charizard-Mega-Y' && k.move === 'Heat Wave'));
+  assert.ok(km.some(k => k.t === 'mega'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), st = new Store(dir);
+  st.setSettings({ showdownName: 'Macar Test' });
+  st.saveLog({ id: 'battle-gen9championsvgc2026regmc-9', log: LOG });
+  assert.ok(st.setReview('gen9championsvgc2026regmc-9', { why: ['macro', 'nada', 'macro'], lesson: 'Guardar a Garchomp para Charizard' }));
+  const s = st.list()[0];
+  assert.deepStrictEqual(s.review.why, ['macro']);
+  st.setNotes(s.id, '[T2] Detalle: no vi el Tailwind\n[T3] Expectation: era Sash');
+  const s2 = st.list()[0];
+  assert.deepStrictEqual([...Stats.whyOf(s2)].sort(), ['detail', 'expect', 'macro']);
+  assert.strictEqual(Stats.filter([s2], { why: 'detail' }).length, 1);
+  assert.strictEqual(Stats.filter([s2], { why: 'luck' }).length, 0);
+  const w = Stats.whyCount([{ ...s2, result: 'loss' }]);
+  assert.strictEqual(w.n.macro, 1); assert.strictEqual(w.lessons[0].text, 'Guardar a Garchomp para Charizard');
+});
+
 // El índice local de partidas: arranca sin abrir los archivos, ve los cambios de fuera y no pierde lo guardado mientras lee.
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-')), idx = dir + '-indice.json';

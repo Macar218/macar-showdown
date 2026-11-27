@@ -299,7 +299,7 @@ const PC = (() => {
     else if (t.id === 'pcTeamAdd') { show('equipo'); setTimeout(() => $('#tbImp') && $('#tbImp').click(), 50); }
     else if (t.id === 'pcTeamExport') {
       const teams = await P.teams();
-      const txt = teams.map(x => `=== [gen9championsvgc2026regmc] ${x.side === 'me' ? '' : 'Rival/'}${x.name} ===\n\n${x.text}`).join('\n\n\n');
+      const txt = teams.map(x => `=== [${(typeof SET !== 'undefined' && SET.reg && SET.reg.id) || 'gen9championsvgc2026regmc'}] ${x.side === 'me' ? '' : 'Rival/'}${x.name} ===\n\n${x.text}`).join('\n\n\n');
       navigator.clipboard.writeText(txt); t.textContent = 'Copiado al portapapeles';
     } else if (d.tbopen) { show('equipo'); Team && (await Team.current()); setTimeout(() => $(`[data-tsel="${d.tbopen}"]`) && $(`[data-tsel="${d.tbopen}"]`).click(), 50); }
     else if (d.tbmine) { Object.assign(SET, await api.setSettings({ teamId: d.tbmine })); Calc.setTeams(d.tbmine); render(); }

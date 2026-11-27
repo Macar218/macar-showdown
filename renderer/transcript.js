@@ -88,5 +88,34 @@
     return turns.filter(t => t.ev.length || t.turn > 0);
   }
 
-  return { parse };
+  /**
+   * Momentos clave de la partida, sacados del registro (nada inventado): KO, críticos, fallos, no pudo moverse,
+   * objetos y habilidades que se revelan, megas y cambios de campo (Tailwind, Trick Room, clima, terreno, pantallas).
+   */
+  function keyMoments(turns) {
+    const out = [];
+    for (const T of turns || []) {
+      for (const e of T.ev) {
+        const add = (t, w, x) => out.push({ turn: T.turn, t, side: w ? w.side : '', sp: w ? w.sp : '', ...x });
+        if (e.k === 'move') {
+          let missed = false;
+          if (e.miss) { add('miss', e.who, { move: e.move }); missed = true; }
+          for (const f of e.fx || []) {
+            if (f.t === 'crit') add('crit', e.who, { move: e.move, on: f.who ? f.who.sp : '' });
+            else if (f.t === 'miss' && !missed) { add('miss', e.who, { move: e.move }); missed = true; }
+            else if (f.t === 'faint') add('ko', f.who, f.who && e.who && f.who.side !== e.who.side ? { by: e.who.sp, move: e.move } : {}); // solo si lo tumbó un rival
+          }
+        } else if (e.k === 'fx') {
+          if (e.t === 'faint') add('ko', e.who, {});
+          else if (e.t === 'item') add('item', e.who, { what: e.what });
+          else if (e.t === 'ability') add('ability', e.who, { what: e.what });
+        } else if (e.k === 'cant') add('cant', e.who, { what: e.why });
+        else if (e.k === 'mega') add('mega', e.who, {});
+        else if (e.k === 'field' && !e.end) out.push({ turn: T.turn, t: 'field', side: e.side || '', what: e.what });
+      }
+    }
+    return out;
+  }
+
+  return { parse, keyMoments };
 });

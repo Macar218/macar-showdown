@@ -49,7 +49,7 @@ const Viewer = (() => {
     const s = V.s, me = s.me || 'p1', opp = s.opp || (me === 'p1' ? 'p2' : 'p1');
     const sd = V.otsSide === 'me' ? me : opp;
     const x = s[sd] || {};
-    const tabs = `<div class="seg rvotstabs">${[['foe', s.me ? 'Rival' : 'Jugador 2'], ['me', s.me ? 'Tú' : 'Jugador 1']].map(([k, l]) => `<button data-rvots="${k}" aria-pressed="${(V.otsSide || 'foe') === k}">${l}</button>`).join('')}</div>`;
+    const tabs = `<div class="seg rvotstabs">${[['foe', s.me ? 'Rival' : 'Jugador 2'], ['me', s.me ? 'Tú' : 'Jugador 1'], ...(s.me ? [['rev', 'Análisis']] : [])].map(([k, l]) => `<button data-rvots="${k}" aria-pressed="${(V.otsSide || 'foe') === k}">${l}</button>`).join('')}</div>`;
     // Arriba los leads, en medio la reserva y al final los que no salieron.
     const id = n => P.toID(P.baseSpecies(n));
     const isLead = n => (x.leads || []).some(b => id(b) === id(n)), isIn = n => (x.brought || []).some(b => id(b) === id(n));
@@ -57,7 +57,8 @@ const Viewer = (() => {
     const LBL = [tt('Leads', 'Leads'), tt('Reserva', 'Back'), tt('No salieron', 'Not brought')];
     const groups = list => [0, 1, 2].map(g => ({ g, list: list.filter(o => grp(o.n) === g) })).filter(o => o.list.length);
     let body;
-    if (x.sheet && x.sheet.length) {
+    if (V.otsSide === 'rev' && s.me) body = reviewHTML();
+    else if (x.sheet && x.sheet.length) {
       body = groups(x.sheet.map(m => ({ n: m.species, m }))).map(({ g, list }) => `<div class="rvgrp g${g}"><small>${LBL[g]}</small><div class="shgrid">${list.map(({ m }) => P.sheetCard(m, { abbr: true, played: g < 2 })).join('')}</div></div>`).join('');
     } else {
       const seen = x.moves || {};
@@ -71,6 +72,67 @@ const Viewer = (() => {
     if (!open) return `<button class="rvsidetab" data-rvotsopen="1" title="${tt('Sacar la hoja de equipo', 'Show the team sheet')}">▶ ${tt('Hoja de equipo', 'Team sheet')}</button>`;
     return `<div class="rvotshead"><b>${tt('Hoja de equipo', 'Team sheet')}</b>${tabs}<span style="flex:1"></span><button class="btn sm" data-rvotsopen="1" title="${tt('Esconder la columna: más sitio para la replay', 'Hide the column: more room for the replay')}">${tt('Esconder', 'Hide')} ▶</button></div>${body}`;
   }
+
+  /* ---------- análisis: por qué ha ido así (tu método), lo que te llevas y los momentos clave ---------- */
+  // Preguntas guía de cada motivo, para pensarlo al repasar la partida.
+  const GUIDE = {
+    team: ['¿Le falta algo al equipo contra esto? Plantéate cambiar un Pokémon, un set o el reparto (Team Selection).', 'Is the team missing something against this? Consider changing a Pokémon, a set or the spread (Team Selection).'],
+    preview: ['¿Elegiste bien los 4 y los leads? Mejora el plan del matchup en Matchups.', 'Did you pick the right 4 and leads? Improve the matchup plan in Matchups.'],
+    mechanic: ['¿Qué mecánica no conocías (p. ej. Hyper Voice contra Soundproof)? Léela, apúntala y conoce bien las de tu equipo.', 'Which mechanic did you not know (e.g. Hyper Voice into Soundproof)? Read it, write it down and know your own team\'s mechanics.'],
+    expect: ['Jugaste pensando en otro set, objeto o reparto (p. ej. Scarf y era Focus Sash). ¿Hubo señales? Equilibra lo que supones con lo que ves en la partida.', 'You played around another set, item or spread (e.g. Scarf and it was Focus Sash). Were there signs? Balance what you assume with what the game shows.'],
+    predict: ['Predijiste de más. ¿Hacía falta o había una jugada más segura? Míralo desde el lado del rival: ¿por qué hizo esa jugada?', 'You over-predicted. Was it needed, or was there a safer play? Look from the rival\'s side: why did they make that play?'],
+    macro: ['No tuviste en cuenta el plan general (p. ej. cambiaste a Garchomp por Sneasler y te quedaste sin respuesta a Charizard). ¿Qué te habría dejado mejor en los turnos siguientes? ¿Cuándo cambió la partida?', 'You lost sight of the game plan (e.g. traded Garchomp for Sneasler and had no answer to Charizard). What would have kept you better placed later? When did the game turn?'],
+    detail: ['¿Qué detalle se te escapó (Tailwind, Trick Room, un objeto…)? ¿Pasó algo raro que lo provocó? Apúntalo y juega concentrado.', 'Which detail did you miss (Tailwind, Trick Room, an item…)? Did something unusual cause it? Write it down and play focused.'],
+    play: ['Otro error al jugar: apúntalo y apréndelo para la próxima.', 'Another playing mistake: write it down and learn it for next time.'],
+    luck: ['Críticos, fallos, efectos… Sigue jugando.', 'Crits, misses, effects… Keep playing.'],
+    other: ['Sigue jugando.', 'Keep playing.']
+  };
+  const GROUPS = [['El equipo', 'The team'], ['Al jugar', 'While playing'], ['Ni lo uno ni lo otro', 'Neither']];
+  function reviewHTML() {
+    const r = V.review || { why: [], lesson: '' }, on = new Set(r.why || []);
+    const notesWhy = Stats.whyOf({ notes: V.notes }), lost = V.s.result === 'loss';
+    const W = Stats.WHY, lbl = w => tt(w.es, w.en);
+    const chips = [0, 1, 2].map(g => `<div class="rvwg"><small>${tt(...GROUPS[g])}</small><div class="rvwchips">${W.filter(w => w.g === g).map(w => `<button class="rvw${on.has(w.k) ? ' on' : ''}${!on.has(w.k) && notesWhy.has(w.k) ? ' innotes' : ''}" data-rvwhy="${w.k}" aria-pressed="${on.has(w.k)}" title="${esc(tt(...GUIDE[w.k]))}">${lbl(w)}</button>`).join('')}</div></div>`).join('');
+    const sel = W.filter(w => on.has(w.k));
+    const guide = sel.length ? `<div class="rvwguide">${sel.map(w => `<div><b>${lbl(w)}</b><p>${esc(tt(...GUIDE[w.k]))}</p><button class="btn sm" data-rvtag="${w.k}" title="${tt('Escribe una nota en el turno de la replay con este motivo', 'Write a note at the replay turn with this reason')}">${tt('+ Nota en el turno', '+ Note at turn')} ${V.turn || 0} · ${lbl(w)}</button></div>`).join('')}</div>` : `<p class="note">${tt('Marca uno o varios. En las notas, «[T5] Macro: …» también cuenta para ese turno.', 'Mark one or more. In the notes, «[T5] Macro: …» also counts for that turn.')}</p>`;
+    const km = V.km || [];
+    const mine = side => side && side === (V.s.me || 'p1');
+    const nm = n => `<span class="nolang">${esc(n || '')}</span>`;
+    const kmText = k => {
+      const who = k.sp ? `${nm(k.sp)}${k.side ? ` <i class="rvkside${mine(k.side) ? ' me' : ''}">${mine(k.side) ? tt('tuyo', 'yours') : tt('rival', 'rival')}</i>` : ''}` : '';
+      if (k.t === 'ko') return `${tt('KO', 'KO')}: ${who}${k.by ? ` · ${nm(k.move)} ${tt('de', 'by')} ${nm(k.by)}` : ''}`;
+      if (k.t === 'crit') return `${tt('Crítico', 'Crit')}: ${nm(k.move)} ${tt('de', 'by')} ${who}${k.on ? ` → ${nm(k.on)}` : ''}`;
+      if (k.t === 'miss') return `${tt('Falla', 'Miss')}: ${nm(k.move)} ${tt('de', 'by')} ${who}`;
+      if (k.t === 'cant') return `${tt('No se mueve', 'Can\'t move')}: ${who} (${nm(k.what)})`;
+      if (k.t === 'item') return `${tt('Objeto', 'Item')}: ${nm(k.what)} · ${who}`;
+      if (k.t === 'ability') return `${tt('Habilidad', 'Ability')}: ${nm(k.what)} · ${who}`;
+      if (k.t === 'mega') return `${tt('Mega', 'Mega')}: ${who}`;
+      return `${nm(k.what)}${k.side ? ` <i class="rvkside${mine(k.side) ? ' me' : ''}">${mine(k.side) ? tt('tu lado', 'your side') : tt('su lado', 'their side')}</i>` : ''}`;
+    };
+    const KCLS = { ko: 'ko', crit: 'luck', miss: 'luck', cant: 'luck', item: 'info', ability: 'info', mega: 'info', field: 'field' };
+    return `<div class="rvrev">
+      <h4>${lost ? tt('¿Por qué has perdido?', 'Why did you lose?') : tt('¿Qué ha decidido la partida?', 'What decided the game?')}</h4>
+      ${chips}
+      ${guide}
+      <p class="note">${tt('Si no es ninguno de estos, suele ser el equipo.', 'If it is none of these, it is usually the team.')}</p>
+      <label class="field">${tt('Lo que te llevas', 'What you take away')}<textarea id="rvLesson" rows="2" placeholder="${tt('Una frase para recordar la próxima vez…', 'One sentence to remember next time…')}">${esc(r.lesson || '')}</textarea></label>
+      <div class="row-btns"><button class="btn sm${(V.s.mark || {}).a === 'done' ? ' on' : ''}" data-rvdone="1">${(V.s.mark || {}).a === 'done' ? tt('✓ Analizada', '✓ Analysed') : tt('Marcar como analizada', 'Mark as analysed')}</button><span class="note" id="rvRevSaved"></span></div>
+      <h4>${tt('Momentos clave', 'Key moments')} <span class="note">${tt('del registro · pulsa para ir al turno', 'from the log · click to go to the turn')}</span></h4>
+      ${km.length ? `<div class="rvkm">${km.map(k => `<button class="rvk ${KCLS[k.t] || ''}" data-rvturn="${k.turn}"><b>T${k.turn}</b><span>${kmText(k)}</span></button>`).join('')}</div>` : `<p class="note">${tt('Nada destacado en el registro.', 'Nothing notable in the log.')}</p>`}
+    </div>`;
+  }
+  let revTimer = null;
+  function saveReview() {
+    clearTimeout(revTimer);
+    const id = V.id, r = { why: [...(V.review.why || [])], lesson: V.review.lesson || '' };
+    revTimer = setTimeout(async () => {
+      await api.setReview(id, r);
+      const x = typeof M !== 'undefined' && Array.isArray(M) ? M.find(y => y.id === id) : null;
+      if (x) x.review = r.why.length || r.lesson.trim() ? r : null;
+      const el = document.querySelector('#rvRevSaved'); if (el) el.textContent = tt('Guardado', 'Saved');
+    }, 500);
+  }
+  const redrawOts = () => { const el = document.querySelector('#rvOts'); if (el) el.innerHTML = otsHTML(); };
 
   /* ---------- transcripción: la partida entera, turno a turno, con sprites ---------- */
   const EN = () => typeof I18N !== 'undefined' && I18N.lang === 'en';
@@ -220,16 +282,18 @@ const Viewer = (() => {
     if (p) p.textContent = paused || end ? '▶ Play' : '⏸ Pausa';
     const m = document.querySelector('#rvMark');
     if (m) m.textContent = `+ Nota en el turno ${V.turn}`;
+    document.querySelectorAll('#rvOts [data-rvtag]').forEach(b => { const w = Stats.WHY.find(x => x.k === b.dataset.rvtag); if (w) b.textContent = `${tt('+ Nota en el turno', '+ Note at turn')} ${V.turn} · ${tt(w.es, w.en)}`; });
     if (V.calc) { const c = document.querySelector('#rvCalcTurn'); if (c) c.textContent = `Turno ${V.turn}`; if (V.turn !== prev) CalcReplay.tick(); }
   }
   /* ---------- calculadora del turno (la misma de Jugar, siguiendo la replay) ---------- */
   let READER = { side: '', js: '' };
   async function battle() {
     if (!V || !V.ready) return null;
-    const side = V.s.me || 'p1';
+    const id = V.id, side = V.s.me || 'p1';
     if (READER.side !== side) READER = { side, js: await api.replayReader(side) };
     const r = await run(READER.js);
-    return r && r.ok && r.battle ? { ok: true, battle: { ...r.battle, id: `rv:${V.id}` } } : null;
+    if (!V || V.id !== id) return null; // se cerró el visor mientras leía
+    return r && r.ok && r.battle ? { ok: true, battle: { ...r.battle, id: `rv:${id}` } } : null;
   }
   /** Sacar o esconder la calculadora: al lado de la replay o en todo el visor. Esconderla no borra lo que hayas cambiado. */
   function setCalc(on) {
@@ -299,7 +363,7 @@ const Viewer = (() => {
     if (V) close();
     let tx = [];
     try { tx = Transcript.parse(m.log); } catch (e) { tx = []; }
-    V = { id, s: m.summary, notes: m.notes || '', turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })(), full: (() => { try { return localStorage.getItem('msRvCalcFull') === '1'; } catch (e) { return false; } })() };
+    V = { id, s: m.summary, notes: m.notes || '', review: m.review ? { why: [...(m.review.why || [])], lesson: m.review.lesson || '' } : { why: [], lesson: '' }, km: (() => { try { return Transcript.keyMoments(tx); } catch (e) { return []; } })(), turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })(), full: (() => { try { return localStorage.getItem('msRvCalcFull') === '1'; } catch (e) { return false; } })() };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -340,6 +404,9 @@ const Viewer = (() => {
     else if (d.rv === 'mute') { muted = !muted; applyMute(); }
     else if (d.rvotsopen) { V.otsOpen = V.otsOpen === false; try { localStorage.setItem('msRvOts', V.otsOpen ? '1' : '0'); } catch (e) { /* nada */ } document.querySelector('#rvOts').innerHTML = otsHTML(); document.querySelector('#rvWrap .rv').classList.toggle('sidehid', !V.otsOpen); }
     else if (d.rvots) { V.otsSide = d.rvots; document.querySelector('#rvOts').innerHTML = otsHTML(); }
+    else if (d.rvwhy) { const w = new Set(V.review.why); if (w.has(d.rvwhy)) w.delete(d.rvwhy); else w.add(d.rvwhy); V.review.why = Stats.WHY.map(x => x.k).filter(k => w.has(k)); saveReview(); redrawOts(); }
+    else if (d.rvtag) { const w = Stats.WHY.find(x => x.k === d.rvtag); if (w) mark(tt(w.es, w.en)); }
+    else if (d.rvdone) { const mk = { ...(V.s.mark || {}) }; mk.a = mk.a === 'done' ? false : 'done'; V.s.mark = mk.r || mk.a ? mk : null; api.setMark(V.id, V.s.mark || {}); const x = typeof M !== 'undefined' ? M.find(y => y.id === V.id) : null; if (x) x.mark = V.s.mark; redrawOts(); }
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
     else if (b.id === 'rvMark') mark();
   });
@@ -362,6 +429,7 @@ const Viewer = (() => {
   document.addEventListener('change', e => {
     if (V && e.target.id === 'rvSpeed') { V.speed = e.target.value; run(`Replays.changeSetting('speed', ${JSON.stringify(V.speed)})`); }
   });
+  document.addEventListener('input', e => { if (V && e.target.id === 'rvLesson') { V.review.lesson = e.target.value; saveReview(); } });
   document.addEventListener('input', e => { if (V && e.target.id === 'rvNotes') { V.notes = e.target.value; V.caret = e.target.selectionStart; save(); } });
   document.addEventListener('keyup', e => { if (V && e.target.id === 'rvNotes') V.caret = e.target.selectionStart; });
   document.addEventListener('mouseup', e => {

@@ -13,6 +13,8 @@ const { Tournaments } = require('./src/tournaments');
 const { Extensions } = require('./src/extensions');
 const { MacarDex } = require('./src/macardex');
 const { matchId } = require('./src/store');
+const { REGS, regOf } = require('./src/regs');
+const backup = require('./src/backup');
 
 // Visor de replays: msreplay:// sirve la partida guardada al reproductor de Showdown.
 protocol.registerSchemesAsPrivileged([{ scheme: 'msreplay', privileges: { standard: true, secure: true } }]);
@@ -254,19 +256,44 @@ function registerIpc() {
   ipcMain.handle('ms:get', (_e, id) => store.get(String(id)));
   ipcMain.handle('ms:delete', (_e, id) => { store.remove(String(id)); notify(); return true; });
   ipcMain.handle('ms:notes', (e, id, text) => { const r = store.setNotes(String(id), String(text || '')); for (const w of [win, ...extra]) if (w && !w.isDestroyed() && w.webContents !== e.sender) w.webContents.send('ms:changed', { notes: String(id), other: true }); return r; });
-  ipcMain.handle('ms:settings', () => ({ ...store.settings(), dataDir: store.dir, version: app.getVersion() }));
+  ipcMain.handle('ms:settings', () => { const s = store.settings(); return { ...s, reg: regOf(s), regs: REGS, dataDir: store.dir, version: app.getVersion() }; });
   ipcMain.handle('ms:setSettings', (_e, patch) => {
     const clean = {};
     if (patch && typeof patch.showdownName === 'string') clean.showdownName = patch.showdownName.slice(0, 200);
     if (patch && typeof patch.teamId === 'string') clean.teamId = patch.teamId.slice(0, 60);
     if (patch && typeof patch.autoReplay === 'boolean') clean.autoReplay = patch.autoReplay;
     if (patch && typeof patch.sessionId === 'string') clean.sessionId = patch.sessionId.slice(0, 60);
+    if (patch && patch.reg && typeof patch.reg === 'object') clean.reg = regOf({ reg: patch.reg });
     const s = store.setSettings(clean);
     notify();
-    return s;
+    return { ...s, reg: regOf(s), regs: REGS };
   });
   ipcMain.handle('ms:status', () => ({ ...capStatus }));
   ipcMain.handle('ms:openData', () => shell.openPath(store.dir));
+  // Copia de seguridad: guardar todo en un archivo, ver qué trae una y restaurarla.
+  const devBackup = !app.isPackaged && process.env.MACAR_COPIA; // pruebas: archivo fijo, sin diálogos
+  ipcMain.handle('ms:backupSave', async () => {
+    const name = `macar-showdown-${new Date().toISOString().slice(0, 10)}.macarbackup`;
+    const r = devBackup ? { canceled: false, filePath: devBackup } : await dialog.showSaveDialog(win, { title: 'Copia de seguridad', defaultPath: path.join(app.getPath('documents'), name), filters: [{ name: 'Copia de Macar Showdown', extensions: ['macarbackup'] }] });
+    if (r.canceled || !r.filePath) return { ok: false };
+    try { return { ok: true, ...backup.create(store.dir, r.filePath, app.getVersion()) }; } catch (e) { return { ok: false, why: e.message }; }
+  });
+  let pickedBackup = null;
+  ipcMain.handle('ms:backupPick', async () => {
+    const r = devBackup ? { canceled: false, filePaths: [devBackup] } : await dialog.showOpenDialog(win, { title: 'Restaurar una copia', properties: ['openFile'], filters: [{ name: 'Copia de Macar Showdown', extensions: ['macarbackup'] }] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false };
+    try { const info = backup.peek(r.filePaths[0]); pickedBackup = r.filePaths[0]; return { ok: true, name: path.basename(r.filePaths[0]), ...info }; } catch (e) { return { ok: false, why: e.message }; }
+  });
+  ipcMain.handle('ms:backupRestore', async () => {
+    if (!pickedBackup) return { ok: false, why: 'Elige antes la copia' };
+    try {
+      const before = path.join(app.getPath('userData'), 'copias', `antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, '-')}.macarbackup`);
+      const r = backup.restore(store.dir, pickedBackup, before, app.getVersion());
+      pickedBackup = null; store.stale = true; store.cache = null; notify();
+      return { ok: true, ...r };
+    } catch (e) { return { ok: false, why: e.message }; }
+  });
+  ipcMain.handle('ms:backupFolder', () => { const d = path.join(app.getPath('userData'), 'copias'); fs.mkdirSync(d, { recursive: true }); return shell.openPath(d); });
   ipcMain.handle('ms:openExternal', (_e, url) => openExternal(url));
 
   // Combate que tienes delante (barra de notas).
@@ -304,6 +331,7 @@ function registerIpc() {
     shell.showItemInFolder(r.filePath);
     return { ok: true, file: r.filePath };
   });
+  ipcMain.handle('ms:setReview', (_e, id, review) => { const r = store.setReview(String(id), review || null); notify(); return r; });
   ipcMain.handle('ms:setMark', (_e, id, mark) => { const r = store.setMark(String(id), mark || null); notify(); return r; });
   ipcMain.handle('ms:setMatchSession', (_e, id, sid) => { const r = store.setSession(String(id), sid ? String(sid) : null); notify(); return r; });
   ipcMain.handle('ms:clearSession', (_e, sid) => { const n = store.clearSession(String(sid)); notify(); return n; });
@@ -401,7 +429,7 @@ function registerIpc() {
   const SD_TEAM = (name, text, format, search) => `(() => { try {
       const a = ${SDAPP};
       const S = window.Storage, P = window.PS, T = window.Teams;
-      const text = ${JSON.stringify(String(text || '').slice(0, 20000))}, name = ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format = ${JSON.stringify(String(format || 'gen9championsvgc2026regmc'))};
+      const text = ${JSON.stringify(String(text || '').slice(0, 20000))}, name = ${JSON.stringify(String(name || 'Macar Showdown').slice(0, 80))}, format = ${JSON.stringify(String(format || regOf(store.settings()).id))};
       let packed;
       if (a && a.ps) {
         // Cliente nuevo de Showdown: equipos en PS.teams, importar y empaquetar con Teams.
@@ -437,6 +465,7 @@ function registerIpc() {
   });
   ipcMain.handle('ms:sdSearch', async (_e, name, text, format) => {
     if (!sdContents || sdContents.isDestroyed()) return { ok: false, why: 'Abre la pestaña Jugar primero' };
+    format = format || regOf(store.settings()).id;
     try { return await sdContents.executeJavaScript(SD_TEAM(name, text, format, true), false); } catch (e) { return { ok: false, why: e.message }; }
   });
   ipcMain.handle('ms:sdCancelSearch', async () => {
@@ -535,8 +564,10 @@ app.whenReady().then(async () => {
   // En desarrollo se puede usar otra carpeta de datos (MACAR_DATOS) para probar sin tocar la real.
   store = new Store((!app.isPackaged && process.env.MACAR_DATOS) || readLocation() || defaultDataDir(), path.join(app.getPath('userData'), 'indice-partidas.json'));
   app.on('before-quit', () => { try { store.flushIndex(); } catch (e) { /* nada */ } });
-  usage = new Usage(store.dir);
-  tours = new Tournaments(store.dir);
+  usage = new Usage(store.dir, () => regOf(store.settings()).id);
+  tours = new Tournaments(store.dir, () => regOf(store.settings()).limitless);
+  // Copia automática local (fuera de OneDrive): una por semana, las 4 últimas.
+  setTimeout(() => { try { backup.auto(store.dir, path.join(app.getPath('userData'), 'copias'), app.getVersion()); } catch (e) { /* nada */ } }, 20000);
   dex = new MacarDex(store.dir);
   // Visor de replays: la partida guardada en el reproductor oficial de Showdown (sin tener que subirla).
   const rs = session.fromPartition(REPLAY_PARTITION);
