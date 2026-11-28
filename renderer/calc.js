@@ -87,10 +87,11 @@ function makeCalc(cfg) {
   function teamBar() {
     if (LIVE || freeMe()) return '';
     const t = teamById(S.teamMe);
-    if (!t) return S.teamMsg ? `<p class="okmsg cbmsg">${esc(S.teamMsg)}</p>` : '';
+    if (!t) return S.teamMsg ? `<p class="okmsg cbmsg cteamfloat">${esc(S.teamMsg)}</p>` : '';
     const changed = Object.values(S.edits.me).some(e => Object.keys(e).some(k => !['hp', 'boosts', 'status', 'src'].includes(k))) || S.hide.me.length || S.manual.tme.length;
-    if (!changed) return S.teamMsg ? `<p class="okmsg cbmsg">${esc(S.teamMsg)}</p>` : '';
-    return `<div class="cbuild"><div class="cbhead"><b>Has cambiado «<span class="nolang">${esc(t.name)}</span>»</b><span class="cbmons">${S.me.slice(0, 6).map(m => spr(m.species, 'sm')).join('')}</span></div>
+    if (!changed) return S.teamMsg ? `<p class="okmsg cbmsg cteamfloat">${esc(S.teamMsg)}</p>` : '';
+    // Flotando abajo: al aparecer no mueve la página.
+    return `<div class="cbuild cteamfloat"><div class="cbhead"><b>Has cambiado «<span class="nolang">${esc(t.name)}</span>»</b><span class="cbmons">${S.me.slice(0, 6).map(m => spr(m.species, 'sm')).join('')}</span></div>
       <div class="cbrow"><button class="btn primary cbsave" data-cteamsave="upd">💾 Actualizar el equipo</button><button class="btn" data-cteamsave="new">Guardar como equipo nuevo</button><span style="flex:1"></span><button class="btn sm" data-cteamsave="undo" title="Vuelve a poner el equipo como está guardado">Deshacer los cambios</button></div></div>`;
   }
   function buildBar() {
@@ -717,6 +718,7 @@ function makeCalc(cfg) {
           clear();
           if (typeof Calc !== 'undefined') Calc.reloadTeams();
           tick(true);
+          setTimeout(() => { S.teamMsg = ''; render(); }, 5000); // el aviso de guardado se va solo
         })();
         return;
       }

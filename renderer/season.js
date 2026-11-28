@@ -18,7 +18,7 @@
  */
 
 const Season = (() => {
-  const PILLARS = [['tb', 'TB / Teoría'], ['play', 'Jugar'], ['serious', 'Juego serio'], ['an', 'Análisis']];
+  const PILLARS = [['tb', 'TB / Estudio'], ['play', 'Jugar volumen'], ['serious', 'Jugar serio'], ['an', 'Análisis']];
   const PK = PILLARS.map(p => p[0]);
   /** Tipos de sesión y cómo reparten los minutos (partes). */
   const TYPES = [
@@ -111,12 +111,13 @@ const Season = (() => {
       if (s.planMin > 0 && inW(s.day) && st !== 'skip') { const p = planMin(s); for (const x of PK) prev[x] += p[x]; planN++; }
       if ((st === 'done' || st === 'open') && inW(dayCount(s, openId))) { const r = realMin(s, matches, openId); for (const x of PK) done[x] += r[x]; doneN++; }
     }
-    const target = w.target != null && w.target !== '' ? +w.target : cfg.avg;
+    // Sin horas fijas: el objetivo de horas solo si lo pusiste en esa semana.
+    const target = w.target != null && w.target !== '' && +w.target > 0 ? +w.target : null;
     const doneH = sum(done) / 60, prevH = sum(prev) / 60;
     return {
       k, end, target, focus: w.focus || '', want: w.want || '', note: w.note || '',
       done, prev, doneH, prevH, doneN, planN,
-      progress: target > 0 ? Math.min(1, doneH / target) : 0,
+      progress: target ? Math.min(1, doneH / target) : 0,
       planOk: prevH > 0 ? doneH / prevH : null,
       sessions: uniq.sort((a, b) => (dayCount(a, openId) || '').localeCompare(dayCount(b, openId) || '') || (a.created || 0) - (b.created || 0))
     };
@@ -202,7 +203,7 @@ const Season = (() => {
       const w = week(k, sessions, plan, matches, openId);
       for (const p of PK) tot[p] += w.done[p];
       doneH += w.doneH; prevH += w.prevH;
-      if (w.end < t) { closed++; if (w.doneH >= w.target && w.target > 0) met++; }
+      if (w.end < t) { closed++; if (w.target && w.doneH >= w.target) met++; }
     }
     const all = sum(tot);
     return { weeks: ks, doneH, avg: closed ? weeksAvg(ks, sessions, plan, matches, openId, t) : null, closed, met, planOk: prevH ? doneH / prevH : null, study: all ? (tot.tb + tot.an) / all : null, split: tot };

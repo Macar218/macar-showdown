@@ -35,6 +35,7 @@ const Viewer = (() => {
         <div class="rvturns">${Array.from({ length: turns + 1 }, (_, t) => `<button class="rvt" data-rvturn="${t}" title="${t ? `Turno ${t}` : 'Inicio del combate'}">${t || '0'}</button>`).join('')}</div>
         <select id="rvSpeed" title="Velocidad">${SPEEDS.map(([k, l]) => `<option value="${k}"${k === V.speed ? ' selected' : ''}>${l}</option>`).join('')}</select>
         <button class="btn sm" data-rv="side" title="Ver la partida desde el otro lado">⇄ Lados</button>
+        <button class="btn sm${V.log ? ' on' : ''}" data-rv="log" id="rvLogBtn" title="El registro de Showdown al lado del combate (Ctrl+L)">📜 Registro</button>
         <button class="btn sm rvpredbtn" data-rv="pred" id="rvPredBtn" title="Modo predicción: la replay se para al empezar cada turno, apuntas qué harías tú y qué hará el rival, y luego lo ves">🎯 Predecir</button>
         <button class="btn sm ibtn mute" data-rv="mute" id="rvMute"></button>
       </div>
@@ -101,9 +102,9 @@ const Viewer = (() => {
     const A = V.add, W = Stats.ALL, w = W.find(x => x.k === A.k);
     const opt = g => W.filter(x => x.g === g).map(x => `<option value="${x.k}"${x.k === A.k ? ' selected' : ''}>${wLabel(x)}</option>`).join('');
     return `<div class="rvadd${w ? (w.g === 3 ? ' good' : ' bad') : ''}">
-      <div class="rvaddrow"><div class="seg rvwhere">${[['turn', `${tt('Turno', 'Turn')} <span id="rvAddTurn">${addTurn()}</span>`], ['gen', tt('General', 'General')]].map(([k, l]) => `<button data-rvwhere="${k}" aria-pressed="${A.where === k}" title="${k === 'turn' ? tt('En el turno que estás viendo en la replay', 'At the turn you are watching in the replay') : tt('Sobre la partida entera, sin turno', 'About the whole game, no turn')}">${l}</button>`).join('')}</div>
-        <select id="rvAddK" title="${tt('Rojo: mal hecho · Verde: bien hecho', 'Red: done badly · Green: done well')}"><option value="">${tt('Elige qué es…', 'Choose what it is…')}</option><optgroup label="${tt('✗ Mal hecho', '✗ Done badly')}">${opt(0)}${opt(1)}${opt(2)}</optgroup><optgroup label="${tt('✓ Bien hecho', '✓ Done well')}">${opt(3)}</optgroup></select></div>
+      <div class="rvaddrow"><div class="seg rvwhere">${[['turn', `${tt('Turno', 'Turn')} <span id="rvAddTurn">${addTurn()}</span>`], ['gen', tt('General', 'General')]].map(([k, l]) => `<button data-rvwhere="${k}" aria-pressed="${A.where === k}" title="${k === 'turn' ? tt('En el turno que estás viendo en la replay', 'At the turn you are watching in the replay') : tt('Sobre la partida entera, sin turno', 'About the whole game, no turn')}">${l}</button>`).join('')}</div></div>
       ${A.where === 'turn' ? `<select id="rvAddAct" class="rvaddact" title="${tt('Sobre qué acción del turno (o pulsa una línea de la transcripción)', 'Which action of the turn (or click a line of the transcript)')}">${actOpts()}</select>` : ''}
+        <select id="rvAddK" title="${tt('Rojo: mal hecho · Verde: bien hecho', 'Red: done badly · Green: done well')}"><option value="">${tt('Elige qué es…', 'Choose what it is…')}</option><optgroup label="${tt('✗ Mal hecho', '✗ Done badly')}">${opt(0)}${opt(1)}${opt(2)}</optgroup><optgroup label="${tt('✓ Bien hecho', '✓ Done well')}">${opt(3)}</optgroup></select>
       ${w ? `<p class="rvaddguide">${esc(tt(...GUIDE[w.k]))}</p>` : ''}
       <textarea id="rvAddTxt" rows="2" placeholder="${tt('Qué pasó y qué harías la próxima vez…', 'What happened and what you would do next time…')}">${esc(A.text)}</textarea>
       <div class="row-btns"><button class="btn sm primary" data-rvadd="1"${w ? '' : ' disabled'}>${tt('Añadir a las notas', 'Add to the notes')}</button><span class="note" id="rvAddMsg">${esc(A.msg || '')}</span></div></div>`;
@@ -314,23 +315,46 @@ const Viewer = (() => {
   }
   /** El combate y su registro, a todo el hueco del reproductor. */
   function fit() {
-    // El combate (640×360) lo más grande que quepa; su registro, al lado solo si sobra sitio (abajo ya está la
-    // transcripción de la app).
+    // El combate (640×360) lo más grande que quepa. Con el registro de Showdown puesto (botón «Registro» o Ctrl+L),
+    // el registro va al lado si cabe o debajo. La ficha de cada Pokémon al pasar el ratón se queda siempre dentro.
     run(`(() => {
+      const LOG = ${V.log ? 'true' : 'false'};
       const W = innerWidth, H = innerHeight, b = document.querySelector('.battle'), l = document.querySelector('.battle-log');
       if (!b || !l) return 0;
-      const z = Math.max(0.4, Math.min(W / 644, H / 364));
+      let z, st = false;
+      if (LOG) { const side = Math.min(W / 1000, H / 364), stack = Math.min(W / 644, H / 520); st = stack > side * 1.12; z = Math.max(0.4, st ? stack : side); }
+      else z = Math.max(0.4, Math.min(W / 644, H / 364));
       document.body.style.zoom = z;
-      const w = W / z, h = H / z, spare = w - 644;
-      const withLog = spare >= 260;
-      const bl = withLog ? 2 : Math.max(0, (w - 640) / 2);
-      Object.assign(b.style, { left: bl + 'px', top: Math.max(2, (h - 362) / 2) + 'px' });
+      const w = W / z, h = H / z;
       document.querySelector('.wrapper').style.height = (h - 2) + 'px';
-      if (withLog) Object.assign(l.style, { display: '', left: (bl + 642) + 'px', top: '2px', right: 'auto', bottom: 'auto', width: (w - bl - 646) + 'px', height: (h - 6) + 'px', maxHeight: 'none' });
-      else l.style.display = 'none';
-      l.scrollTop = l.scrollHeight;
+      if (LOG) {
+        const bl = Math.max(0, (w - (st ? 640 : 1000)) / 2);
+        Object.assign(b.style, { left: bl + 'px', top: '2px' });
+        if (st) Object.assign(l.style, { display: '', left: '2px', top: '366px', right: 'auto', bottom: '2px', width: (w - 4) + 'px', height: 'auto', maxHeight: 'none' });
+        else Object.assign(l.style, { display: '', left: (bl + 642) + 'px', top: '2px', right: 'auto', bottom: 'auto', width: (w - bl * 2 - 642) + 'px', height: '360px', maxHeight: 'none' });
+        l.scrollTop = l.scrollHeight;
+      } else {
+        Object.assign(b.style, { left: Math.max(0, (w - 640) / 2) + 'px', top: Math.max(2, (h - 362) / 2) + 'px' });
+        l.style.display = 'none';
+      }
+      if (!window.__msTip) {
+        window.__msTip = true;
+        const clamp = () => {
+          const t = document.querySelector('#tooltipwrapper'), inner = t && t.firstElementChild;
+          if (!inner) return;
+          const zz = parseFloat(document.body.style.zoom) || 1, vw = innerWidth / zz, vh = innerHeight / zz;
+          const tw = inner.offsetWidth, th = inner.offsetHeight;
+          let x = parseFloat(t.style.left) || 0, y = parseFloat(t.style.top) || 0;
+          if (x + tw > vw - 4) x = Math.max(2, vw - tw - 4);
+          if (y + th > vh - 4) y = Math.max(2, vh - th - 4);
+          t.style.left = x + 'px'; t.style.top = y + 'px';
+        };
+        document.addEventListener('mouseover', () => setTimeout(clamp, 0), true);
+        document.addEventListener('mousemove', () => setTimeout(clamp, 0), true);
+      }
       return z; })()`);
   }
+
 
   async function poll() {
     if (!V) return;
@@ -521,7 +545,7 @@ const Viewer = (() => {
     if (V) close();
     let tx = [];
     try { tx = Transcript.parse(m.log); } catch (e) { tx = []; }
-    V = { id, s: m.summary, notes: m.notes || '', otsSide: m.summary.me ? 'rev' : 'foe', add: { where: 'turn', k: '', text: '', msg: '' }, review: m.review ? { why: [...(m.review.why || [])], lesson: m.review.lesson || '' } : { why: [], lesson: '' }, km: (() => { try { return Transcript.keyMoments(tx); } catch (e) { return []; } })(), turn: 0, speed: 'fast', ready: false, timer: null, tx, otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })(), full: (() => { try { return localStorage.getItem('msRvCalcFull') === '1'; } catch (e) { return false; } })() };
+    V = { id, s: m.summary, notes: m.notes || '', otsSide: m.summary.me ? 'rev' : 'foe', add: { where: 'turn', k: '', text: '', msg: '' }, review: m.review ? { why: [...(m.review.why || [])], lesson: m.review.lesson || '' } : { why: [], lesson: '' }, km: (() => { try { return Transcript.keyMoments(tx); } catch (e) { return []; } })(), turn: 0, speed: 'fast', ready: false, timer: null, tx, log: (() => { try { return localStorage.getItem('msRvLog') === '1'; } catch (e) { return false; } })(), otsOpen: (() => { try { return localStorage.getItem('msRvOts') !== '0'; } catch (e) { return true; } })(), calcWant: (() => { try { return localStorage.getItem('msRvCalc') === '1'; } catch (e) { return false; } })(), full: (() => { try { return localStorage.getItem('msRvCalcFull') === '1'; } catch (e) { return false; } })() };
     let el = document.querySelector('#rvWrap');
     if (!el) { el = document.createElement('div'); el.id = 'rvWrap'; document.body.appendChild(el); }
     el.classList.remove('hide');
@@ -559,6 +583,7 @@ const Viewer = (() => {
     else if (d.rv === 'next') run('Replays.battle.seekBy(1)').then(poll);
     else if (d.rv === 'side') run('Replays.battle.switchViewpoint()');
     else if (d.rv === 'pred') predToggle();
+    else if (d.rv === 'log') toggleLog();
     else if (d.pred) predAct(d.pred);
     else if (d.rvturn != null) run(`Replays.battle.seekTurn(${+d.rvturn})`).then(poll);
     else if (d.rv === 'mute') { muted = !muted; applyMute(); }
@@ -571,6 +596,18 @@ const Viewer = (() => {
     else if (d.txnote != null) { const n = +d.txnote; run(`Replays.battle.seekTurn(${n})`); mark('', n); }
     else if (b.id === 'rvMark') mark();
   });
+  /** El registro de Showdown, al lado del combate o escondido (se recuerda). */
+  function toggleLog() {
+    V.log = !V.log;
+    try { localStorage.setItem('msRvLog', V.log ? '1' : '0'); } catch (e) { /* nada */ }
+    const b = document.querySelector('#rvLogBtn'); if (b) b.classList.toggle('on', V.log);
+    fit();
+  }
+  document.addEventListener('keydown', e => {
+    if (!V || !V.ready || !e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'l') return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    toggleLog();
+  }, true);
   // Ctrl+K con el visor abierto: saca o esconde su calculadora (no la de Jugar).
   document.addEventListener('keydown', e => {
     if (!V || !V.ready || !e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'k') return;

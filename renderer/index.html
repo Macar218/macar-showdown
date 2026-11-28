@@ -16,6 +16,7 @@
   <button class="navmin" id="navMin" title="Esconder el menú: solo iconos y más sitio">‹</button>
   <div class="brand"><div class="dexlights" aria-hidden="true"><span class="lens"></span><i class="r"></i><i class="y"></i><i class="g"></i></div><b>MACAR <span>SHOWDOWN</span></b></div>
   <button class="sessbtn" id="sessBtn" title="Tu sesión: aquí se apuntan las partidas. Pulsa para ver tu plan y tus sesiones."><small>Tu sesión</small><b id="sessName">Sin sesión</b><span id="sessTeam" class="sessteam">Sin equipo</span></button>
+  <div class="sesstimer hide" id="sessTimer" aria-label="Cronómetro de la sesión"></div>
   <nav class="nav dexscreen" aria-label="Secciones">
     <button data-v="inicio" aria-current="page" title="Tu plan: la sesión de hoy, tu semana, el calendario, la temporada y tus torneos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Inicio</button>
     <button data-v="jugar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>Jugar</button>
@@ -66,7 +67,6 @@
   <section class="view" id="v-ajustes"></section>
 </main>
 
-<div class="sessbar hide" id="sessBar" aria-label="Cronómetro de la sesión"></div>
 <div id="rvCalcHold" hidden><div class="cbody" id="rvCalcBody"></div></div>
 <div class="modal hide" id="modal" role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
 

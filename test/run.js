@@ -426,7 +426,7 @@ t('plan de temporada: reparto, semanas, estudio, días sin jugar y regulación',
   assert.strictEqual(w.doneN, 3);
   const w0 = S.week('2026-11-16', sess, plan, [], '');
   assert.strictEqual(w0.prevH, 1); assert.strictEqual(w0.doneH, 0);
-  assert.strictEqual(S.week('2026-11-30', sess, plan, [], '').target, 8);
+  assert.strictEqual(S.week('2026-11-30', sess, plan, [], '').target, null); // sin horas fijas
   const st = S.study('2026-11-23', sess, plan, [], '');
   assert.ok(st.real > 0.5 && st.real < 0.6); // (150 + 60) / (150 + 220)
   assert.strictEqual(S.light(0.4, plan), 'good'); assert.strictEqual(S.light(0.25, plan), 'warn'); assert.strictEqual(S.light(0.1, plan), 'bad');
